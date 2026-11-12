@@ -86,6 +86,34 @@ public sealed class AlignedDiff
     public AlignedRange? RangeAt(int row) =>
         Ranges.Where(r => row >= r.StartRow && row < r.StartRow + r.RowCount).Cast<AlignedRange?>().FirstOrDefault();
 
+    /// <summary>
+    /// "차이만 보기"에서 접을 행 구간: 중요한 차이에서 <paramref name="context"/>행보다 먼 같은(또는 중요하지 않은 차이) 행들.
+    /// 접으면 그 자리에 한 행(접힌 표시)이 남으므로 두 행 이상인 구간만 접는다. 차이가 없으면 전체가 한 구간.
+    /// </summary>
+    public IReadOnlyList<(int StartRow, int RowCount)> CollapsibleRuns(int context)
+    {
+        context = Math.Max(0, context);
+        var runs = new List<(int, int)>();
+        var start = 0; // 아직 접을지 정하지 않은 같은 행 구간의 시작
+        void Close(int end, bool afterDiff, bool beforeDiff)
+        {
+            var from = start + (afterDiff ? context : 0);
+            var to = end - (beforeDiff ? context : 0);
+            if (to - from >= 2) runs.Add((from, to - from));
+        }
+        var sawDiff = false;
+        for (var row = 0; row < Rows.Count; row++)
+        {
+            if (!Rows[row].IsDifference) continue;
+            Close(row, afterDiff: sawDiff, beforeDiff: true);
+            while (row + 1 < Rows.Count && Rows[row + 1].IsDifference) row++;
+            start = row + 1;
+            sawDiff = true;
+        }
+        Close(Rows.Count, afterDiff: sawDiff, beforeDiff: false);
+        return runs;
+    }
+
     static bool IsImportant(DiffBlockKind kind) => kind is DiffBlockKind.Changed or DiffBlockKind.LeftOnly or DiffBlockKind.RightOnly;
 
     static string Build(List<AlignedRow> rows, TextDocument doc, bool left)

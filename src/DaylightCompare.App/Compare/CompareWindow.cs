@@ -8,7 +8,9 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using AvaloniaEdit;
+using Avalonia.Input.Platform;
 using AvaloniaEdit.Document;
+using AvaloniaEdit.Folding;
 using AvaloniaEdit.TextMate;
 using DaylightCompare.App.Dialogs;
 using DaylightCompare.App.Icons;
@@ -16,6 +18,7 @@ using DaylightCompare.App.Views;
 using DaylightCompare.Domain;
 using DaylightCompare.Domain.Diff;
 using DaylightCompare.Domain.Drop;
+using DaylightCompare.Domain.Settings;
 using DaylightCompare.Services;
 using TextMateSharp.Grammars;
 
@@ -69,11 +72,17 @@ public sealed class CompareWindow : Window
         public DateTime IgnoreWatchUntil;
         public bool ChangedOutside;
 
+        /// <summary>차이만 보기의 접기 (양쪽이 같은 행을 접어서 나란히 남는다).</summary>
+        public FoldingManager Folding = null!;
+
         public CompareSource.Text? Text => Source as CompareSource.Text;
         public bool HasText => Text is not null;
-        public bool CanEdit => Text is not null && Path is not null && !ArchivePaths.IsInArchive(Path);
-        public bool Dirty => HasText && Real != SavedText;
-        public string Name => Path is null ? "—" : Locations.NameOf(Path.Replace(ArchivePaths.Separator, "/"));
+
+        /// <summary>파일이 없는 칸: 붙여 넣거나 바로 쓴 글을 비교한다 (클립보드 비교). 저장하지 않으므로 고쳐도 "고친 상태"가 아니다.</summary>
+        public bool IsScratch => Path is null;
+        public bool CanEdit => Text is not null && (Path is null || !ArchivePaths.IsInArchive(Path));
+        public bool Dirty => HasText && !IsScratch && Real != SavedText;
+        public string Name => Path is null ? Strings.Current.CompareScratchName : Locations.NameOf(Path.Replace(ArchivePaths.Separator, "/"));
     }
 
     readonly Side _left = new(true);
@@ -84,6 +93,17 @@ public sealed class CompareWindow : Window
     readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center };
     readonly ToggleButton _unimportant = new() { Classes = { "tool" }, IsChecked = true };
     readonly Button _save = new() { Classes = { "tool" }, IsEnabled = false };
+    readonly ToggleButton _onlyDiffs = new() { Classes = { "tool" } };
+    readonly ComboBox _context = new() { VerticalAlignment = VerticalAlignment.Center, MinWidth = 96 };
+    static readonly int[] ContextChoices = [0, 1, 2, 3, 5, 10, 20];
+
+    // 찾기 막대 (Ctrl+F): 마지막으로 초점이 있던 쪽에서 찾는다.
+    readonly Border _findBar = new() { IsVisible = false, Padding = new Thickness(12, 6), BorderThickness = new Thickness(0, 0, 0, 1) };
+    readonly TextBox _findBox = new() { Width = 300, VerticalAlignment = VerticalAlignment.Center };
+    readonly ToggleButton _findCase = new() { Classes = { "tool" }, Content = "Aa" };
+    readonly TextBlock _findCount = new() { VerticalAlignment = VerticalAlignment.Center, MinWidth = 72 };
+    readonly TextBlock _findWhere = new() { VerticalAlignment = VerticalAlignment.Center, Classes = { "small" } };
+    Side? _findSide;
     readonly Border _dropHint = new() { IsVisible = false, IsHitTestVisible = false, BorderThickness = new Thickness(2) };
     readonly DispatcherTimer _recompareTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     readonly Stack<(string Left, string Right)> _undo = new();
@@ -128,6 +148,26 @@ public sealed class CompareWindow : Window
             _leftState.ShowUnimportant = _rightState.ShowUnimportant = _unimportant.IsChecked == true;
             Redraw();
         };
+        var settings = App.Settings.Value;
+        _onlyDiffs.IsChecked = settings.CompareOnlyDifferences;
+        _context.SelectedIndex = Math.Max(0, Array.IndexOf(ContextChoices, ContextChoices.LastOrDefault(c => c <= settings.CompareContextLines)));
+        _context.IsVisible = _onlyDiffs.IsChecked == true;
+        _onlyDiffs.IsCheckedChanged += (_, _) =>
+        {
+            var on = _onlyDiffs.IsChecked == true;
+            _context.IsVisible = on;
+            App.Settings.Update(x => x with { CompareOnlyDifferences = on });
+            ApplyFolds();
+        };
+        _context.SelectionChanged += (_, _) =>
+        {
+            if (_context.SelectedIndex < 0) return;
+            var n = ContextChoices[_context.SelectedIndex];
+            App.Settings.Update(x => x with { CompareContextLines = n });
+            ApplyFolds();
+        };
+        _findBox.TextChanged += (_, _) => Find(forward: true, fromSelectionStart: true);
+        _findCase.IsCheckedChanged += (_, _) => Find(forward: true, fromSelectionStart: true);
         _recompareTimer.Tick += async (_, _) =>
         {
             _recompareTimer.Stop();
@@ -159,6 +199,10 @@ public sealed class CompareWindow : Window
         UpdateTitle();
         UpdateStatus();
         foreach (var side in new[] { _left, _right }) UpdateSideChrome(side);
+        FillContextChoices();
+        _findBox.PlaceholderText = Strings.Current.CompareFindPlaceholder;
+        UpdateFindWhere();
+        ApplyFolds(); // 접힌 표시 문구
     });
 
     // --- 배치 ---
@@ -178,6 +222,9 @@ public sealed class CompareWindow : Window
         _save.Content = new DuoIcon { Icon = "save" };
         ToolTip.SetTip(_save, s.CompareSave);
         _save.Click += async (_, _) => await SaveAllAsync();
+        _onlyDiffs.Content = new DuoIcon { Icon = "view-list" };
+        ToolTip.SetTip(_onlyDiffs, s.CompareOnlyDifferences);
+        FillContextChoices();
         Border Separator() => new() { Width = 1, Margin = new Thickness(4, 8), [!Border.BackgroundProperty] = this.GetResourceObservable("AppStroke").ToBinding() };
         var tools = new StackPanel
         {
@@ -196,6 +243,9 @@ public sealed class CompareWindow : Window
                 Tool("refresh", s.CompareRecompare, () => _ = ReloadAsync()),
                 Tool("swap", s.CompareSwap, () => _ = SwapAsync()),
                 _unimportant,
+                _onlyDiffs,
+                _context,
+                Tool("search", s.CompareFind, () => OpenFind()),
                 Separator(),
                 Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(this)),
                 Tool("info", s.AboutTooltip, () => AboutDialog.Open(this)),
@@ -218,29 +268,83 @@ public sealed class CompareWindow : Window
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("44,Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("44,Auto,Auto,Auto,*"),
             ColumnDefinitions = new ColumnDefinitions("*,1,*,14"),
         };
         Place(grid, appBar, 0, 0, 4);
+        Place(grid, BuildFindBar(), 1, 0, 4);
         foreach (var side in new[] { _left, _right })
         {
             var col = side.Left ? 0 : 2;
-            Place(grid, PathRow(side), 1, col, side.Left ? 1 : 2);
-            Place(grid, BannerFor(side), 2, col, side.Left ? 1 : 2);
+            Place(grid, PathRow(side), 2, col, side.Left ? 1 : 2);
+            Place(grid, BannerFor(side), 3, col, side.Left ? 1 : 2);
             var body = new Grid { Children = { side.Editor, side.Overlay } };
             side.Overlay.Child = side.OverlayText;
             side.OverlayText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
-            Place(grid, body, 3, col, 1);
+            Place(grid, body, 4, col, 1);
         }
         var divider = new Border();
         divider.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppStroke"));
-        Place(grid, divider, 1, 1, 1, rowSpan: 3);
-        Place(grid, _overview, 3, 3, 1);
+        Place(grid, divider, 2, 1, 1, rowSpan: 3);
+        Place(grid, _overview, 4, 3, 1);
         _overview.State = _leftState;
 
         _dropHint.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppPrimary"));
-        Place(grid, _dropHint, 1, 0, 1, rowSpan: 3);
+        Place(grid, _dropHint, 2, 0, 1, rowSpan: 3);
         return grid;
+    }
+
+    Control BuildFindBar()
+    {
+        var s = Strings.Current;
+        Button Tool(string icon, string tip, Action click)
+        {
+            var b = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = icon } };
+            ToolTip.SetTip(b, tip);
+            b.Click += (_, _) => click();
+            return b;
+        }
+        _findBox.PlaceholderText = s.CompareFindPlaceholder;
+        ToolTip.SetTip(_findCase, s.CompareFindMatchCase);
+        _findCount.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
+        _findWhere.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
+        var close = Tool("close", s.CommonClose, CloseFind);
+        var row = new Grid
+        {
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"),
+            Children =
+            {
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
+                    Children =
+                    {
+                        new DuoIcon { Icon = "search", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center },
+                        _findBox,
+                        Tool("up", s.CompareFindPrevious, () => Find(forward: false)),
+                        Tool("down", s.CompareFindNext, () => Find(forward: true)),
+                        _findCase,
+                        _findCount,
+                        _findWhere,
+                    },
+                },
+                close,
+            },
+        };
+        Grid.SetColumn(close, 2);
+        _findBar.Child = row;
+        _findBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurface"));
+        _findBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStroke"));
+        return _findBar;
+    }
+
+    void FillContextChoices()
+    {
+        var index = _context.SelectedIndex;
+        _context.ItemsSource = ContextChoices.Select(n => Strings.Current.CompareContextLines(n)).ToList();
+        _context.SelectedIndex = index;
+        ToolTip.SetTip(_context, Strings.Current.CompareContextTooltip);
     }
 
     static void Place(Grid grid, Control c, int row, int col, int colSpan, int rowSpan = 1)
@@ -256,19 +360,23 @@ public sealed class CompareWindow : Window
     {
         var open = UiScale.Enable(new Button { Content = Strings.Current.CompareOpen, Padding = new Thickness(12, 4) });
         open.Click += async (_, _) => await PickAsync(side);
+        var paste = UiScale.Enable(new Button { Content = Strings.Current.ComparePaste, Padding = new Thickness(12, 4) });
+        ToolTip.SetTip(paste, Strings.Current.ComparePasteTooltip);
+        paste.Click += async (_, _) => await PasteAsync(side);
         var icon = new DuoIcon { Icon = "file", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
         var row = new Grid
         {
-            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"),
+            ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"),
             ColumnSpacing = 8,
             Margin = new Thickness(12, 6),
-            Children = { icon, side.PathText, side.EncodingText, open },
+            Children = { icon, side.PathText, side.EncodingText, paste, open },
         };
         Grid.SetColumn(side.PathText, 1);
         Grid.SetColumn(side.EncodingText, 2);
-        Grid.SetColumn(open, 3);
+        Grid.SetColumn(paste, 3);
+        Grid.SetColumn(open, 4);
         side.EncodingText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
-        side.EncodingText.PointerPressed += (_, _) => { if (side.HasText) EncodingFlyout(side).ShowAt(side.EncodingText); };
+        side.EncodingText.PointerPressed += (_, _) => { if (side.HasText && !side.IsScratch) EncodingFlyout(side).ShowAt(side.EncodingText); };
         var border = new Border { Child = row, BorderThickness = new Thickness(0, 0, 0, 1) };
         border.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStroke"));
         return border;
@@ -304,6 +412,15 @@ public sealed class CompareWindow : Window
         e.TextArea.LeftMargins.Insert(0, side.Margin);
         e.TextArea.TextView.BackgroundRenderers.Add(new DiffBackgroundRenderer(state, side.Left));
         e.TextArea.TextView.LineTransformers.Add(new IntralineColorizer(state, side.Left));
+        side.Folding = FoldingManager.Install(e.TextArea);
+        // 접기 여백의 [+]/[−]로 한쪽을 펴거나 접으면 맞은편도 똑같이 (그래야 행이 나란히 남는다).
+        foreach (var margin in e.TextArea.LeftMargins.OfType<FoldingMargin>())
+            margin.AddHandler(PointerPressedEvent, (_, _) => Dispatcher.UIThread.Post(() => MirrorFolds(side)), RoutingStrategies.Tunnel | RoutingStrategies.Bubble, handledEventsToo: true);
+        e.TextArea.GotFocus += (_, _) =>
+        {
+            _findSide = side;
+            UpdateFindWhere();
+        };
         e.TextArea.Caret.PositionChanged += (_, _) =>
         {
             if (_syncing || _applying) return;
@@ -327,9 +444,10 @@ public sealed class CompareWindow : Window
         _recompareTimer.Stop();
         var version = ++_version;
         _status.Text = Strings.Current.CompareLoading;
+        // 파일이 없는 칸은 지금 글(붙여 넣거나 쓴 것)을 그대로 쓴다.
         var sources = await Task.WhenAll(
-            _left.Path is { } lp ? CompareSources.LoadAsync(lp, _left.ForcedEncoding) : Task.FromResult<CompareSource>(null!),
-            _right.Path is { } rp ? CompareSources.LoadAsync(rp, _right.ForcedEncoding) : Task.FromResult<CompareSource>(null!));
+            _left.Path is { } lp ? CompareSources.LoadAsync(lp, _left.ForcedEncoding) : Task.FromResult(ScratchSource(_left.Real)),
+            _right.Path is { } rp ? CompareSources.LoadAsync(rp, _right.ForcedEncoding) : Task.FromResult(ScratchSource(_right.Real)));
         if (version != _version) return;
         foreach (var (side, source) in new[] { (_left, sources[0]), (_right, sources[1]) })
         {
@@ -352,6 +470,29 @@ public sealed class CompareWindow : Window
         _undo.Clear();
         _redo.Clear();
         await RecompareAsync(version, keepCaret: null, jumpToFirst: true);
+    }
+
+    static CompareSource ScratchSource(string text) =>
+        new CompareSource.Text("", new EditorTextFile(text, HasBom: false, LineBreak: "\n", DateTime.MinValue, text.Length, Binary: false), []);
+
+    /// <summary>
+    /// 클립보드의 글로 그 칸을 바꾼다 (파일 없는 칸이 된다 — ROADMAP §6-1 클립보드 비교). 고친 것이 있으면 먼저 묻는다.
+    /// 빈 칸에는 그냥 붙여 넣어도(Ctrl+V) 된다.
+    /// </summary>
+    async Task PasteAsync(Side side)
+    {
+        var text = Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null;
+        if (string.IsNullOrEmpty(text))
+        {
+            Notice(Strings.Current.CompareClipboardEmpty);
+            return;
+        }
+        if (!await ConfirmDiscardAsync()) return;
+        side.Path = null;
+        side.ForcedEncoding = null;
+        side.RepairRequested = false;
+        side.Real = TextFiles.NormalizeLineBreaks(text);
+        await ReloadAsync();
     }
 
     /// <summary>지금의 실제 글로 다시 비교하고 화면 글을 바꾼다. <paramref name="keepCaret"/>이 있으면 그 쪽의 그 실제 줄로 캐럿을 옮긴다.</summary>
@@ -392,6 +533,7 @@ public sealed class CompareWindow : Window
             UpdateSideChrome(side);
         }
         _applying = false;
+        ApplyFolds(redraw: false);
         UpdateTitle();
         UpdateStatus();
         Redraw();
@@ -662,17 +804,18 @@ public sealed class CompareWindow : Window
     void UpdateSideChrome(Side side)
     {
         var s = Strings.Current;
-        side.PathText.Text = (side.Dirty ? "● " : "") + (side.Path ?? s.HomeNotChosen);
-        ToolTip.SetTip(side.PathText, side.Path);
-        side.EncodingText.Text = side.Text is { } t
+        side.PathText.Text = (side.Dirty ? "● " : "") + (side.Path ?? (side.Real.Length > 0 ? s.CompareScratchName : s.HomeNotChosen));
+        ToolTip.SetTip(side.PathText, side.Path ?? (side.Real.Length > 0 ? s.CompareScratchTooltip : null));
+        side.EncodingText.Text = side.Text is { } t && !side.IsScratch
             ? TextEncodings.DisplayName(t.File.Encoding, t.File.HasBom) + (side.HasText && !side.CanEdit ? " · " + s.CompareReadOnly : "")
             : "";
-        ToolTip.SetTip(side.EncodingText, side.HasText ? s.CompareReopenEncoding : null);
-        side.EncodingText.Cursor = side.HasText ? new Cursor(StandardCursorType.Hand) : Cursor.Default;
+        ToolTip.SetTip(side.EncodingText, side.HasText && !side.IsScratch ? s.CompareReopenEncoding : null);
+        side.EncodingText.Cursor = side.HasText && !side.IsScratch ? new Cursor(StandardCursorType.Hand) : Cursor.Default;
 
         (side.Overlay.IsVisible, side.OverlayText.Text) = side.Source switch
         {
             null => (true, s.CompareEmptySide),
+            CompareSource.Text when side.IsScratch && side.Real.Length == 0 => (true, s.CompareEmptySide),
             CompareSource.Binary => (true, s.CompareBinary),
             CompareSource.TooLarge big => (true, s.CompareTooLarge(BytesFormat.Format(big.Length))),
             CompareSource.Failed f => (true, s.CompareLoadFailed(f.Error.ToString())),
@@ -804,23 +947,153 @@ public sealed class CompareWindow : Window
     void UpdateViewport()
     {
         var tv = _right.Editor.TextArea.TextView;
-        if (tv.DefaultLineHeight <= 0) return;
-        _overview.Viewport = (tv.VerticalOffset / tv.DefaultLineHeight, tv.Bounds.Height / tv.DefaultLineHeight);
+        var doc = _right.Editor.Document;
+        if (tv.DefaultLineHeight <= 0 || doc.LineCount == 0) return;
+        // 접힌 줄이 있으면 화면 높이와 행 수가 비례하지 않으므로 맨 위·맨 아래에 보이는 행을 직접 찾는다.
+        var top = tv.GetDocumentLineByVisualTop(tv.VerticalOffset)?.LineNumber ?? 1;
+        var bottom = tv.GetDocumentLineByVisualTop(tv.VerticalOffset + Math.Max(0, tv.Bounds.Height - 1))?.LineNumber ?? doc.LineCount;
+        _overview.Viewport = (top - 1, Math.Max(1, bottom - top + 1));
         _overview.InvalidateVisual();
     }
 
-    void ScrollToRow(int row, bool center)
+    void ScrollToRow(int row, bool center, bool moveCaret = true)
     {
         var lines = _right.Editor.Document.LineCount;
         if (lines == 0) return;
         var line = Math.Clamp(row + 1, 1, lines);
         var tv = _right.Editor.TextArea.TextView;
-        var offset = (line - 1) * tv.DefaultLineHeight - (center ? tv.Bounds.Height / 3 : 0);
+        var offset = tv.GetVisualTopByDocumentLine(line) - (center ? tv.Bounds.Height / 3 : 0);
         _right.Editor.ScrollToVerticalOffset(Math.Max(0, offset));
+        if (!moveCaret) return;
         _syncing = true;
         _right.Editor.TextArea.Caret.Line = line;
         _left.Editor.TextArea.Caret.Line = Math.Min(line, _left.Editor.Document.LineCount);
         _syncing = false;
+    }
+
+    // --- 차이만 보기 (같은 줄 접기) ---
+
+    /// <summary>차이만 보기가 켜져 있으면 양쪽에서 같은 행 구간을 접는다 (<see cref="AlignedDiff.CollapsibleRuns"/>). 꺼져 있으면 모두 편다.</summary>
+    void ApplyFolds(bool redraw = true)
+    {
+        var aligned = _leftState.Diff;
+        var context = _context.SelectedIndex >= 0 ? ContextChoices[_context.SelectedIndex] : AppSettings.DefaultContextLines;
+        var runs = _onlyDiffs.IsChecked == true && aligned is not null ? aligned.CollapsibleRuns(context) : [];
+        foreach (var side in new[] { _left, _right })
+        {
+            side.Folding.Clear();
+            var doc = side.Editor.Document;
+            foreach (var (start, count) in runs)
+            {
+                if (start + count > doc.LineCount) break;
+                var first = doc.GetLineByNumber(start + 1);
+                var last = doc.GetLineByNumber(start + count);
+                var fold = side.Folding.CreateFolding(first.Offset, last.EndOffset);
+                fold.Title = Strings.Current.CompareFolded(count);
+                fold.IsFolded = true;
+            }
+        }
+        if (redraw) Dispatcher.UIThread.Post(() =>
+        {
+            SyncScroll(_right, _left);
+            Redraw();
+        }, DispatcherPriority.Background);
+    }
+
+    /// <summary><paramref name="from"/> 쪽의 접힘 상태를 맞은편에 그대로 옮긴다 (두 쪽은 같은 순서로 같은 행 구간을 접는다).</summary>
+    void MirrorFolds(Side from)
+    {
+        var to = from.Left ? _right : _left;
+        var a = from.Folding.AllFoldings.ToList();
+        var b = to.Folding.AllFoldings.ToList();
+        var changed = false;
+        for (var i = 0; i < Math.Min(a.Count, b.Count); i++)
+            if (b[i].IsFolded != a[i].IsFolded) { b[i].IsFolded = a[i].IsFolded; changed = true; }
+        if (!changed) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            SyncScroll(from, to);
+            Redraw();
+        }, DispatcherPriority.Background);
+    }
+
+    /// <summary><paramref name="offset"/>이 접힌 곳 안이면 양쪽의 그 접기를 편다 (찾기·이동이 숨은 줄에 닿을 때).</summary>
+    void Unfold(Side side, int offset)
+    {
+        var line = side.Editor.Document.GetLineByOffset(offset).LineNumber;
+        foreach (var s in new[] { _left, _right })
+        {
+            var doc = s.Editor.Document;
+            if (line > doc.LineCount) continue;
+            var at = doc.GetLineByNumber(line).Offset;
+            foreach (var fold in s.Folding.GetFoldingsContaining(at)) fold.IsFolded = false;
+        }
+    }
+
+    // --- 찾기 (Ctrl+F) ---
+
+    void OpenFind()
+    {
+        _findSide ??= _left.Editor.TextArea.IsFocused ? _left : _right;
+        var selected = _findSide.Editor.SelectedText;
+        _findBar.IsVisible = true;
+        if (selected.Length > 0 && !selected.Contains('\n')) _findBox.Text = selected;
+        UpdateFindWhere();
+        Dispatcher.UIThread.Post(() =>
+        {
+            _findBox.Focus();
+            _findBox.SelectAll();
+        });
+    }
+
+    void CloseFind()
+    {
+        _findBar.IsVisible = false;
+        _findCount.Text = "";
+        (_findSide ?? _right).Editor.TextArea.Focus();
+    }
+
+    void UpdateFindWhere() =>
+        _findWhere.Text = _findSide is null ? "" : _findSide.Left ? Strings.Current.CompareFindInLeft : Strings.Current.CompareFindInRight;
+
+    /// <summary>
+    /// 찾을 쪽에서 다음(앞) 일치로 간다. <paramref name="fromSelectionStart"/>면 지금 고른 곳 자체부터 (입력할 때마다 찾기).
+    /// 끝까지 가면 처음으로 돌아간다. 접힌 곳 안이면 편다.
+    /// </summary>
+    void Find(bool forward, bool fromSelectionStart = false)
+    {
+        var s = Strings.Current;
+        var needle = _findBox.Text ?? "";
+        var side = _findSide ??= _right;
+        if (needle.Length == 0) { _findCount.Text = ""; return; }
+        var hay = side.Editor.Document.Text;
+        var comparison = _findCase.IsChecked == true ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        var matches = new List<int>();
+        for (var i = hay.IndexOf(needle, comparison); i >= 0 && matches.Count < 100_000; i = hay.IndexOf(needle, i + Math.Max(1, needle.Length), comparison))
+            matches.Add(i);
+        if (matches.Count == 0) { _findCount.Text = s.CompareFindNone; return; }
+        var start = side.Editor.SelectionLength > 0 ? side.Editor.SelectionStart : side.Editor.CaretOffset;
+        var index = forward
+            ? matches.FindIndex(m => fromSelectionStart ? m >= start : m > start)
+            : matches.FindLastIndex(m => m < start);
+        if (index < 0) index = forward ? 0 : matches.Count - 1;
+        var offset = matches[index];
+        Unfold(side, offset);
+        side.Editor.Select(offset, needle.Length);
+        var line = side.Editor.Document.GetLineByOffset(offset).LineNumber;
+        _syncing = true;
+        var other = side.Left ? _right : _left;
+        other.Editor.TextArea.Caret.Line = Math.Min(line, other.Editor.Document.LineCount);
+        _syncing = false;
+        Dispatcher.UIThread.Post(() =>
+        {
+            var tv = _right.Editor.TextArea.TextView;
+            var top = tv.GetVisualTopByDocumentLine(line);
+            if (top < tv.VerticalOffset || top > tv.VerticalOffset + tv.Bounds.Height - tv.DefaultLineHeight * 2)
+                ScrollToRow(line - 1, center: true, moveCaret: false);
+            side.Editor.TextArea.Caret.BringCaretToView(); // 긴 줄이면 가로로도 보이게
+        }, DispatcherPriority.Background);
+        _findCount.Text = s.CompareFindCount(index + 1, matches.Count);
     }
 
     int CurrentRow() => (_left.Editor.TextArea.IsFocused ? _left : _right).Editor.TextArea.Caret.Line - 1;
@@ -856,6 +1129,7 @@ public sealed class CompareWindow : Window
     {
         if (!await ConfirmDiscardAsync()) return;
         (_left.Path, _right.Path) = (_right.Path, _left.Path);
+        (_left.Real, _right.Real) = (_right.Real, _left.Real); // 파일 없는 칸의 글도 함께 옮긴다
         (_left.ForcedEncoding, _right.ForcedEncoding) = (_right.ForcedEncoding, _left.ForcedEncoding);
         (_left.RepairRequested, _right.RepairRequested) = (_right.RepairRequested, _left.RepairRequested);
         await ReloadAsync();
@@ -961,8 +1235,28 @@ public sealed class CompareWindow : Window
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
         var alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
         var handled = true;
+        if (_findBox.IsFocused)
+        {
+            // 찾기 칸에서는 글자 편집 키(Ctrl+Z·Ctrl+←→ 등)를 칸에 맡기고, 찾기 키만 받는다.
+            switch (e.Key)
+            {
+                case Key.Enter: Find(forward: !shift); break;
+                case Key.F3: Find(forward: !shift); break;
+                case Key.Escape: CloseFind(); break;
+                case Key.F when primary: _findBox.SelectAll(); break;
+                case Key.F8: GoDiff(next: !shift); break;
+                default: handled = false; break;
+            }
+            e.Handled = handled;
+            return;
+        }
         switch (e.Key)
         {
+            case Key.F when primary: OpenFind(); break;
+            case Key.F3: if (_findBox.Text is { Length: > 0 }) Find(forward: !shift); else OpenFind(); break;
+            case Key.Escape when _findBar.IsVisible: CloseFind(); break;
+            case Key.D when primary: _onlyDiffs.IsChecked = _onlyDiffs.IsChecked != true; break;
+            case Key.V when primary && shift: _ = PasteAsync(_left.Editor.TextArea.IsFocused ? _left : _right); break;
             case Key.F8: GoDiff(next: !shift); break;
             case Key.Down when alt: GoDiff(next: true); break;
             case Key.Up when alt: GoDiff(next: false); break;

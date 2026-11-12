@@ -57,6 +57,25 @@ public interface IAppStrings
     string DropFolderLater { get; }
     string DropNoCounterpart(string name);
     string CommonClose { get; }
+    string CompareScratchName { get; }
+    string CompareScratchTooltip { get; }
+    string ComparePaste { get; }
+    string ComparePasteTooltip { get; }
+    string CompareClipboardEmpty { get; }
+    string CompareOnlyDifferences { get; }
+    string CompareContextLines(int lines);
+    string CompareContextTooltip { get; }
+    string CompareFolded(int lines);
+    string CompareFind { get; }
+    string CompareFindPlaceholder { get; }
+    string CompareFindMatchCase { get; }
+    string CompareFindPrevious { get; }
+    string CompareFindNext { get; }
+    string CompareFindNone { get; }
+    string CompareFindCount(int index, int count);
+    string CompareFindInLeft { get; }
+    string CompareFindInRight { get; }
+    string HomePasteCompare { get; }
     string CliUsageTitle { get; }
     string CliUsage { get; }
     string CliUnknownOption(string option);

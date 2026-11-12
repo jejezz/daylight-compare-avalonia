@@ -72,6 +72,16 @@ public sealed record AppSettings
     [JsonPropertyName("window_placement")]
     public WindowPlacement? Window { get; init; }
 
+    /// <summary>텍스트 비교 창에서 차이만 보기 (같은 줄은 접는다). 창마다 바꾸면 다음 창도 그대로 연다.</summary>
+    [JsonPropertyName("compare_only_differences")]
+    public bool CompareOnlyDifferences { get; init; }
+
+    /// <summary>차이만 보기에서 차이 위아래로 남기는 줄 수 (0~<see cref="MaxContextLines"/>).</summary>
+    [JsonPropertyName("compare_context_lines")]
+    public int CompareContextLines { get; init; } = DefaultContextLines;
+
+    public const int DefaultContextLines = 3, MaxContextLines = 20;
+
     public AppSettings WithTextScale(double scale) => this with { TextScale = TextScales.Snap(scale) };
 
     /// <summary>서버를 저장한다. 같은 서버(스킴·호스트·포트·계정)가 이미 있으면 그 자리를 바꾸고, 없으면 맨 끝에 더한다.</summary>
