@@ -17,6 +17,9 @@ Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비�
 - **Look and feel**은 규약 `conventions/ui-ux.md`, `theming.md`와 Daylight Commander의 모습을 따른다. 다른 점만 [UI_UX.md](UI_UX.md)에 적는다.
   색은 `{DynamicResource App...}`로만 읽는다.
 - **창 정책**: 비교·병합·정책 편집·설정은 독립 `Window`, 짧은 질문은 대화상자.
+- **새 창·대화상자·단추는 [UI_UX.md "창 크롬과 대화상자 단추"](UI_UX.md#창-크롬과-대화상자-단추)를 따른다** (공통 정책 원문: `snapdock-flutter/docs/WINDOW_CHROME.md`, 어긋나면 원문 우선).
+  먼저 A/B/C/D/E 분류를 정한다 — 인-윈도 모달(A)은 별도 `Window`·타이틀바 없이 오버레이로, 단추는 주 동작 하나만 채운 알약(`accent`)·보조는 글자 단추(`text`), 회색 칩 금지.
+  현재 코드 중 어긋난 곳은 같은 절 §7 목록(정책 적용 예정)에 있고 따로 옮긴다 — 새 코드가 그 패턴을 베끼지 않는다.
 - 구조: `Presentation(App) → Services → Domain ← Data`. 프로젝트로 나눠 의존 방향을 컴파일러가 지킨다. 비교 엔진(diff·판정·정책 해석)은
   UI·IO 없는 Domain에 두고 골든 파일로 시험한다.
 - **NativeAOT가 기본 배포 형태.** 의존성을 추가할 때마다 `scripts\publish-aot.ps1`로 AOT 게시가 되는지 확인한다.
