@@ -275,10 +275,21 @@ tests/*.Tests              xUnit. Domain은 골든 파일, Services는 가짜 �
 - 끝나는 조건: 가짜·실제 SFTP/FTP, zip/tar.gz 목록을 시험으로 읽는다.
 
 ### 2. Compare Policy 도메인 + 저장소
-- [ ] 문서 모델·검사·경고, `PolicyResolver`, 내장 기본 정책(C 계열, C#, Dart, JSON, XML, Markdown, 이미지, 펌웨어 hex, CSV)
-- [ ] `PolicyStore`(Jack's Bean 패턴), 세션 덮어쓰기
-- [ ] (재사용 방식 (나)로 바꿀지 여기서 결정)
-- 끝나는 조건: 경로 → 실효 정책 판정 시험 통과, 깨진 파일 복구 시험.
+- [x] 문서 모델 `Domain/Policy/ComparePolicy`(schema 1)·구역별 규칙 `PolicyRules`(folder·text·binary·image·table·converter·grammar)·`FileMask`(`;` 구분, `-` 제외, `**`).
+  읽을 때 관대: 틀린 형식·문법·정규식·값은 건너뛰거나 기본값 + `Warnings`, schema가 다르면 `FormatException` → `IsFallback`
+- [x] 실효 정책 `ComparePolicy.Resolve(이름, 상대 경로, 세션)`: 내장 defaults → 사용자 defaults → 첫 맞는 형식 → 세션을 **JSON에서 깊게 합친 뒤** 타입으로 읽는다
+  (형식·세션은 바꿀 키만 적으면 된다). 형식에 `grammar`·`importance`·`encoding`을 바로 적어도 된다. 사용자가 지운 내장 형식은 되살리지 않는다
+- [x] 내장 기본 정책 `BuiltinPolicy`: C 계열(C/C++/C#/Java/Kotlin/JS/TS/Dart/Go/Rust/Swift…), `#` 주석(Python·셸·YAML·CMake…), INI, XML·XAML·HTML, JSON, SQL,
+  Markdown·텍스트, CSV/TSV(표), 이미지, 펌웨어 Intel HEX·S-Record(바이너리 + 변환기), 실행 파일·압축 등 바이너리. 문법 6개(c-like·hash·ini·xml·json·sql)
+- [x] `Services/Policy/PolicyStore`(Jack's Bean @ 1af8cde 패턴): 없으면 내장 정책으로 만들기, 깨진 파일은 그대로 두고 내장 정책 사용,
+  [기본 정책 다시 만들기](`.broken-날짜시각`), [기본 정책으로 되돌리기](모르는 최상위 키 보존·`.backup-날짜시각`), 형식·문법·defaults 고치기(모르는 키 보존, 틀리면 저장 거절),
+  한 단계 실행 취소/다시 실행. 주석·끝 쉼표가 있는 JSON도 읽는다. 앱이 시작할 때 `policy.json`을 만든다(`App.Policy`)
+- [x] 세션 덮어쓰기: `Resolve(session: {...})` — 세션 저장 자체는 4단계
+- [x] 확인: 테스트 254개 통과(도메인 56·데이터 15·서비스 183 — 원격 통합 37 포함), Windows AOT 게시 후 실행해 `policy.json`이 만들어지고 정규식이 읽히는 모양으로 저장됨을 확인
+- [x] **재사용 방식 재검토 → 공유 라이브러리는 아직 뽑지 않는다(권장, 사용자 확인 필요).** 이유: ① 복사한 부품 중 고친 것이 이미 있다(`TextFiles` 인코딩, 문구·설정 정리,
+  SFTP 테스트) — 지금 뽑으면 Commander가 그 변경을 함께 받아야 한다. ② 원격·압축 코드는 아직 화면에서 쓰지 않아 API가 굳지 않았다. ③ Commander는 복사 이후
+  바뀐 것이 없어 갈라짐 비용이 아직 작다(`4686eb7` 이후 해당 파일 변경 없음). → **4단계(폴더 비교 화면) 끝에 다시 본다.** 그때 바뀌지 않은 부품(Remote·OperationQueue·
+  Updates·Theme)부터 `zoomon-avalonia-core`로 뽑는다.
 
 ### 3. 텍스트 비교 ★ 첫 실사용 가치
 - [ ] 3a. 엔진: Histogram/Myers, 글자 diff, 중요도·치환·정규화 — 골든 파일 시험 먼저
