@@ -60,9 +60,9 @@ public static class TextFiles
     /// 바이트를 본문으로. <paramref name="forced"/>가 없으면 인코딩을 감지하고(<see cref="TextEncodings.Detect"/>), 있으면 그 인코딩으로 읽는다
     /// (사용자가 상태 표시줄에서 고른 경우 — 틀린 바이트는 �가 된다). 어느 것으로도 읽히지 않으면 Latin-1로 보여 주고 읽기 전용(Binary)이다.
     /// </summary>
-    public static EditorLoadResult Decode(byte[] bytes, DateTime modified, TextEncodingKind? forced = null)
+    public static EditorLoadResult Decode(byte[] bytes, DateTime modified, TextEncodingKind? forced = null, int maxBytes = EditorMaxBytes)
     {
-        if (bytes.Length > EditorMaxBytes) return EditorLoadResult.Failed(EditorLoadFailure.TooLarge);
+        if (bytes.Length > maxBytes) return EditorLoadResult.Failed(EditorLoadFailure.TooLarge);
         var analysis = TextEncodings.Analyze(bytes);
         var (kind, hasBom, errors) = (analysis.Kind, analysis.HasBom, analysis.Errors);
         var binary = analysis.IsBinary;

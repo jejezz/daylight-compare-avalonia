@@ -5,7 +5,7 @@ https://github.com/jejezz/application-release-templates/tree/main/conventions
 규약을 따른다. 이 앱에 적용된 규약 버전: conventions-v1
 
 Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비교, 병합, 동기화)을 하는 C#/Avalonia(.NET 10) 데스크톱 앱. Daylight 패밀리.
-계획·결정·위험은 [ROADMAP.md](ROADMAP.md). **지금 위치: 3단계(텍스트 비교) 진행 중 — 3a 엔진(`Domain/Diff`) 완료, 다음은 3a 비교 화면(좌우 AvaloniaEdit) → 3b CLI·git difftool. 화면은 아직 빈 홈 창.**
+계획·결정·위험은 [ROADMAP.md](ROADMAP.md). **지금 위치: 3단계(텍스트 비교) 진행 중 — 3a 엔진과 읽기 전용 비교 창(`App/Compare`) 완료. 다음은 3a 편집·저장(블록 복사 포함) → 3b CLI·git difftool.**
 
 - **형제 `../daylight-commander-avalonia`가 기준이다.** 원격(SFTP·FTP·WebDAV)·작업 큐·에디터·압축·테마·설정·정보 창·업데이트는
   새로 만들지 않고 거기서 **복사**해 온다(ROADMAP §2-3, 복사로 시작 확정). 복사한 파일은 첫 줄 근처에 출처를 남기고
@@ -25,5 +25,6 @@ Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비�
 - 화면 문구는 `IAppStrings`(ko/en, `Localization/`), XAML은 `{DynamicResource Str.*}`, 코드는 `Strings.Current`로 읽는다
   (새 문구는 인터페이스 → 한국어 → 영어 순, XAML에서 쓰면 `Strings.PublishResources`에도 더한다).
 - 앱 아이콘: `tool/icon/draw_glyph.py`(글리프) → `tool/icon/avalonia_icons.py <고양이 경로>`(ico·png). 판 색 `hue 205` 고정(`assets/icon/cat.json`).
+- 화면은 `tests/DaylightCompare.App.Tests`(Avalonia Headless + Skia)로 창을 띄우지 않고 그려 본다. `DCMP_SHOTS=<폴더>`를 주면 PNG를 남긴다 — 화면을 바꾸면 그림으로 확인한다.
 - 테스트: `dotnet test DaylightCompare.slnx`. 원격 통합 테스트는 asyncssh·pyftpdlib·wsgidav·cheroot가 있는 파이썬이 있어야 돌고(없으면 건너뜀), 다른 파이썬은 `DC_TEST_PYTHON`으로 준다. 실행: `dotnet run -c Release --project src\DaylightCompare.App`.
 - 커밋·푸시는 사용자가 요청할 때만. 앱 창은 요청받을 때만 띄운다. 한 번에 한 단계.

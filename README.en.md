@@ -12,7 +12,8 @@ A desktop app that **compares and merges folders, text, binaries and images side
 It is the companion to [Daylight Commander](https://github.com/jejezz/daylight-commander-avalonia) in the Daylight family,
 written in C# with [Avalonia](https://avaloniaui.net) and published with **.NET 10 NativeAOT**. Runs on Windows, macOS and Linux.
 
-> **In development (stage 0: app skeleton).** The current build has an empty home window, settings, About and update checks.
+> **In development (stage 3: text comparison).** The current build compares two text files side by side (read-only), with drag and drop,
+> encoding detection and repair, and unimportant differences such as comments and whitespace. `DaylightCompare <left> <right>` opens a comparison directly.
 > The staged plan is in [ROADMAP.md](ROADMAP.md) (Korean).
 
 ## Screenshots

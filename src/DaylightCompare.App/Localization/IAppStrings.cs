@@ -25,6 +25,39 @@ public interface IAppStrings
     string HomeEmptyTitle { get; }
     string HomeEmptyHint { get; }
 
+    // 비교 창 · 홈 창 고르기 · 끌어다 놓기
+    string CompareWindowTitle(string left, string right);
+    string CompareNextDiff { get; }
+    string ComparePrevDiff { get; }
+    string CompareRecompare { get; }
+    string CompareSwap { get; }
+    string CompareToggleUnimportant { get; }
+    string CompareOpen { get; }
+    string CompareOpenLeftTitle { get; }
+    string CompareOpenRightTitle { get; }
+    string CompareEmptySide { get; }
+    string CompareLoading { get; }
+    string CompareIdentical { get; }
+    string CompareEquivalent(int unimportant);
+    string CompareDifferences(int important, int unimportant);
+    string CompareBinary { get; }
+    string CompareTooLarge(string size);
+    string CompareLoadFailed(string detail);
+    string CompareEncodingDamaged(string encoding, int errors, int firstLine);
+    string CompareReopenEncoding { get; }
+    string CompareRepairMixed(string primary, string secondary);
+    string CompareRepaired(int lines, int broken);
+    string CompareEncodingErrors(int errors);
+    string CompareEncodingDiffers(string left, string right);
+    string HomeLeft { get; }
+    string HomeRight { get; }
+    string HomeCompare { get; }
+    string HomeNotChosen { get; }
+    string DropTooMany { get; }
+    string DropFolderLater { get; }
+    string DropNoCounterpart(string name);
+    string CommonClose { get; }
+
     string SettingsWindowTitle(string appName);
     string SettingsSectionAppearance { get; }
     string SettingsMode { get; }

@@ -11,6 +11,8 @@
 
     <Application.Styles>
         <FluentTheme />
+        <!-- 비교 창의 좌우 편집기(AvaloniaEdit) 기본 스타일 -->
+        <StyleInclude Source="avares://AvaloniaEdit/Themes/Fluent/AvaloniaEdit.xaml" />
 
         <!-- 원본 Flutter 앱의 글자 크기: 본문 13 (ui-ux.md §4). -->
         <Style Selector="Window">
@@ -63,12 +65,12 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AppPrimary}" />
         </Style>
 
-        <!-- 폴더 비교: 행 배경 -->
+        <!-- 폴더 비교 행 배경 (4단계에서 쓴다): 한쪽에만 있음 / 내용이 다름 -->
         <Style Selector="Border.diffrow.onlyhere">
-            <Setter Property="Background" Value="{DynamicResource AppDiffOnly}" />
+            <Setter Property="Background" Value="{DynamicResource AppDiffRightOnly}" />
         </Style>
         <Style Selector="Border.diffrow.differs">
-            <Setter Property="Background" Value="{DynamicResource AppDiffDiffers}" />
+            <Setter Property="Background" Value="{DynamicResource AppDiffChanged}" />
         </Style>
 
         <!-- 선택된(표시한) 행·타일: 한 개든 여러 개든 행 전체가 주색 30% (비교 색보다 우선) -->
