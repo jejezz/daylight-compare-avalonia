@@ -63,9 +63,11 @@ Never align differences), Format(형식·인코딩), Replacements가 우리 정�
   - 상대 마스크: `p\f`(p 안의 f), `.\f`(기준 폴더 바로 아래), `...\f`(임의 깊이).
   - Session Settings > Name Filters: Include Files / Exclude Files / Include Folders / Exclude Folders 네 목록(줄마다 하나), 프리셋.
   - Other Filters: 수정 날짜·크기·속성·내용, "보호된 OS 파일 제외" 기본 켬.
-  - 우리 `FileMask`(2단계)를 이 문법에 맞춘다 — 지금 차이가 있으면 4단계 시작 전에 고친다.
+  - ✅ 우리 `FileMask`가 이 문법을 따른다 (4a). 정책 파일·필터 막대·`/filters=`가 같은 문법을 쓴다.
 - Comparison 탭: 크기 · 시각(초 허용 오차, 서머타임·시간대 무시) · 이름 대소문자 · 속성 / 내용 비교(CRC · Binary · Rules-based,
   "빠른 검사가 같으면 건너뛰기", "빠른 검사 결과 덮어쓰기") / 버전 비교.
+  - ✅ (4a) 정책 `folder.criteria`의 크기 · 시각(허용 오차, 정확히 n시간 차이 무시) · 내용(규칙 기준) · 해시(SHA-256·CRC32). 내용 단계가 뒤에 있으면 빠른 검사 결과를 덮어쓴다.
+    대소문자·확장자 무시·이름 바꾸기 짝짓기. 속성·버전 비교는 아직.
 
 ## 3. 텍스트 병합 (7단계 — BC 흐름 그대로)
 

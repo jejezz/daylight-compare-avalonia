@@ -67,7 +67,8 @@ public sealed record FolderRules(
         var files = new List<string>();
         files.AddRange(StrList(filters?["include"]) ?? []);
         files.AddRange((StrList(filters?["exclude"]) ?? []).Select(p => "-" + p));
-        var folders = (StrList(filters?["excludeFolders"]) ?? []).Select(p => "-" + p).ToList();
+        // 폴더 이름은 BC 폴더 마스크(끝이 \)로 — 파일 이름과 섞이지 않게. 정책 파일에는 끝의 \ 없이 적어도 된다.
+        var folders = (StrList(filters?["excludeFolders"]) ?? []).Select(p => "-" + p.TrimEnd('\\', '/') + "\\").ToList();
 
         var pairing = Obj(o["pairing"]);
         var renames = new List<RenameRule>();

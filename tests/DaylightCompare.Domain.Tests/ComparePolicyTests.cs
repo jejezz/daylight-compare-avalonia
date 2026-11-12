@@ -144,8 +144,8 @@ public class ComparePolicyTests
         var f = ComparePolicy.Builtin.Resolve().Folder;
         Assert.Equal([CriterionKind.Size, CriterionKind.Timestamp, CriterionKind.Content], f.Criteria.Select(c => c.By));
         Assert.True(f.Criteria[1].IgnoreHourOffsets);
-        Assert.False(f.Folders.Matches("node_modules"));
-        Assert.True(f.Folders.Matches("src"));
+        Assert.False(f.Folders.MatchesFolder("node_modules")); // BC 폴더 마스크 — 폴더에만
+        Assert.True(f.Folders.MatchesFolder("src"));
         Assert.False(f.Files.Matches("old.bak"));
         Assert.True(f.Files.Matches("main.c"));
 
