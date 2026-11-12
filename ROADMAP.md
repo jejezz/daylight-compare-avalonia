@@ -213,7 +213,8 @@ tests/*.Tests              xUnit. Domain은 골든 파일, Services는 가짜 �
 
 ### 0. 앱 골격 (기능 코드 전에 — 새 앱 시작 체크리스트)
 - [x] 정체성 → `Directory.Build.props`(`0.1.0-rc.1`, 빌드 1), `LICENSE`(MIT), Inno Setup `AppId` 새 GUID
-- [ ] GitHub 저장소 `jejezz/daylight-compare-avalonia` 만들기·첫 커밋·푸시 (사용자 확인 후)
+- [x] GitHub 비공개 저장소 `jejezz/daylight-compare-avalonia`, 첫 커밋 `563a7bf`
+- [x] **`v0.1.0-rc.1` 태그 → 파이프라인 전체 성공 (2026-11-12)**: check·Windows·Linux·macOS 빌드(세 OS 단위 테스트 통과)·release, 산출물 4개 + `SHA256SUMS.txt`. macOS·Linux에서 실제로 실행해 보는 것은 아직
 - [x] 솔루션(Domain·Services·Data·App + Domain/Data 테스트), Daylight Commander 골격 복사(기준 커밋 `.copied-from`): 테마(시스템/라이트/다크, 색 구성 6종), SeoulNamsan, ko/en `IAppStrings`, 설정 창(외형), 정보 창·라이선스 창, 앱 바 오른쪽 `설정 | 정보`, 창 위치 기억(`PlacementMath`), 업데이트. 파일 관리자 전용 코드·문구·설정은 뺐다
 - [ ] `FocusTint`(포커스 받으면 앱 바가 물듦) — Commander에도 없다. Commander와 함께 넣을지 판단
 - [x] 앱 아이콘: `tool/icon/draw_glyph.py` → `tool/icon/avalonia_icons.py`가 `app_icon.ico`·`app_icon.png`·`installer/macos/app_icon_1024.png`·`installer/linux/app_icon.png` 생성
