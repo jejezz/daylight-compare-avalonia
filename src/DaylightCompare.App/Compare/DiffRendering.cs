@@ -16,6 +16,9 @@ sealed class DiffViewState
     public AlignedDiff? Diff { get; set; }
     public bool ShowUnimportant { get; set; } = true;
 
+    /// <summary>고치는 중(다시 비교 전): 행 정보가 잠시 맞지 않으므로 줄 안 강조는 쉰다.</summary>
+    public bool Editing { get; set; }
+
     /// <summary>바뀐 행의 줄 안 차이 (보이는 줄만 계산해서 기억).</summary>
     public Dictionary<int, IntralineDiff> Intraline { get; } = [];
 
@@ -72,7 +75,7 @@ sealed class IntralineColorizer(DiffViewState state, bool left) : DocumentColori
     protected override void ColorizeLine(DocumentLine line)
     {
         var rowIndex = line.LineNumber - 1;
-        if (state.Row(rowIndex) is not { } row) return;
+        if (state.Editing || state.Row(rowIndex) is not { } row) return;
         var dim = DiffViewState.Brush("AppDiffUnimportantText");
         if (row.Kind == DiffBlockKind.Unimportant && (left ? row.Left : row.Right) is not null && state.ShowUnimportant
             && (row.Left is null || row.Right is null))

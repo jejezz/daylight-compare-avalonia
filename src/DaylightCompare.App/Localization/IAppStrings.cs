@@ -57,6 +57,26 @@ public interface IAppStrings
     string DropFolderLater { get; }
     string DropNoCounterpart(string name);
     string CommonClose { get; }
+    string CompareSave { get; }
+    string CompareCopyToRight { get; }
+    string CompareCopyToLeft { get; }
+    string CompareSaveTitle(string name);
+    string CompareSaveChangedOnDisk { get; }
+    string CompareSaveLost(string encoding, string chars);
+    string CompareSaveDamaged(int count);
+    string CompareSaveBackupNote { get; }
+    string CompareSaveAsUtf8 { get; }
+    string CompareSaveAnyway { get; }
+    string CommonSave { get; }
+    string CompareDontSave { get; }
+    string CompareUnsavedTitle { get; }
+    string CompareUnsavedBody(string names);
+    string CompareSaved(string name);
+    string CompareSaveFailed(string detail);
+    string CompareChangedOutside { get; }
+    string CompareReloadDiscard { get; }
+    string CompareReadOnly { get; }
+    string CompareNothingToCopy { get; }
 
     string SettingsWindowTitle(string appName);
     string SettingsSectionAppearance { get; }
