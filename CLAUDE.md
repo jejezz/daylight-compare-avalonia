@@ -5,7 +5,7 @@ https://github.com/jejezz/application-release-templates/tree/main/conventions
 규약을 따른다. 이 앱에 적용된 규약 버전: conventions-v1
 
 Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비교, 병합, 동기화)을 하는 C#/Avalonia(.NET 10) 데스크톱 앱. Daylight 패밀리.
-계획·결정·위험은 [ROADMAP.md](ROADMAP.md). **지금 위치: 2단계(Compare Policy) 끝 — 정책 모델·해석(`Domain/Policy`)과 `PolicyStore`가 있고 앱이 시작할 때 `policy.json`을 만든다(화면은 아직 빈 홈 창). 다음은 3단계(텍스트 비교 + CLI).**
+계획·결정·위험은 [ROADMAP.md](ROADMAP.md). **지금 위치: 3단계(텍스트 비교) 진행 중 — 3a 엔진(`Domain/Diff`) 완료, 다음은 3a 비교 화면(좌우 AvaloniaEdit) → 3b CLI·git difftool. 화면은 아직 빈 홈 창.**
 
 - **형제 `../daylight-commander-avalonia`가 기준이다.** 원격(SFTP·FTP·WebDAV)·작업 큐·에디터·압축·테마·설정·정보 창·업데이트는
   새로 만들지 않고 거기서 **복사**해 온다(ROADMAP §2-3, 복사로 시작 확정). 복사한 파일은 첫 줄 근처에 출처를 남기고

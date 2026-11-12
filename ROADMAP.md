@@ -292,7 +292,15 @@ tests/*.Tests              xUnit. Domain은 골든 파일, Services는 가짜 �
   Updates·Theme)부터 `zoomon-avalonia-core`로 뽑는다.
 
 ### 3. 텍스트 비교 ★ 첫 실사용 가치
-- [ ] 3a. 엔진: Histogram/Myers, 글자 diff, 중요도·치환·정규화 — 골든 파일 시험 먼저
+- [x] 3a. 엔진 (`Domain/Diff`, 2026-11-12):
+  - `SequenceDiff`: Histogram(기본, 드문 줄을 닻으로·같은 점수면 가운데 닻) · Patience · Myers(선형 메모리 가운데 뱀). 재귀 대신 작업 스택.
+    무작위 500회씩 시험 — Myers는 동적 계획법 LCS와 길이가 같고, Histogram·Patience는 올바른 공통 부분 열. 20만 줄 0.5초 안
+  - `GrammarTokenizer`: 본문 전체를 한 번에 토큰화(먼저 시작·긴 것 우선 → 문자열 안의 `//`는 주석 아님, 여러 줄 주석)
+  - `TextDiff`: 줄마다 비교 열쇠(중요하지 않은 토큰 빼기 · 공백은 낱말 사이만 빈칸 하나 · 뒤 공백 · 치환 · 대소문자) → 짝짓기 →
+    `Equal`/`Unimportant`/`Changed`/`LeftOnly`/`RightOnly` 구간. 주석만 있는 줄이 늘거나 줄을 나눈 것처럼 열쇠를 이어 붙이면 같은 경우도 Unimportant.
+    `IsIdentical`(글자까지) · `IsEquivalent`(중요한 차이 없음 — 폴더 비교의 "내용" 판정)
+  - `IntralineDiff`: 단어 단위 → 양쪽 한 단어씩 바뀌면 글자 단위로 좁힘(공통이 절반 미만이면 단어 전체), 주석·공백 안의 강조는 Unimportant
+  - 5만 줄 C 파일 비교 3초 안(시험). git `diff --histogram`과 같은 결과를 내는지는 대조하지 않았다 — 같은 계열이지만 git의 들여쓰기 휴리스틱 등은 없다
 - [ ] 3a. 뷰: 좌우 AvaloniaEdit, 함께 스크롤, 차이 배경·글자 강조, 가운데 연결선, 개요 막대(미니맵), 다음/이전 차이, 블록 복사, 바로 편집·저장, 외부 변경 감지
 - [ ] 3b. **CLI + git difftool**: `DaylightCompare <왼쪽> <오른쪽>`, 이미 떠 있으면 그 창에 새 탭(단일 실행 신호, Jack's Bean `SingleInstance`), `--wait`, 종료 코드(0 같음 / 1 다름 / 2 오류), `git config` 안내를 README에
 - 끝나는 조건: 실제 프로젝트 파일로 git difftool을 써서 쓸 만하다고 사용자가 확인.
