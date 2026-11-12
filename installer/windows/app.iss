@@ -55,6 +55,8 @@ Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
+; The app holds a named mutex with its identifier (src/DaylightCompare.App/Cli/SingleInstance.cs), so setup asks to close it first.
+AppMutex=art.zoomon.daylightcompare
 ; No license page: MIT apps have nothing to agree to (conventions/licensing.md §4).
 
 [Languages]

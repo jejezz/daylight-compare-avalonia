@@ -43,6 +43,11 @@ public sealed class KoreanStrings : IAppStrings
     public string DropFolderLater => "폴더 비교는 다음 버전에서 열 수 있어요";
     public string DropNoCounterpart(string name) => $"폴더 안에 같은 이름의 파일({name})이 없습니다";
     public string CommonClose => "닫기";
+    public string CliUsageTitle => "명령줄 사용법";
+    public string CliUsage => "DaylightCompare [옵션] [<왼쪽> [<오른쪽>]]\n\n--wait, -w   비교 창을 닫을 때까지 기다리고 결과를 종료 코드로 돌려줍니다 (git difftool)\n--silent, -s   창 없이 비교만 합니다 (경로 둘)\n--help, -h   이 도움말\n\n종료 코드: 0 같음 · 1 다름 · 2 오류. 이미 떠 있으면 그 앱에서 엽니다.";
+    public string CliUnknownOption(string option) => $"모르는 옵션입니다: {option}";
+    public string CliTooManyPaths => "경로는 둘까지 줄 수 있습니다.";
+    public string CliSilentNeedsTwoPaths => "--silent에는 경로 둘이 있어야 합니다.";
     public string CompareSave => "저장 (Ctrl+S)";
     public string CompareCopyToRight => "이 차이를 오른쪽으로 복사 (Ctrl+→)";
     public string CompareCopyToLeft => "이 차이를 왼쪽으로 복사 (Ctrl+←)";

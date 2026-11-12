@@ -95,6 +95,10 @@ public sealed class CompareWindow : Window
     string? _notice;
     int _version;
 
+    /// <summary>지금 비교 중인 경로 (좌우 바꾸기·다른 파일 열기 뒤의 값).</summary>
+    public string? LeftPath => _left.Path;
+    public string? RightPath => _right.Path;
+
     public static CompareWindow Open(Window? near, string? left, string? right)
     {
         var w = new CompareWindow(left, right);
