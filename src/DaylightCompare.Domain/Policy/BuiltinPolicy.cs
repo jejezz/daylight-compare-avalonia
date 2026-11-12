@@ -69,7 +69,7 @@ public static class BuiltinPolicy
           "whitespace": ["[ \\t]+"]
         },
         "ini": {
-          "comment": ["^\\s*[;#].*$"],
+          "comment": ["^[ \\t]*[;#].*$"],
           "whitespace": ["[ \\t]+"]
         },
         "xml": {
