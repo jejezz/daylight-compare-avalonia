@@ -38,6 +38,11 @@ static class Strings
         Set("SettingsTooltip", s.SettingsTooltip);
         Set("HomeEmptyTitle", s.HomeEmptyTitle);
         Set("HomeEmptyHint", s.HomeEmptyHint);
+        Set("HomeLeft", s.HomeLeft);
+        Set("HomeRight", s.HomeRight);
+        Set("HomeCompare", s.HomeCompare);
+        Set("HomeNotChosen", s.HomeNotChosen);
+        Set("CompareOpen", s.CompareOpen);
         // Daylight Commander에는 이 줄이 없어 앱 바 [정보] 툴팁이 비어 있다 — Commander에도 필요한 수정.
         Set("AboutTooltip", s.AboutTooltip);
 

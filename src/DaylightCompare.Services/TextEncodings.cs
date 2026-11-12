@@ -241,7 +241,18 @@ public static class TextEncodings
     public static string Decode(ReadOnlySpan<byte> bytes, TextEncodingKind kind)
     {
         if (Bom(bytes) is { } bom && bom.Kind == kind) bytes = bytes[bom.Length..];
-        return Lenient(kind).GetString(bytes);
+        if (kind is not (TextEncodingKind.Cp949 or TextEncodingKind.ShiftJis)) return Lenient(kind).GetString(bytes);
+        // 2바이트 코드 페이지 디코더는 깨진 첫 바이트 뒤의 줄바꿈(0x0A)까지 한 글자로 삼켜 줄이 합쳐진다 → 줄마다 따로 읽는다.
+        var sb = new StringBuilder(bytes.Length);
+        var encoding = Lenient(kind);
+        while (true)
+        {
+            var nl = bytes.IndexOf((byte)'\n');
+            if (nl < 0) { sb.Append(encoding.GetString(bytes)); break; }
+            sb.Append(encoding.GetString(bytes[..nl])).Append('\n');
+            bytes = bytes[(nl + 1)..];
+        }
+        return sb.ToString();
     }
 
     /// <summary>글자를 <paramref name="kind"/>의 바이트로. <paramref name="hasBom"/>이면 BOM을 앞에 붙인다 (UTF-8/16만).</summary>

@@ -12,7 +12,8 @@
 [Daylight Commander](https://github.com/jejezz/daylight-commander-avalonia)와 짝을 이루는 Daylight 패밀리 앱으로,
 C#과 [Avalonia](https://avaloniaui.net)로 만들고 **.NET 10 NativeAOT**로 게시합니다. Windows · macOS · Linux를 지원합니다.
 
-> **개발 중 (0단계: 앱 골격).** 지금 빌드는 빈 홈 창 · 설정 · 정보 · 업데이트 확인만 있습니다.
+> **개발 중 (3단계: 텍스트 비교).** 지금 빌드는 텍스트 파일 두 개를 나란히 비교합니다(읽기 전용). 끌어다 놓기, 인코딩 자동 감지·복구,
+> 주석·공백처럼 중요하지 않은 차이 구분을 지원합니다. `DaylightCompare <왼쪽> <오른쪽>`으로 바로 열 수도 있습니다.
 > 단계별 계획은 [ROADMAP.md](ROADMAP.md)에 있습니다.
 
 ## 스크린샷

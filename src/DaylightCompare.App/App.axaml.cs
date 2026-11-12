@@ -47,7 +47,11 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new HomeWindow();
+            var home = new HomeWindow();
+            desktop.MainWindow = home;
+            // 실행 인자로 파일 두 개를 주면 비교 창을 바로 연다 (CLI·git difftool은 3b에서 넓힌다: 단일 실행, --wait, 종료 코드).
+            var files = (desktop.Args ?? []).Where(a => !a.StartsWith('-')).ToList();
+            if (files.Count == 2) home.Opened += (_, _) => Compare.CompareWindow.Open(home, Path.GetFullPath(files[0]), Path.GetFullPath(files[1]));
             Updates = UpdateService.Create(
                 FileUpdateStateStore.BesideSettings(JsonSettingsRepository.DefaultFile(AppIdentity.FileName)),
                 owner: () => desktop.Windows.FirstOrDefault(w => w.IsActive) ?? desktop.MainWindow,

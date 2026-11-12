@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- 화면 시험: Avalonia Headless로 창을 띄우지 않고 그려 본다 (Skia로 실제 픽셀을 그려 PNG로 남길 수 있다). -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <!-- Avalonia.Headless.XUnit 12는 xUnit v3 (시험 프로젝트가 실행 파일이다). -->
+    <OutputType>Exe</OutputType>
+    <NoWarn>$(NoWarn);AVLN3001</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Headless.XUnit" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Skia" Version="12.1.5" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DaylightCompare.App\DaylightCompare.App.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>

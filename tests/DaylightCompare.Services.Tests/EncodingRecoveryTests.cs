@@ -75,6 +75,25 @@ public class EncodingRecoveryTests
     }
 
     [Fact]
+    public void 깨진_2바이트_코드_페이지도_줄바꿈을_삼키지_않는다()
+    {
+        // UTF-8 줄을 CP949로 읽으면 깨진 첫 바이트가 뒤의 줄바꿈까지 삼켜 줄이 합쳐질 수 있다.
+        byte[] bytes = [.. Utf8("첫 줄\n둘째 줄\n"), .. Cp949("셋째 줄\n")];
+        var text = TextEncodings.Decode(bytes, TextEncodingKind.Cp949);
+        Assert.Equal(4, text.Split('\n').Length);
+        Assert.EndsWith("셋째 줄\n", text);
+    }
+
+    [Fact]
+    public void CP949로_감지된_섞인_파일도_UTF8과_함께_줄마다_복구한다()
+    {
+        byte[] bytes = [.. Utf8("첫 줄\n둘째 줄\n"), .. Cp949("셋째 줄은 CP949\n")];
+        var repair = TextEncodings.RepairMixed(bytes, TextEncodingKind.Cp949, TextEncodingKind.Utf8);
+        Assert.Equal("첫 줄\n둘째 줄\n셋째 줄은 CP949\n", repair.Text);
+        Assert.Empty(repair.BrokenLines);
+    }
+
+    [Fact]
     public void 정상_파일은_손상으로_보지_않는다()
     {
         Assert.False(TextEncodings.Analyze(Utf8("평범한 UTF-8\n")).IsDamaged);
