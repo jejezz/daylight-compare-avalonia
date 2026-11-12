@@ -44,6 +44,10 @@ public sealed class CompareWindow : Window
     {
         public readonly bool Left = left;
         public string? Path;
+        /// <summary>BC <c>/title1</c>·<c>/title2</c>: 경로 대신 보일 이름 (git 임시 파일 이름 대신). 다른 파일을 열면 지운다.</summary>
+        public string? Title;
+        /// <summary>BC <c>/ro</c>·<c>/ro1</c>·<c>/ro2</c>.</summary>
+        public bool ReadOnly;
         public CompareSource? Source;
         public TextEncodingKind? ForcedEncoding;
         public readonly TextEditor Editor = new();
@@ -80,9 +84,9 @@ public sealed class CompareWindow : Window
 
         /// <summary>파일이 없는 칸: 붙여 넣거나 바로 쓴 글을 비교한다 (클립보드 비교). 저장하지 않으므로 고쳐도 "고친 상태"가 아니다.</summary>
         public bool IsScratch => Path is null;
-        public bool CanEdit => Text is not null && (Path is null || !ArchivePaths.IsInArchive(Path));
+        public bool CanEdit => Text is not null && !ReadOnly && (Path is null || !ArchivePaths.IsInArchive(Path));
         public bool Dirty => HasText && !IsScratch && Real != SavedText;
-        public string Name => Path is null ? Strings.Current.CompareScratchName : Locations.NameOf(Path.Replace(ArchivePaths.Separator, "/"));
+        public string Name => Title is { Length: > 0 } t ? t : Path is null ? Strings.Current.CompareScratchName : Locations.NameOf(Path.Replace(ArchivePaths.Separator, "/"));
     }
 
     readonly Side _left = new(true);
@@ -91,11 +95,19 @@ public sealed class CompareWindow : Window
     readonly DiffViewState _rightState = new();
     readonly OverviewBar _overview = new();
     readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center };
-    readonly ToggleButton _unimportant = new() { Classes = { "tool" }, IsChecked = true };
+    /// <summary>BC View > Ignore Unimportant Differences (켜면 중요하지 않은 차이를 차이로 보이지 않는다).</summary>
+    readonly ToggleButton _ignoreUnimportant = new() { Classes = { "tool" } };
     readonly Button _save = new() { Classes = { "tool" }, IsEnabled = false };
-    readonly ToggleButton _onlyDiffs = new() { Classes = { "tool" } };
-    readonly ComboBox _context = new() { VerticalAlignment = VerticalAlignment.Center, MinWidth = 96 };
+
+    /// <summary>BC 보기 필터 (Show All / Differences / Same / Context) — 드롭다운 하나.</summary>
+    readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(10, 4) };
+    CompareViewFilter _filter;
+    int _contextLines;
     static readonly int[] ContextChoices = [0, 1, 2, 3, 5, 10, 20];
+
+    // 바꾸기 (Ctrl+H): 찾기 막대 아래 줄.
+    readonly TextBox _replaceBox = new() { Width = 300, VerticalAlignment = VerticalAlignment.Center };
+    readonly StackPanel _replaceRow = new() { Orientation = Orientation.Horizontal, Spacing = 8, IsVisible = false, Margin = new Thickness(24, 6, 0, 0) };
 
     // 찾기 막대 (Ctrl+F): 마지막으로 초점이 있던 쪽에서 찾는다.
     readonly Border _findBar = new() { IsVisible = false, Padding = new Thickness(12, 6), BorderThickness = new Thickness(0, 0, 0, 1) };
@@ -119,16 +131,20 @@ public sealed class CompareWindow : Window
     public string? LeftPath => _left.Path;
     public string? RightPath => _right.Path;
 
-    public static CompareWindow Open(Window? near, string? left, string? right)
+    public static CompareWindow Open(Window? near, string? left, string? right, CompareOptions? options = null)
     {
-        var w = new CompareWindow(left, right);
+        var w = new CompareWindow(left, right, options ?? CompareOptions.None);
         if (near is not null) WindowPlacementHelper.OpenNear(near, w);
         else w.Show();
         return w;
     }
 
-    CompareWindow(string? left, string? right)
+    CompareWindow(string? left, string? right, CompareOptions options)
     {
+        _left.Title = options.LeftTitle;
+        _right.Title = options.RightTitle;
+        _left.ReadOnly = options.LeftReadOnly;
+        _right.ReadOnly = options.RightReadOnly;
         Width = 1280;
         Height = 780;
         MinWidth = 900;
@@ -143,28 +159,20 @@ public sealed class CompareWindow : Window
         _left.Editor.TextArea.TextView.ScrollOffsetChanged += (_, _) => SyncScroll(_left, _right);
         _right.Editor.TextArea.TextView.ScrollOffsetChanged += (_, _) => SyncScroll(_right, _left);
         _overview.RowRequested += row => ScrollToRow(row, center: true);
-        _unimportant.IsCheckedChanged += (_, _) =>
-        {
-            _leftState.ShowUnimportant = _rightState.ShowUnimportant = _unimportant.IsChecked == true;
-            Redraw();
-        };
         var settings = App.Settings.Value;
-        _onlyDiffs.IsChecked = settings.CompareOnlyDifferences;
-        _context.SelectedIndex = Math.Max(0, Array.IndexOf(ContextChoices, ContextChoices.LastOrDefault(c => c <= settings.CompareContextLines)));
-        _context.IsVisible = _onlyDiffs.IsChecked == true;
-        _onlyDiffs.IsCheckedChanged += (_, _) =>
+        _filter = settings.CompareViewFilter;
+        _contextLines = Math.Clamp(settings.CompareContextLines, 0, AppSettings.MaxContextLines);
+        var ignore = options.IgnoreUnimportant ?? settings.CompareIgnoreUnimportant; // /iu는 이 창에만
+        _ignoreUnimportant.IsChecked = ignore;
+        _leftState.ShowUnimportant = _rightState.ShowUnimportant = !ignore;
+        UpdateViewFilterButton();
+        _ignoreUnimportant.IsCheckedChanged += (_, _) =>
         {
-            var on = _onlyDiffs.IsChecked == true;
-            _context.IsVisible = on;
-            App.Settings.Update(x => x with { CompareOnlyDifferences = on });
-            ApplyFolds();
-        };
-        _context.SelectionChanged += (_, _) =>
-        {
-            if (_context.SelectedIndex < 0) return;
-            var n = ContextChoices[_context.SelectedIndex];
-            App.Settings.Update(x => x with { CompareContextLines = n });
-            ApplyFolds();
+            var ignore = _ignoreUnimportant.IsChecked == true;
+            _leftState.ShowUnimportant = _rightState.ShowUnimportant = !ignore;
+            App.Settings.Update(x => x with { CompareIgnoreUnimportant = ignore });
+            UpdateStatus();
+            Redraw();
         };
         _findBox.TextChanged += (_, _) => Find(forward: true, fromSelectionStart: true);
         _findCase.IsCheckedChanged += (_, _) => Find(forward: true, fromSelectionStart: true);
@@ -199,8 +207,9 @@ public sealed class CompareWindow : Window
         UpdateTitle();
         UpdateStatus();
         foreach (var side in new[] { _left, _right }) UpdateSideChrome(side);
-        FillContextChoices();
+        UpdateViewFilterButton();
         _findBox.PlaceholderText = Strings.Current.CompareFindPlaceholder;
+        _replaceBox.PlaceholderText = Strings.Current.CompareReplacePlaceholder;
         UpdateFindWhere();
         ApplyFolds(); // 접힌 표시 문구
     });
@@ -217,15 +226,17 @@ public sealed class CompareWindow : Window
             b.Click += (_, _) => click();
             return b;
         }
-        _unimportant.Content = new DuoIcon { Icon = "visible" };
-        ToolTip.SetTip(_unimportant, s.CompareToggleUnimportant);
+        _ignoreUnimportant.Content = new DuoIcon { Icon = "visible-off" };
+        ToolTip.SetTip(_ignoreUnimportant, s.CompareIgnoreUnimportant);
         _save.Content = new DuoIcon { Icon = "save" };
         ToolTip.SetTip(_save, s.CompareSave);
         _save.Click += async (_, _) => await SaveAllAsync();
-        _onlyDiffs.Content = new DuoIcon { Icon = "view-list" };
-        ToolTip.SetTip(_onlyDiffs, s.CompareOnlyDifferences);
-        FillContextChoices();
+        ToolTip.SetTip(_viewFilter, s.CompareViewFilterTooltip);
+        var commands = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } };
+        ToolTip.SetTip(commands, s.CompareCommandsTooltip);
+        commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
         Border Separator() => new() { Width = 1, Margin = new Thickness(4, 8), [!Border.BackgroundProperty] = this.GetResourceObservable("AppStroke").ToBinding() };
+        // 툴바는 BC 텍스트 비교의 묶음 순서를 따른다: 보기 필터 · 중요하지 않은 차이 무시 | 복사 · 저장 | 이전·다음 구간 | 좌우 바꾸기 · 다시 읽기 | 찾기 · 모든 명령.
         var tools = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -233,19 +244,20 @@ public sealed class CompareWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
             Children =
             {
-                Tool("up", s.ComparePrevDiff, () => GoDiff(next: false)),
-                Tool("down", s.CompareNextDiff, () => GoDiff(next: true)),
+                _viewFilter,
+                _ignoreUnimportant,
                 Separator(),
-                Tool("back", s.CompareCopyToLeft, () => _ = CopyBlockAsync(toRight: false)),
-                Tool("forward", s.CompareCopyToRight, () => _ = CopyBlockAsync(toRight: true)),
+                Tool("back", Tip(s.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyBlockAsync(toRight: false)),
+                Tool("forward", Tip(s.CompareCopyToRight, "Ctrl+R"), () => _ = CopyBlockAsync(toRight: true)),
                 _save,
                 Separator(),
-                Tool("refresh", s.CompareRecompare, () => _ = ReloadAsync()),
-                Tool("swap", s.CompareSwap, () => _ = SwapAsync()),
-                _unimportant,
-                _onlyDiffs,
-                _context,
-                Tool("search", s.CompareFind, () => OpenFind()),
+                Tool("up", Tip(s.ComparePrevSection, "Ctrl+P"), () => GoDiff(next: false)),
+                Tool("down", Tip(s.CompareNextSection, "Ctrl+N"), () => GoDiff(next: true)),
+                Separator(),
+                Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync()),
+                Tool("refresh", Tip(s.CompareReload, "F5"), () => _ = ReloadWithConfirmAsync()),
+                Tool("search", Tip(s.CompareFindMenu, "Ctrl+F"), () => OpenFind()),
+                commands,
                 Separator(),
                 Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(this)),
                 Tool("info", s.AboutTooltip, () => AboutDialog.Open(this)),
@@ -322,8 +334,8 @@ public sealed class CompareWindow : Window
                     {
                         new DuoIcon { Icon = "search", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center },
                         _findBox,
-                        Tool("up", s.CompareFindPrevious, () => Find(forward: false)),
-                        Tool("down", s.CompareFindNext, () => Find(forward: true)),
+                        Tool("up", Tip(s.CompareFindPreviousMenu, "Shift+F3"), () => Find(forward: false)),
+                        Tool("down", Tip(s.CompareFindNextMenu, "F3"), () => Find(forward: true)),
                         _findCase,
                         _findCount,
                         _findWhere,
@@ -333,19 +345,139 @@ public sealed class CompareWindow : Window
             },
         };
         Grid.SetColumn(close, 2);
-        _findBar.Child = row;
+        // 바꾸기 줄 (BC Search > Replace, Ctrl+H): 찾을 쪽에서 지금 고른 일치를 바꾸거나 모두 바꾼다.
+        _replaceBox.PlaceholderText = s.CompareReplacePlaceholder;
+        var replaceOne = UiScale.Enable(new Button { Content = s.CompareReplaceOne, Padding = new Thickness(12, 4) });
+        var replaceAll = UiScale.Enable(new Button { Content = s.CompareReplaceAll, Padding = new Thickness(12, 4) });
+        replaceOne.Click += (_, _) => ReplaceOne();
+        replaceAll.Click += (_, _) => ReplaceAll();
+        _replaceRow.Children.AddRange([new DuoIcon { Icon = "replace", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, _replaceBox, replaceOne, replaceAll]);
+        _findBar.Child = new StackPanel { Children = { row, _replaceRow } };
         _findBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurface"));
         _findBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStroke"));
         return _findBar;
     }
 
-    void FillContextChoices()
+    // --- 보기 필터 (BC View > Show All / Show Differences / Show Same / Show Context) ---
+
+    string FilterName(CompareViewFilter f) => f switch
     {
-        var index = _context.SelectedIndex;
-        _context.ItemsSource = ContextChoices.Select(n => Strings.Current.CompareContextLines(n)).ToList();
-        _context.SelectedIndex = index;
-        ToolTip.SetTip(_context, Strings.Current.CompareContextTooltip);
+        CompareViewFilter.Differences => Strings.Current.CompareShowDifferences,
+        CompareViewFilter.Same => Strings.Current.CompareShowSame,
+        CompareViewFilter.Context => Strings.Current.CompareShowContext,
+        _ => Strings.Current.CompareShowAll,
+    };
+
+    void UpdateViewFilterButton()
+    {
+        var s = Strings.Current;
+        _viewFilter.Content = _filter == CompareViewFilter.Context ? $"{FilterName(_filter)} ({_contextLines})" : FilterName(_filter);
+        var flyout = new MenuFlyout();
+        foreach (var item in ViewFilterItems()) flyout.Items.Add(item);
+        _viewFilter.Flyout = flyout;
     }
+
+    /// <summary>보기 필터 항목들 (툴바 드롭다운과 명령 메뉴의 보기 묶음이 같이 쓴다).</summary>
+    IEnumerable<Control> ViewFilterItems()
+    {
+        var s = Strings.Current;
+        foreach (var f in new[] { CompareViewFilter.All, CompareViewFilter.Differences, CompareViewFilter.Same, CompareViewFilter.Context })
+        {
+            var item = new MenuItem { Header = FilterName(f), ToggleType = MenuItemToggleType.Radio, IsChecked = _filter == f, GroupName = "view-filter" };
+            var target = f;
+            item.Click += (_, _) => SetViewFilter(target);
+            yield return item;
+        }
+        var lines = new MenuItem { Header = s.CompareContextLinesMenu };
+        foreach (var n in ContextChoices)
+        {
+            var item = new MenuItem { Header = s.CompareContextLines(n), ToggleType = MenuItemToggleType.Radio, IsChecked = _contextLines == n, GroupName = "context-lines" };
+            var count = n;
+            item.Click += (_, _) =>
+            {
+                _contextLines = count;
+                App.Settings.Update(x => x with { CompareContextLines = count });
+                SetViewFilter(CompareViewFilter.Context);
+            };
+            lines.Items.Add(item);
+        }
+        yield return new Separator();
+        yield return lines;
+    }
+
+    void SetViewFilter(CompareViewFilter filter)
+    {
+        _filter = filter;
+        App.Settings.Update(x => x with { CompareViewFilter = filter });
+        UpdateViewFilterButton();
+        ApplyFolds();
+    }
+
+    // --- 모든 명령 (BC의 메뉴: Session · File · Edit · Search · View) ---
+
+    /// <summary>
+    /// 툴바에 없는 명령까지 BC 메뉴 묶음대로 모아 단축키와 함께 보인다. 아이콘은 BC와 달라도 기능과 키는 같게 (BC_COMPAT.md).
+    /// </summary>
+    MenuFlyout CommandsMenu()
+    {
+        var s = Strings.Current;
+        MenuItem Item(string header, string? gesture, Action run, bool enabled = true)
+        {
+            var item = new MenuItem { Header = header, IsEnabled = enabled };
+            if (gesture is not null) item.InputGesture = KeyGesture.Parse(gesture);
+            item.Click += (_, _) => run();
+            return item;
+        }
+        MenuItem Group(string header, params Control[] items)
+        {
+            var g = new MenuItem { Header = header };
+            foreach (var i in items) g.Items.Add(i);
+            return g;
+        }
+        var focused = FocusedSide();
+        var view = Group(s.CompareMenuView, [.. ViewFilterItems(), new Separator(),
+            Item(s.CompareIgnoreUnimportant, null, () => _ignoreUnimportant.IsChecked = _ignoreUnimportant.IsChecked != true)]);
+        var flyout = new MenuFlyout();
+        flyout.Items.Add(Group(s.CompareMenuSession,
+            Item(s.CompareSwap, "Ctrl+U", () => _ = SwapAsync()),
+            Item(s.CompareReload, "F5", () => _ = ReloadWithConfirmAsync()),
+            Item(s.CompareRecompareNow, "Ctrl+F5", () => _ = RecompareNowAsync()),
+            Item(s.CompareInfo, "Ctrl+I", () => _ = ShowInfoAsync())));
+        flyout.Items.Add(Group(s.CompareMenuFile,
+            Item(s.CompareOpenFile, "Ctrl+O", () => _ = PickAsync(focused)),
+            Item(s.CompareOpenClipboard, "Ctrl+Shift+V", () => _ = PasteAsync(focused)),
+            Item(s.CompareSaveFile, "Ctrl+S", () => _ = SaveFocusedAsync(), focused.Dirty || (focused.Left ? _right : _left).Dirty),
+            Item(s.CompareSaveFileAs, "F12", () => _ = SaveAsAsync(focused), focused.HasText)));
+        flyout.Items.Add(Group(s.CompareMenuEdit,
+            Item(s.CompareUndo, "Ctrl+Z", () => _ = UndoAsync(redo: false)),
+            Item(s.CompareRedo, "Ctrl+Y", () => _ = UndoAsync(redo: true)),
+            new Separator(),
+            Item(s.CompareCopyToRight, "Ctrl+R", () => _ = CopyBlockAsync(toRight: true)),
+            Item(s.CompareCopyToLeft, "Ctrl+L", () => _ = CopyBlockAsync(toRight: false)),
+            Item(s.CompareCopyToOther, null, () => _ = CopyBlockAsync(toRight: focused.Left)),
+            Item(s.CompareCopyLineToRight, "Ctrl+Shift+R", () => _ = CopyLineAsync(toRight: true)),
+            Item(s.CompareCopyLineToLeft, "Ctrl+Shift+L", () => _ = CopyLineAsync(toRight: false)),
+            new Separator(),
+            Item(s.CompareSelectSection, "Ctrl+D", SelectSection)));
+        flyout.Items.Add(Group(s.CompareMenuSearch,
+            Item(s.CompareNextSection, "Ctrl+N", () => GoDiff(next: true)),
+            Item(s.ComparePrevSection, "Ctrl+P", () => GoDiff(next: false)),
+            Item(s.CompareNextLine, "Ctrl+Shift+N", () => GoDiffLine(next: true)),
+            Item(s.ComparePrevLine, "Ctrl+Shift+P", () => GoDiffLine(next: false)),
+            new Separator(),
+            Item(s.CompareFindMenu, "Ctrl+F", OpenFind),
+            Item(s.CompareReplaceMenu, "Ctrl+H", () => OpenFind(replace: true)),
+            Item(s.CompareFindNextMenu, "F3", () => Find(forward: true)),
+            Item(s.CompareFindPreviousMenu, "Shift+F3", () => Find(forward: false)),
+            Item(s.CompareGoTo, "Ctrl+G", () => _ = GoToLineAsync())));
+        flyout.Items.Add(view);
+        return flyout;
+    }
+
+    Side FocusedSide() => _left.Editor.TextArea.IsFocused ? _left : _right.Editor.TextArea.IsFocused ? _right : _findSide ?? _right;
+
+    /// <summary>툴팁: 이름 (단축키). macOS는 Ctrl을 ⌘로 보인다.</summary>
+    static string Tip(string name, string key) => $"{name} ({(OperatingSystem.IsMacOS() ? key.Replace("Ctrl+", "⌘") : key)})";
 
     static void Place(Grid grid, Control c, int row, int col, int colSpan, int rowSpan = 1)
     {
@@ -360,8 +492,8 @@ public sealed class CompareWindow : Window
     {
         var open = UiScale.Enable(new Button { Content = Strings.Current.CompareOpen, Padding = new Thickness(12, 4) });
         open.Click += async (_, _) => await PickAsync(side);
-        var paste = UiScale.Enable(new Button { Content = Strings.Current.ComparePaste, Padding = new Thickness(12, 4) });
-        ToolTip.SetTip(paste, Strings.Current.ComparePasteTooltip);
+        var paste = UiScale.Enable(new Button { Content = Strings.Current.CompareOpenClipboard, Padding = new Thickness(12, 4) });
+        ToolTip.SetTip(paste, Tip(Strings.Current.CompareOpenClipboard, "Ctrl+Shift+V"));
         paste.Click += async (_, _) => await PasteAsync(side);
         var icon = new DuoIcon { Icon = "file", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
         var row = new Grid
@@ -489,6 +621,7 @@ public sealed class CompareWindow : Window
         }
         if (!await ConfirmDiscardAsync()) return;
         side.Path = null;
+        side.Title = null;
         side.ForcedEncoding = null;
         side.RepairRequested = false;
         side.Real = TextFiles.NormalizeLineBreaks(text);
@@ -804,7 +937,7 @@ public sealed class CompareWindow : Window
     void UpdateSideChrome(Side side)
     {
         var s = Strings.Current;
-        side.PathText.Text = (side.Dirty ? "● " : "") + (side.Path ?? (side.Real.Length > 0 ? s.CompareScratchName : s.HomeNotChosen));
+        side.PathText.Text = (side.Dirty ? "● " : "") + (side.Title is { Length: > 0 } title ? title : side.Path ?? (side.Real.Length > 0 ? s.CompareScratchName : s.HomeNotChosen));
         ToolTip.SetTip(side.PathText, side.Path ?? (side.Real.Length > 0 ? s.CompareScratchTooltip : null));
         side.EncodingText.Text = side.Text is { } t && !side.IsScratch
             ? TextEncodings.DisplayName(t.File.Encoding, t.File.HasBom) + (side.HasText && !side.CanEdit ? " · " + s.CompareReadOnly : "")
@@ -977,8 +1110,14 @@ public sealed class CompareWindow : Window
     void ApplyFolds(bool redraw = true)
     {
         var aligned = _leftState.Diff;
-        var context = _context.SelectedIndex >= 0 ? ContextChoices[_context.SelectedIndex] : AppSettings.DefaultContextLines;
-        var runs = _onlyDiffs.IsChecked == true && aligned is not null ? aligned.CollapsibleRuns(context) : [];
+        // Show Differences = 문맥 없이, Show Context = 문맥 n줄, Show Same = 차이를 접는다.
+        var runs = aligned is null ? [] : _filter switch
+        {
+            CompareViewFilter.Differences => aligned.CollapsibleRuns(0),
+            CompareViewFilter.Context => aligned.CollapsibleRuns(_contextLines),
+            CompareViewFilter.Same => aligned.CollapsibleRuns(0, showSame: true),
+            _ => (IReadOnlyList<(int StartRow, int RowCount)>)[],
+        };
         foreach (var side in new[] { _left, _right })
         {
             side.Folding.Clear();
@@ -1032,11 +1171,15 @@ public sealed class CompareWindow : Window
 
     // --- 찾기 (Ctrl+F) ---
 
-    void OpenFind()
+    void OpenFind() => OpenFind(replace: false);
+
+    /// <summary>찾기 막대를 연다. <paramref name="replace"/>면 바꾸기 줄도 (BC Ctrl+H).</summary>
+    void OpenFind(bool replace)
     {
-        _findSide ??= _left.Editor.TextArea.IsFocused ? _left : _right;
+        _findSide = _left.Editor.TextArea.IsFocused ? _left : _right.Editor.TextArea.IsFocused ? _right : _findSide ?? _right;
         var selected = _findSide.Editor.SelectedText;
         _findBar.IsVisible = true;
+        _replaceRow.IsVisible = replace || _replaceRow.IsVisible && _findBar.IsVisible;
         if (selected.Length > 0 && !selected.Contains('\n')) _findBox.Text = selected;
         UpdateFindWhere();
         Dispatcher.UIThread.Post(() =>
@@ -1049,8 +1192,46 @@ public sealed class CompareWindow : Window
     void CloseFind()
     {
         _findBar.IsVisible = false;
+        _replaceRow.IsVisible = false;
         _findCount.Text = "";
         (_findSide ?? _right).Editor.TextArea.Focus();
+    }
+
+    StringComparison FindComparison => _findCase.IsChecked == true ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+    /// <summary>지금 고른 글이 찾는 글이면 바꾸고 다음 일치로 간다. 아니면 먼저 다음 일치를 고른다.</summary>
+    void ReplaceOne()
+    {
+        var side = _findSide ??= _right;
+        var needle = _findBox.Text ?? "";
+        if (needle.Length == 0) return;
+        if (!side.CanEdit) { Notice(Strings.Current.CompareReadOnly); return; }
+        if (string.Equals(side.Editor.SelectedText, needle, FindComparison))
+            side.Editor.Document.Replace(side.Editor.SelectionStart, side.Editor.SelectionLength, _replaceBox.Text ?? "");
+        Find(forward: true);
+    }
+
+    /// <summary>찾을 쪽의 모든 일치를 바꾼다 (실행 취소 한 번으로 되돌린다 — 한 편집 묶음).</summary>
+    void ReplaceAll()
+    {
+        var side = _findSide ??= _right;
+        var needle = _findBox.Text ?? "";
+        if (needle.Length == 0) return;
+        if (!side.CanEdit) { Notice(Strings.Current.CompareReadOnly); return; }
+        var doc = side.Editor.Document;
+        var hay = doc.Text;
+        var matches = new List<int>();
+        for (var i = hay.IndexOf(needle, FindComparison); i >= 0; i = hay.IndexOf(needle, i + needle.Length, FindComparison)) matches.Add(i);
+        if (matches.Count == 0) { _findCount.Text = Strings.Current.CompareFindNone; return; }
+        var replacement = _replaceBox.Text ?? "";
+        doc.BeginUpdate();
+        try
+        {
+            for (var k = matches.Count - 1; k >= 0; k--) doc.Replace(matches[k], needle.Length, replacement);
+        }
+        finally { doc.EndUpdate(); }
+        _findCount.Text = "";
+        Notice(Strings.Current.CompareReplaced(matches.Count));
     }
 
     void UpdateFindWhere() =>
@@ -1102,11 +1283,127 @@ public sealed class CompareWindow : Window
     {
         if (_leftState.Diff is not { } d) return;
         var row = CurrentRow();
-        var include = _unimportant.IsChecked == true && d.Diff.DifferenceCount == 0;
+        var include = IncludeUnimportant(d);
         var target = next ? d.Next(row, include) : d.Previous(row, include);
         // 지금 차이 구간 안에 있으면 그 구간 끝/처음을 기준으로 다음 것을 찾는다.
         if (next && d.RangeAt(row) is { } cur && target?.StartRow == cur.StartRow) target = d.Next(cur.StartRow + cur.RowCount - 1, include);
         if (target is { } t) ScrollToRow(t.StartRow, center: true);
+    }
+
+    /// <summary>중요하지 않은 차이도 이동 대상인가: 무시하지 않고, 중요한 차이가 하나도 없을 때.</summary>
+    bool IncludeUnimportant(AlignedDiff d) => _ignoreUnimportant.IsChecked != true && d.Diff.DifferenceCount == 0;
+
+    /// <summary>BC Next / Previous Difference (줄 단위, Shift+Ctrl+N / P): 구간 안에서도 한 행씩.</summary>
+    void GoDiffLine(bool next)
+    {
+        if (_leftState.Diff is not { } d) return;
+        var row = CurrentRow();
+        var include = IncludeUnimportant(d);
+        if ((next ? d.NextDifferenceRow(row, include) : d.PreviousDifferenceRow(row, include)) is { } target)
+            ScrollToRow(target, center: true);
+    }
+
+    /// <summary>BC Copy Line to Right / Left (Shift+Ctrl+R / L): 캐럿이 있는 행 하나만.</summary>
+    async Task CopyLineAsync(bool toRight)
+    {
+        await CommitEditsAsync();
+        if (_leftState.Diff is not { } d || !(toRight ? _right : _left).CanEdit) return;
+        var row = CurrentRow();
+        if (row < 0 || row >= d.Rows.Count || d.Rows[row].Kind == DiffBlockKind.Equal) { Notice(Strings.Current.CompareNothingToCopy); return; }
+        _undo.Push((_left.Real, _right.Real));
+        _redo.Clear();
+        var (l, r) = DiffEdits.CopyRow(d, row, toRight);
+        await SetRealAsync(l, r);
+    }
+
+    /// <summary>BC Recompare Files (Ctrl+F5): 고친 것을 그대로 두고 지금 다시 비교한다 (Reload Files와 달리 디스크를 읽지 않는다).</summary>
+    async Task RecompareNowAsync()
+    {
+        if (_editBatchOpen) { await CommitEditsAsync(); return; }
+        await RecompareAsync(++_version, CaretReal());
+    }
+
+    /// <summary>BC Select Section (Ctrl+D): 캐럿이 있는 차이 구간을 초점 쪽에서 고른다.</summary>
+    void SelectSection()
+    {
+        if (_leftState.Diff is not { } d) return;
+        var side = FocusedSide();
+        if (d.RangeAt(CurrentRow()) is not { } range) return;
+        var doc = side.Editor.Document;
+        var first = doc.GetLineByNumber(Math.Min(range.StartRow + 1, doc.LineCount));
+        var last = doc.GetLineByNumber(Math.Min(range.StartRow + range.RowCount, doc.LineCount));
+        side.Editor.Select(first.Offset, last.EndOffset - first.Offset);
+    }
+
+    /// <summary>BC Go To (Ctrl+G): 초점 쪽 파일의 실제 줄 번호로 간다.</summary>
+    async Task GoToLineAsync()
+    {
+        var side = FocusedSide();
+        var s = Strings.Current;
+        var input = await InputDialog.ShowAsync(this, s.CompareGoTo, s.CompareGoToPrompt(side.Name), "", s.CommonOk, s.CommonCancel);
+        if (input is null || !int.TryParse(input.Trim(), out var line) || line < 1) return;
+        var row = _leftState.Diff is { } d ? (side.Left ? d.RowOfLeftLine(line - 1) : d.RowOfRightLine(line - 1)) : line - 1;
+        var doc = side.Editor.Document;
+        if (row + 1 <= doc.LineCount) Unfold(side, doc.GetLineByNumber(row + 1).Offset);
+        ScrollToRow(row, center: true);
+        side.Editor.TextArea.Focus();
+    }
+
+    /// <summary>BC Text Compare Info (Ctrl+I): 양쪽 파일의 크기·시각·인코딩·줄바꿈·줄 수.</summary>
+    async Task ShowInfoAsync()
+    {
+        var s = Strings.Current;
+        string Describe(Side side)
+        {
+            if (side.IsScratch) return $"{side.Name}\n{s.CompareInfoLines(DiffEdits.Split(side.Real).Lines.Count)}";
+            if (side.Text is not { } t) return $"{side.Path}\n—";
+            var lineBreak = t.File.LineBreak switch { "\r\n" => "CRLF (Windows)", "\r" => "CR (Mac)", _ => "LF (Unix)" };
+            return string.Join("\n",
+                side.Path,
+                s.CompareInfoSize(BytesFormat.Format(t.File.Length), t.File.Modified.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")),
+                $"{TextEncodings.DisplayName(t.File.Encoding, t.File.HasBom)} · {lineBreak}",
+                s.CompareInfoLines(DiffEdits.Split(side.Real).Lines.Count));
+        }
+        await MessageDialog.ShowAsync(this, s.CompareInfo, $"{s.HomeLeft}\n{Describe(_left)}\n\n{s.HomeRight}\n{Describe(_right)}", [s.CommonClose], 0, 0);
+    }
+
+    /// <summary>
+    /// BC Save File As (F12): 다른 이름으로 저장한다. 붙여 넣은 글(파일 없는 칸)은 이것으로 파일이 된다 — UTF-8, 이 OS의 줄바꿈.
+    /// 저장한 뒤 그 칸은 새 파일을 비교한다.
+    /// </summary>
+    async Task SaveAsAsync(Side side)
+    {
+        await CommitEditsAsync();
+        if (!side.HasText) return;
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = Strings.Current.CompareSaveFileAs,
+            SuggestedFileName = side.Path is null ? "pasted.txt" : System.IO.Path.GetFileName(side.Path.Replace(ArchivePaths.Separator, "/")),
+        });
+        if (file?.TryGetLocalPath() is not { } path) return;
+        var template = side.Text is { } t && !side.IsScratch
+            ? t.File
+            : new EditorTextFile("", HasBom: false, LineBreak: Environment.NewLine, DateTime.MinValue, 0, Binary: false);
+        try
+        {
+            var saved = await TextFiles.SaveAsync(path, side.Real, template with { DecodeErrors = 0 });
+            side.Path = path;
+        side.Title = null;
+            side.Title = null;
+            side.Source = new CompareSource.Text(path, saved with { Text = side.Real }, await File.ReadAllBytesAsync(path));
+            side.SavedText = side.Real;
+            side.Repair = null;
+            side.RepairRequested = false;
+            Watch(side);
+            UpdateSideChrome(side);
+            UpdateTitle();
+            Notice(Strings.Current.CompareSaved(side.Name));
+            await RecompareAsync(++_version, CaretReal()); // 이름이 바뀌면 정책(파일 형식)·강조가 달라질 수 있다
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            await MessageDialog.ShowAsync(this, Strings.Current.CompareSaveFileAs, Strings.Current.CompareSaveFailed(e.Message), [Strings.Current.CommonClose], 0, 0);
+        }
     }
 
     /// <summary>고친 것이 있으면 버려도 되는지 묻는다 (다시 읽기·바꾸기 전).</summary>
@@ -1129,6 +1426,8 @@ public sealed class CompareWindow : Window
     {
         if (!await ConfirmDiscardAsync()) return;
         (_left.Path, _right.Path) = (_right.Path, _left.Path);
+        (_left.Title, _right.Title) = (_right.Title, _left.Title);
+        (_left.ReadOnly, _right.ReadOnly) = (_right.ReadOnly, _left.ReadOnly);
         (_left.Real, _right.Real) = (_right.Real, _left.Real); // 파일 없는 칸의 글도 함께 옮긴다
         (_left.ForcedEncoding, _right.ForcedEncoding) = (_right.ForcedEncoding, _left.ForcedEncoding);
         (_left.RepairRequested, _right.RepairRequested) = (_right.RepairRequested, _left.RepairRequested);
@@ -1180,6 +1479,7 @@ public sealed class CompareWindow : Window
         {
             if (!await ConfirmDiscardAsync()) return;
             _left.Path = l;
+            _left.Title = _right.Title = null;
             _right.Path = r;
             foreach (var side in new[] { _left, _right }) { side.ForcedEncoding = null; side.RepairRequested = false; }
             await ReloadAsync();
@@ -1235,40 +1535,50 @@ public sealed class CompareWindow : Window
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
         var alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
         var handled = true;
-        if (_findBox.IsFocused)
+        if (_findBox.IsFocused || _replaceBox.IsFocused)
         {
-            // 찾기 칸에서는 글자 편집 키(Ctrl+Z·Ctrl+←→ 등)를 칸에 맡기고, 찾기 키만 받는다.
+            // 찾기·바꾸기 칸에서는 글자 편집 키(Ctrl+Z·Ctrl+←→·Ctrl+L 등)를 칸에 맡기고, 찾기 키만 받는다.
             switch (e.Key)
             {
+                case Key.Enter when _replaceBox.IsFocused: if (primary) ReplaceAll(); else ReplaceOne(); break;
                 case Key.Enter: Find(forward: !shift); break;
                 case Key.F3: Find(forward: !shift); break;
                 case Key.Escape: CloseFind(); break;
-                case Key.F when primary: _findBox.SelectAll(); break;
-                case Key.F8: GoDiff(next: !shift); break;
+                case Key.F when primary: _findBox.Focus(); _findBox.SelectAll(); break;
+                case Key.H when primary: _replaceRow.IsVisible = true; _replaceBox.Focus(); break;
+                case Key.N when primary: if (shift) GoDiffLine(next: true); else GoDiff(next: true); break;
+                case Key.P when primary: if (shift) GoDiffLine(next: false); else GoDiff(next: false); break;
                 default: handled = false; break;
             }
             e.Handled = handled;
             return;
         }
+        // 키는 Beyond Compare 기본값을 따른다 (BC_COMPAT.md §1). F8·Alt+↑↓는 덧붙인 키.
         switch (e.Key)
         {
-            case Key.F when primary: OpenFind(); break;
-            case Key.F3: if (_findBox.Text is { Length: > 0 }) Find(forward: !shift); else OpenFind(); break;
-            case Key.Escape when _findBar.IsVisible: CloseFind(); break;
-            case Key.D when primary: _onlyDiffs.IsChecked = _onlyDiffs.IsChecked != true; break;
-            case Key.V when primary && shift: _ = PasteAsync(_left.Editor.TextArea.IsFocused ? _left : _right); break;
+            case Key.N when primary: if (shift) GoDiffLine(next: true); else GoDiff(next: true); break;
+            case Key.P when primary: if (shift) GoDiffLine(next: false); else GoDiff(next: false); break;
             case Key.F8: GoDiff(next: !shift); break;
             case Key.Down when alt: GoDiff(next: true); break;
             case Key.Up when alt: GoDiff(next: false); break;
-            case Key.Right when primary && !shift: _ = CopyBlockAsync(toRight: true); break;
-            case Key.Left when primary && !shift: _ = CopyBlockAsync(toRight: false); break;
+            case Key.R when primary: _ = shift ? CopyLineAsync(toRight: true) : CopyBlockAsync(toRight: true); break;
+            case Key.L when primary: _ = shift ? CopyLineAsync(toRight: false) : CopyBlockAsync(toRight: false); break;
+            case Key.D when primary && !shift: SelectSection(); break;
+            case Key.F when primary: OpenFind(); break;
+            case Key.H when primary: OpenFind(replace: true); break;
+            case Key.F3: if (_findBox.Text is { Length: > 0 }) Find(forward: !shift); else OpenFind(); break;
+            case Key.G when primary: _ = GoToLineAsync(); break;
+            case Key.I when primary && !shift: _ = ShowInfoAsync(); break;
+            case Key.Escape when _findBar.IsVisible: CloseFind(); break;
+            case Key.V when primary && shift: _ = PasteAsync(FocusedSide()); break;
             case Key.S when primary: _ = shift ? SaveAllAsync() : SaveFocusedAsync(); break;
+            case Key.F12: _ = SaveAsAsync(FocusedSide()); break;
             case Key.Z when primary && !shift: _ = UndoAsync(redo: false); break;
             case Key.Z when primary && shift: _ = UndoAsync(redo: true); break;
             case Key.Y when primary: _ = UndoAsync(redo: true); break;
+            case Key.F5 when primary: _ = RecompareNowAsync(); break;
             case Key.F5: _ = ReloadWithConfirmAsync(); break;
-            case Key.R when primary: _ = ReloadWithConfirmAsync(); break;
-            case Key.U when primary: _ = SwapAsync(); break;
+            case Key.U when primary && !shift: _ = SwapAsync(); break;
             case Key.O when primary: _ = PickAsync(_right.Path is null || _left.Path is not null && _right.Editor.TextArea.IsFocused ? _right : _left); break;
             case Key.W when primary: Close(); break;
             case Key.OemComma when primary: SettingsWindow.Open(this); break;
@@ -1281,4 +1591,10 @@ public sealed class CompareWindow : Window
     {
         if (await ConfirmDiscardAsync()) await ReloadAsync();
     }
+}
+
+/// <summary>명령줄(BC 스위치)로 연 비교 창의 선택 — 칸 제목, 읽기 전용, 중요하지 않은 차이 무시(null이면 설정을 따른다).</summary>
+public sealed record CompareOptions(string? LeftTitle = null, string? RightTitle = null, bool LeftReadOnly = false, bool RightReadOnly = false, bool? IgnoreUnimportant = null)
+{
+    public static readonly CompareOptions None = new();
 }

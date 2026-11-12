@@ -46,16 +46,22 @@ C#과 [Avalonia](https://avaloniaui.net)로 만들고 **.NET 10 NativeAOT**로 �
 
 ## 명령줄 · git difftool
 
-```text
-DaylightCompare [옵션] [<왼쪽> [<오른쪽>]]
+Beyond Compare와 같은 스위치를 받습니다 (Windows는 `/스위치`, macOS·Linux는 `-스위치`, 어디서나 `--스위치`도 됩니다).
 
-  --wait, -w     비교 창을 닫을 때까지 기다리고, 결과를 종료 코드로 돌려줍니다
-  --silent, -s   창 없이 비교만 합니다 (경로 둘)
-  --help, -h     사용법
+```text
+DaylightCompare [스위치] [<왼쪽> [<오른쪽>]]
+
+  /qc[=size|crc|binary]       창 없이 비교하고 결과를 종료 코드로 (값이 없으면 규칙 기준)
+  /title1=이름  /title2=이름   칸 제목 (git 임시 파일 이름 대신)
+  /ro  /ro1  /ro2             읽기 전용 (둘 다 · 왼쪽 · 오른쪽)
+  /iu                         중요하지 않은 차이 무시
+  --wait                      비교 창을 닫을 때까지 기다림 (git difftool)
+  /?                          사용법
 ```
 
-- 종료 코드: `0` 같음 · `1` 다름 · `2` 오류(읽지 못함, 폴더, 잘못된 인자). "같음"은 Compare Policy로 본 결과라서
-  줄바꿈·BOM·공백처럼 중요하지 않은 차이만 있으면 `0`입니다. `--wait`는 창을 닫을 때 **저장한 뒤의 파일**로 판정합니다.
+- 종료 코드도 BC와 같습니다: `0` 성공(창으로 비교) · `1` 바이트까지 같음 · `2` 규칙으로 같음(인코딩·BOM·줄바꿈만 다름) ·
+  `11` 바이트가 다름 · `12` 중요하지 않은 차이만 · `13` 다름 · `100` 오류. BC용으로 쓴 스크립트를 그대로 쓸 수 있습니다.
+- BC에는 있지만 아직 하지 않는 스위치(`/filters`, `/automerge`, `/mergeoutput` 등)는 "아직 지원하지 않음"으로 알려 줍니다 — 폴더 비교(4단계)·병합(7단계)에서 받습니다.
 - 앱이 이미 떠 있으면 새로 띄우지 않고 그 앱에서 비교 창을 엽니다. `--wait`면 그 창을 닫을 때까지 기다립니다.
 - 압축 파일 안의 파일은 `a.zip!/폴더/파일` 꼴로 줄 수 있습니다(읽기 전용).
 
@@ -63,14 +69,14 @@ DaylightCompare [옵션] [<왼쪽> [<오른쪽>]]
 
 ```bash
 git config --global diff.tool daylight
-git config --global difftool.daylight.cmd '"C:/Program Files/Daylight Compare/DaylightCompare.exe" --wait "$LOCAL" "$REMOTE"'
+git config --global difftool.daylight.cmd '"C:/Program Files/Daylight Compare/DaylightCompare.exe" --wait "$LOCAL" "$REMOTE" -title1="$MERGED (이전)" -title2="$MERGED"'
 git config --global difftool.prompt false
 ```
 
-macOS는 `"/Applications/Daylight Compare.app/Contents/MacOS/DaylightCompare"`, Linux는 압축을 푼 폴더의 `DaylightCompare`를 씁니다.
+macOS는 `"/Applications/Daylight Compare.app/Contents/MacOS/DaylightCompare"`, Linux는 압축을 푼 폴더의 `DaylightCompare`를 씁니다. git 설정에서는 Windows에서도 `-title1=` 꼴로 쓰세요 — Git for Windows(MSYS)가 `/`로 시작하는 인자를 경로로 바꿀 수 있습니다.
 그다음 `git difftool`(또는 `git difftool HEAD~1 -- 파일`)을 실행하면 바뀐 파일마다 비교 창이 하나씩 열립니다.
 
-- `difftool.trustExitCode`는 켜지 마세요 — 켜면 차이가 있는 첫 파일(종료 코드 1)에서 git이 멈춥니다.
+- 창으로 비교하면 BC처럼 종료 코드가 늘 0이라 `difftool.trustExitCode`를 켜도 멈추지 않습니다.
 - `git difftool --dir-diff`(폴더 통째로)는 폴더 비교(4단계)가 생기면 됩니다. `git mergetool`은 7단계입니다.
 
 ## 소스에서 빌드

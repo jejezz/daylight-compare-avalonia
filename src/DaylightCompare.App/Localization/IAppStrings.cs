@@ -27,11 +27,7 @@ public interface IAppStrings
 
     // 비교 창 · 홈 창 고르기 · 끌어다 놓기
     string CompareWindowTitle(string left, string right);
-    string CompareNextDiff { get; }
-    string ComparePrevDiff { get; }
-    string CompareRecompare { get; }
     string CompareSwap { get; }
-    string CompareToggleUnimportant { get; }
     string CompareOpen { get; }
     string CompareOpenLeftTitle { get; }
     string CompareOpenRightTitle { get; }
@@ -57,20 +53,56 @@ public interface IAppStrings
     string DropFolderLater { get; }
     string DropNoCounterpart(string name);
     string CommonClose { get; }
+    string CompareIgnoreUnimportant { get; }
+    string CompareViewFilterTooltip { get; }
+    string CompareCommandsTooltip { get; }
+    string CompareReload { get; }
+    string CompareRecompareNow { get; }
+    string CompareShowAll { get; }
+    string CompareShowDifferences { get; }
+    string CompareShowSame { get; }
+    string CompareShowContext { get; }
+    string CompareContextLinesMenu { get; }
+    string CompareMenuSession { get; }
+    string CompareMenuFile { get; }
+    string CompareMenuEdit { get; }
+    string CompareMenuSearch { get; }
+    string CompareMenuView { get; }
+    string CompareInfo { get; }
+    string CompareOpenFile { get; }
+    string CompareOpenClipboard { get; }
+    string CompareSaveFile { get; }
+    string CompareSaveFileAs { get; }
+    string CompareUndo { get; }
+    string CompareRedo { get; }
+    string CompareCopyToOther { get; }
+    string CompareCopyLineToRight { get; }
+    string CompareCopyLineToLeft { get; }
+    string CompareSelectSection { get; }
+    string CompareNextSection { get; }
+    string ComparePrevSection { get; }
+    string CompareNextLine { get; }
+    string ComparePrevLine { get; }
+    string CompareFindMenu { get; }
+    string CompareReplaceMenu { get; }
+    string CompareFindNextMenu { get; }
+    string CompareFindPreviousMenu { get; }
+    string CompareGoTo { get; }
+    string CompareReplacePlaceholder { get; }
+    string CompareReplaceOne { get; }
+    string CompareReplaceAll { get; }
+    string CommonOk { get; }
+    string CompareGoToPrompt(string name);
+    string CompareInfoSize(string size, string modified);
+    string CompareInfoLines(int lines);
+    string CompareReplaced(int count);
     string CompareScratchName { get; }
     string CompareScratchTooltip { get; }
-    string ComparePaste { get; }
-    string ComparePasteTooltip { get; }
     string CompareClipboardEmpty { get; }
-    string CompareOnlyDifferences { get; }
     string CompareContextLines(int lines);
-    string CompareContextTooltip { get; }
     string CompareFolded(int lines);
-    string CompareFind { get; }
     string CompareFindPlaceholder { get; }
     string CompareFindMatchCase { get; }
-    string CompareFindPrevious { get; }
-    string CompareFindNext { get; }
     string CompareFindNone { get; }
     string CompareFindCount(int index, int count);
     string CompareFindInLeft { get; }
@@ -80,7 +112,8 @@ public interface IAppStrings
     string CliUsage { get; }
     string CliUnknownOption(string option);
     string CliTooManyPaths { get; }
-    string CliSilentNeedsTwoPaths { get; }
+    string CliUnsupportedOption(string option);
+    string CliQuickCompareNeedsTwoPaths { get; }
     string CompareSave { get; }
     string CompareCopyToRight { get; }
     string CompareCopyToLeft { get; }

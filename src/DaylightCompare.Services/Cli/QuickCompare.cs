@@ -6,29 +6,40 @@ using DaylightCompare.Domain.Policy;
 namespace DaylightCompare.Services.Cli;
 
 /// <summary>
-/// 창 없이 두 경로를 비교해 종료 코드를 정한다 (<c>--silent</c>, 그리고 <c>--wait</c>로 연 비교 창을 닫을 때 — 저장한 뒤의 디스크 내용으로).
-/// 둘 다 텍스트면 Compare Policy로 비교하고(중요한 차이가 없으면 같음), 아니면 바이트로 비교한다.
-/// 읽지 못하거나 폴더면(폴더 비교는 4단계) 오류.
+/// 창 없이 두 경로를 비교해 BC와 같은 종료 코드를 정한다 (BC <c>/qc</c>, BC_COMPAT.md §4).
+/// <list type="bullet">
+/// <item>규칙 기준(기본): 바이트가 같으면 1, 둘 다 텍스트이고 Compare Policy로 글이 같으면(인코딩·BOM·줄바꿈만 다름) 2,
+/// 중요하지 않은 차이만 있으면 12(<paramref name="ignoreUnimportant"/>면 2), 중요한 차이가 있으면 13. 텍스트가 아니면 바이트로 1 / 11.</item>
+/// <item>size: 크기만, crc·binary: 바이트로 — 같으면 1, 다르면 11.</item>
+/// <item>읽지 못하거나 폴더면(폴더 비교는 4단계) 100.</item>
+/// </list>
 /// </summary>
 public static class QuickCompare
 {
-    public static async Task<ExitCode> RunAsync(string left, string right, ComparePolicy policy, CancellationToken ct = default)
+    public static async Task<ExitCode> RunAsync(string left, string right, ComparePolicy policy,
+        QuickCompareKind kind = QuickCompareKind.Rules, bool ignoreUnimportant = false, CancellationToken ct = default)
     {
         try
         {
             if (Directory.Exists(left) || Directory.Exists(right)) return ExitCode.Error;
+            if (kind == QuickCompareKind.Size && !ArchivePaths.IsInArchive(left) && !ArchivePaths.IsInArchive(right))
+            {
+                var (a, b) = (new FileInfo(left), new FileInfo(right));
+                if (!a.Exists || !b.Exists) return ExitCode.Error;
+                return a.Length == b.Length ? ExitCode.BinarySame : ExitCode.BinaryDifferent;
+            }
             var sources = await Task.WhenAll(CompareSources.LoadAsync(left, ct: ct), CompareSources.LoadAsync(right, ct: ct));
             var (l, r) = (sources[0], sources[1]);
             if (l is CompareSource.Failed || r is CompareSource.Failed) return ExitCode.Error;
-            if (l is CompareSource.Text lt && r is CompareSource.Text rt)
-            {
-                var effective = policy.Resolve(Path.GetFileName(left), namesIgnoreCase: PolicyStore.NamesIgnoreCase);
-                var diff = TextDiff.Compare(lt.File.Text, rt.File.Text, effective);
-                return diff.IsEquivalent ? ExitCode.Same : ExitCode.Different;
-            }
-            return await SameBytesAsync(left, right, l, r, ct) is { } same
-                ? same ? ExitCode.Same : ExitCode.Different
-                : ExitCode.Error;
+            var bytesSame = await SameBytesAsync(left, right, l, r, ct);
+            if (bytesSame is null) return ExitCode.Error;
+            if (bytesSame == true) return ExitCode.BinarySame;
+            if (kind != QuickCompareKind.Rules || l is not CompareSource.Text lt || r is not CompareSource.Text rt) return ExitCode.BinaryDifferent;
+            var effective = policy.Resolve(Path.GetFileName(left), namesIgnoreCase: PolicyStore.NamesIgnoreCase);
+            var diff = TextDiff.Compare(lt.File.Text, rt.File.Text, effective);
+            if (diff.IsIdentical) return ExitCode.RulesSame;
+            if (diff.IsEquivalent) return ignoreUnimportant ? ExitCode.RulesSame : ExitCode.Similar;
+            return ExitCode.RulesDifferent;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {

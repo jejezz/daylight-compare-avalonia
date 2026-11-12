@@ -12,14 +12,14 @@ using DaylightCompare.App.Compare;
 
 namespace DaylightCompare.App.Tests;
 
-/// <summary>비교 창의 편의 기능: 차이만 보기(접기), 찾기, 파일 없는 칸(붙여 넣은 글).</summary>
+/// <summary>비교 창의 편의 기능: BC 보기 필터(접기), 찾기, 파일 없는 칸(붙여 넣은 글).</summary>
 public sealed class CompareConvenienceTests : IDisposable
 {
     readonly string _dir = Directory.CreateTempSubdirectory("dcmp-conv").FullName;
 
     public void Dispose()
     {
-        App.Settings.Update(s => s with { CompareOnlyDifferences = false, CompareContextLines = Domain.Settings.AppSettings.DefaultContextLines });
+        App.Settings.Update(s => s with { CompareViewFilter = Domain.Settings.CompareViewFilter.All, CompareContextLines = Domain.Settings.AppSettings.DefaultContextLines });
         Directory.Delete(_dir, recursive: true);
     }
 
@@ -61,18 +61,19 @@ public sealed class CompareConvenienceTests : IDisposable
         e.TextArea.TextView.GetService(typeof(FoldingManager)) is FoldingManager m ? m.AllFoldings.ToList() : [];
 
     [AvaloniaFact]
-    public async Task 차이만_보기는_양쪽의_같은_행을_똑같이_접는다()
+    public async Task 문맥_보기는_양쪽의_같은_행을_똑같이_접는다()
     {
         var left = Write("l.txt", Lines(0, 40) + "LEFT\n" + Lines(41, 80));
         var right = Write("r.txt", Lines(0, 40) + "RIGHT\n" + Lines(41, 80));
+        var all = CompareWindow.Open(null, left, right);
+        await Settle();
+        Assert.Empty(Folds(Editors(all).Right)); // 기본은 Show All
+        all.Close();
+
+        App.Settings.Update(s => s with { CompareViewFilter = Domain.Settings.CompareViewFilter.Context, CompareContextLines = 3 });
         var w = CompareWindow.Open(null, left, right);
         await Settle();
         var (l, r) = Editors(w);
-        Assert.Empty(Folds(r));
-
-        w.KeyPressQwerty(PhysicalKey.D, RawInputModifiers.Control);
-        await Settle();
-        Assert.True(App.Settings.Value.CompareOnlyDifferences); // 다음 창도 그대로 연다
         var lf = Folds(l).Select(f => (f.StartOffset, f.EndOffset, f.IsFolded)).ToList();
         Assert.Equal(2, lf.Count);
         Assert.All(lf, f => Assert.True(f.IsFolded));
@@ -92,17 +93,24 @@ public sealed class CompareConvenienceTests : IDisposable
         Assert.False(Folds(r)[0].IsFolded);
         Assert.True(Folds(r)[1].IsFolded);
 
-        // 다시 누르면 모두 편다.
-        w.KeyPressQwerty(PhysicalKey.D, RawInputModifiers.Control);
-        await Settle();
-        Assert.Empty(Folds(l));
         w.Close();
+
+        // Show Same은 반대로 차이 행을 접는다 (한 행짜리는 접지 않으므로 차이를 두 줄로).
+        App.Settings.Update(s => s with { CompareViewFilter = Domain.Settings.CompareViewFilter.Same });
+        var left2 = Write("l2.txt", Lines(0, 10) + "A\nB\n" + Lines(12, 20));
+        var right2 = Write("r2.txt", Lines(0, 10) + "a\nb\n" + Lines(12, 20));
+        var same = CompareWindow.Open(null, left2, right2);
+        await Settle();
+        var folds = Folds(Editors(same).Right);
+        Assert.Single(folds);
+        Assert.Equal(11, Editors(same).Right.Document.GetLineByOffset(folds[0].StartOffset).LineNumber);
+        same.Close();
     }
 
     [AvaloniaFact]
     public async Task 찾기는_일치를_골라_보이고_접힌_곳이면_편다()
     {
-        App.Settings.Update(s => s with { CompareOnlyDifferences = true });
+        App.Settings.Update(s => s with { CompareViewFilter = Domain.Settings.CompareViewFilter.Context });
         var left = Write("fl.txt", Lines(0, 30) + "needle here\n" + Lines(31, 60) + "LEFT\n");
         var right = Write("fr.txt", Lines(0, 30) + "needle here\n" + Lines(31, 60) + "RIGHT\n");
         var w = CompareWindow.Open(null, left, right);
@@ -122,8 +130,8 @@ public sealed class CompareConvenienceTests : IDisposable
         Assert.DoesNotContain(Folds(r), f => f.IsFolded && f.StartOffset <= r.SelectionStart && f.EndOffset >= r.SelectionStart);
         Shot(w, "compare-find");
 
-        // 찾기 칸에서 Ctrl+→는 블록 복사가 아니라 칸의 글자 이동이다 (오른쪽 파일이 그대로).
-        w.KeyPressQwerty(PhysicalKey.ArrowRight, RawInputModifiers.Control);
+        // 찾기 칸에서 Ctrl+L은 블록 복사(BC Copy to Left)가 아니다 (파일이 그대로).
+        w.KeyPressQwerty(PhysicalKey.L, RawInputModifiers.Control);
         await Settle();
         Assert.EndsWith("RIGHT", r.Document.Text);
 

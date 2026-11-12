@@ -4,6 +4,7 @@ using DaylightCompare.Services.Cli;
 
 namespace DaylightCompare.Services.Tests;
 
+/// <summary>BC <c>/qc</c>와 같은 종료 코드 (BC_COMPAT.md §4).</summary>
 public sealed class QuickCompareTests : IDisposable
 {
     readonly string _dir = Directory.CreateTempSubdirectory("dcmp-cli").FullName;
@@ -19,38 +20,40 @@ public sealed class QuickCompareTests : IDisposable
     }
 
     [Fact]
-    public async Task 줄바꿈만_다른_텍스트는_같다()
+    public async Task 규칙_기준_종료_코드는_BC와_같다()
     {
         var a = Write("a.txt", "one\ntwo\n"u8.ToArray());
-        var b = Write("b.txt", "one\r\ntwo\r\n"u8.ToArray());
-        Assert.Equal(ExitCode.Same, await QuickCompare.RunAsync(a, b, Policy));
+        Assert.Equal(ExitCode.BinarySame, await QuickCompare.RunAsync(a, Write("same.txt", "one\ntwo\n"u8.ToArray()), Policy));
+        Assert.Equal(ExitCode.RulesSame, await QuickCompare.RunAsync(a, Write("crlf.txt", "one\r\ntwo\r\n"u8.ToArray()), Policy));
+        var trailing = Write("ws.txt", "one  \ntwo\n"u8.ToArray());
+        Assert.Equal(ExitCode.Similar, await QuickCompare.RunAsync(a, trailing, Policy));
+        Assert.Equal(ExitCode.RulesSame, await QuickCompare.RunAsync(a, trailing, Policy, ignoreUnimportant: true));
+        Assert.Equal(ExitCode.RulesDifferent, await QuickCompare.RunAsync(a, Write("b.txt", "one\nTWO\n"u8.ToArray()), Policy));
     }
 
     [Fact]
-    public async Task 내용이_다르면_다르다()
+    public async Task 바이너리_크기_비교는_1과_11()
     {
-        var a = Write("a.txt", "one\n"u8.ToArray());
-        var b = Write("b.txt", "two\n"u8.ToArray());
-        Assert.Equal(ExitCode.Different, await QuickCompare.RunAsync(a, b, Policy));
-    }
-
-    [Fact]
-    public async Task 바이너리는_바이트로_비교한다()
-    {
-        byte[] bytes = [0, 1, 2, 3, 0, 255];
+        byte[] bytes = [0, 1, 2, 0, 255]; // 홀수 길이 — UTF-16으로 읽히지 않게
         var a = Write("a.bin", bytes);
         var b = Write("b.bin", bytes);
-        var c = Write("c.bin", [0, 1, 2, 3, 0, 254]);
-        Assert.Equal(ExitCode.Same, await QuickCompare.RunAsync(a, b, Policy));
-        Assert.Equal(ExitCode.Different, await QuickCompare.RunAsync(a, c, Policy));
+        var c = Write("c.bin", [0, 1, 2, 0, 254]);
+        Assert.Equal(ExitCode.BinarySame, await QuickCompare.RunAsync(a, b, Policy));
+        Assert.Equal(ExitCode.BinaryDifferent, await QuickCompare.RunAsync(a, c, Policy));
+        Assert.Equal(ExitCode.BinarySame, await QuickCompare.RunAsync(a, c, Policy, QuickCompareKind.Size));
+        // 바이트 비교는 줄바꿈만 다른 텍스트도 다르다고 본다.
+        var t1 = Write("t1.txt", "x\n"u8.ToArray());
+        var t2 = Write("t2.txt", "x\r\n"u8.ToArray());
+        Assert.Equal(ExitCode.BinaryDifferent, await QuickCompare.RunAsync(t1, t2, Policy, QuickCompareKind.Binary));
     }
 
     [Fact]
-    public async Task 없는_파일과_폴더는_오류다()
+    public async Task 없는_파일과_폴더는_100()
     {
         var a = Write("a.txt", "x\n"u8.ToArray());
         Assert.Equal(ExitCode.Error, await QuickCompare.RunAsync(a, Path.Combine(_dir, "missing.txt"), Policy));
         Assert.Equal(ExitCode.Error, await QuickCompare.RunAsync(a, _dir, Policy));
+        Assert.Equal(100, (int)ExitCode.Error);
     }
 
     [Fact]
@@ -76,7 +79,7 @@ public sealed class InstanceChannelTests
 
         var code = await InstanceChannel.SendAsync(name, ["--wait", "--", "C:\\한글 경로\\a.txt", "b \"q\".txt"], TimeSpan.FromSeconds(5));
         Assert.Equal(1, code);
-        Assert.Equal(["--wait", "--", "C:\\한글 경로\\a.txt", "b \"q\".txt"], received);
+        Assert.Equal(["--wait", "--", "C:\\한글 경로\\a.txt", "b \"q\".txt"], received!);
         stop.Cancel();
         await server;
     }

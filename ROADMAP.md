@@ -340,6 +340,13 @@ tests/*.Tests              xUnit. Domain은 골든 파일, Services는 가짜 �
   - **바꾼 것**: "떠 있는 창의 새 탭" → 지금은 떠 있는 앱의 **새 비교 창**. 탭은 폴더 비교에서 파일 비교를 여는 흐름과 함께 4단계에서 정한다(비교 창을 컨트롤로 나누는 큰 작업)
   - **미룬 것**: 탐색기 연동(우클릭 [왼쪽으로 고르기] → [고른 것과 비교]) — 규약상 설치 프로그램(.iss)에 한국어 메뉴 이름을 넣을 수 없어서,
     앱이 설정에서 켜면 HKCU에 지금 언어로 등록하는 방식으로 따로 한다(3c 또는 4단계). `--dir-diff`는 4단계, mergetool은 7단계
+- [x] **Beyond Compare 호환** (2026-11-12, 사용자 결정 — BC에 익숙한 사용자가 쓴다): 대응표 [BC_COMPAT.md](BC_COMPAT.md)를 만들고 텍스트 비교를 맞췄다.
+  - 키를 BC 기본값으로(Ctrl+N/P 구간, Shift+Ctrl+N/P 줄, Ctrl+R/L 복사, Shift+Ctrl+R/L 줄 복사, Ctrl+D 구간 선택, F5/Ctrl+F5, F12, Ctrl+G, Ctrl+H, Ctrl+I, Shift+Ctrl+V).
+    BC 도움말이 기본 키를 거의 적지 않아 사용자가 실제 BC5와 맞춰 본다(❓)
+  - 보기 필터를 BC처럼 하나로(Show All / Differences / Same / Context), "Ignore Unimportant Differences" 토글, 모든 명령 메뉴(BC 메뉴 묶음)
+  - 색을 BC 뜻으로(중요 = 빨강, 중요하지 않음 = 파랑)
+  - 명령줄을 BC 스위치·종료 코드로(`/qc`, `/title1` `/title2`, `/ro*`, `/iu`, `/?`, 0·1·2·11·12·13·100). `--silent`는 없앰
+  - 앞으로의 단계(폴더 비교 필터 문법·보기 필터·명령, 병합 흐름, Hex·그림 명령)도 BC_COMPAT.md를 먼저 따른다
 - 끝나는 조건: 실제 프로젝트 파일로 git difftool을 써서 쓸 만하다고 사용자가 확인. (구현은 모두 끝남 — 남은 것은 이 확인)
 
 ### 4. 폴더 비교

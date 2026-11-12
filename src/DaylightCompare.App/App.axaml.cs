@@ -55,7 +55,7 @@ public partial class App : Application
             var desktop = standalone;
             // --wait인데 본체가 없다: 비교 창 하나만 띄우고, 닫으면 결과를 종료 코드로 남기고 끝난다 (업데이트 확인도 하지 않는다).
             var request = Program.Request;
-            var window = Compare.CompareWindow.Open(null, request.Paths[0], request.Paths.ElementAtOrDefault(1));
+            var window = Compare.CompareWindow.Open(null, request.Paths[0], request.Paths.ElementAtOrDefault(1), OptionsOf(request));
             desktop.MainWindow = window;
             window.Closed += async (_, _) => desktop.Shutdown(await ResultOfAsync(window));
             desktop.Exit += (_, _) => Settings.Dispose();
@@ -66,7 +66,7 @@ public partial class App : Application
             desktop.MainWindow = home;
             home.Opened += async (_, _) => await HandleAsync(desktop, Program.Request, home);
             // 다른 실행(CLI·git difftool·탐색기)이 넘긴 인자. 응답(종료 코드)은 그 실행이 --wait일 때 의미가 있다.
-            SingleInstance.Listen(args => Dispatcher.UIThread.InvokeAsync(() => HandleAsync(desktop, CommandLine.Parse(args), null)));
+            SingleInstance.Listen(args => Dispatcher.UIThread.InvokeAsync(() => HandleAsync(desktop, CommandLine.Parse(args, slashSwitches: OperatingSystem.IsWindows()), null)));
             Updates = UpdateService.Create(
                 FileUpdateStateStore.BesideSettings(JsonSettingsRepository.DefaultFile(AppIdentity.FileName)),
                 owner: () => desktop.Windows.FirstOrDefault(w => w.IsActive) ?? desktop.MainWindow,
@@ -92,7 +92,7 @@ public partial class App : Application
             var s = Strings.Current;
             var message = request.IsValid ? s.CliUsage : $"{CliErrorText(request)}\n\n{s.CliUsage}";
             await MessageDialog.ShowAsync(owner, s.CliUsageTitle, message, [s.CommonClose], 0, 0);
-            return (int)(request.IsValid ? ExitCode.Same : ExitCode.Error);
+            return (int)(request.IsValid ? ExitCode.Success : ExitCode.Error);
         }
         if (!request.IsCompare)
         {
@@ -100,7 +100,7 @@ public partial class App : Application
             BringToFront(desktop.Windows.OfType<HomeWindow>().FirstOrDefault() ?? ShowHome(desktop));
             return 0;
         }
-        var window = Compare.CompareWindow.Open(near, request.Paths[0], request.Paths.ElementAtOrDefault(1));
+        var window = Compare.CompareWindow.Open(near, request.Paths[0], request.Paths.ElementAtOrDefault(1), OptionsOf(request));
         BringToFront(window);
         if (!request.Wait) return 0;
         var closed = new TaskCompletionSource();
@@ -109,19 +109,21 @@ public partial class App : Application
         return await ResultOfAsync(window);
     }
 
-    /// <summary>닫은 비교 창의 결과 (저장한 뒤의 디스크 내용을 정책으로 다시 비교한다).</summary>
-    static async Task<int> ResultOfAsync(Compare.CompareWindow window)
-    {
-        if (window.LeftPath is not { } left || window.RightPath is not { } right) return (int)ExitCode.Error;
-        var policy = await Policy.LoadAsync();
-        return (int)await Task.Run(() => QuickCompare.RunAsync(left, right, policy));
-    }
+    /// <summary>
+    /// 닫은 비교 창의 종료 코드. BC처럼 창으로 비교하면 결과와 상관없이 0(성공)이다 — 결과가 필요하면 <c>/qc</c>.
+    /// (git difftool은 종료 코드를 보지 않는다. <c>trustExitCode</c>를 켜도 멈추지 않는다.)
+    /// </summary>
+    static Task<int> ResultOfAsync(Compare.CompareWindow window) => Task.FromResult((int)ExitCode.Success);
+
+    static Compare.CompareOptions OptionsOf(CliRequest r) =>
+        new(r.LeftTitle, r.RightTitle, r.LeftReadOnly, r.RightReadOnly, r.IgnoreUnimportant ? true : null);
 
     static string CliErrorText(CliRequest request) => request.Error switch
     {
         CliError.UnknownOption => Strings.Current.CliUnknownOption(request.ErrorArgument ?? ""),
         CliError.TooManyPaths => Strings.Current.CliTooManyPaths,
-        CliError.SilentNeedsTwoPaths => Strings.Current.CliSilentNeedsTwoPaths,
+        CliError.UnsupportedOption => Strings.Current.CliUnsupportedOption(request.ErrorArgument ?? ""),
+        CliError.QuickCompareNeedsTwoPaths => Strings.Current.CliQuickCompareNeedsTwoPaths,
         _ => "",
     };
 

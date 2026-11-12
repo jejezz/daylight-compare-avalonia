@@ -46,32 +46,37 @@ Get it from the [Releases page](https://github.com/jejezz/daylight-compare-avalo
 
 ## Command line · git difftool
 
-```text
-DaylightCompare [options] [<left> [<right>]]
+The same switches as Beyond Compare (`/switch` on Windows, `-switch` on macOS/Linux, `--switch` anywhere).
 
-  --wait, -w     Wait until the compare window closes and return the result as the exit code
-  --silent, -s   Compare without a window (two paths)
-  --help, -h     Usage
+```text
+DaylightCompare [switches] [<left> [<right>]]
+
+  /qc[=size|crc|binary]       Compare without a window; result in the exit code (rules-based if no value)
+  /title1=name  /title2=name  Pane titles (instead of git temp file names)
+  /ro  /ro1  /ro2             Read-only (both · left · right)
+  /iu                         Ignore unimportant differences
+  --wait                      Wait until the compare window closes (git difftool)
+  /?                          Usage
 ```
 
-- Exit codes: `0` same · `1` different · `2` error (unreadable, a folder, bad arguments). "Same" follows the Compare Policy,
-  so files that differ only in unimportant ways (line endings, BOM, whitespace) return `0`. With `--wait` the result is taken
-  from **the files as saved** when the window closes.
-- If the app is already running, the compare window opens there instead of in a new process. With `--wait` it waits until that window closes.
+- Exit codes match BC too: `0` success (window) · `1` binary same · `2` rules-based same (only encoding/BOM/line endings differ) ·
+  `11` binary differences · `12` similar (only unimportant differences) · `13` rules-based differences · `100` error. Scripts written for BC keep working.
+- BC switches not supported yet (`/filters`, `/automerge`, `/mergeoutput`, …) are reported as such — they arrive with folder compare (stage 4) and merge (stage 7).
+- If the app is already running, the compare window opens there. With `--wait` it waits until that window closes.
 - A file inside an archive can be given as `a.zip!/folder/file` (read-only).
 
 **Use it as git difftool** (Windows, default install location. Run these in Git Bash — Windows PowerShell 5.1 strips the inner double quotes):
 
 ```bash
 git config --global diff.tool daylight
-git config --global difftool.daylight.cmd '"C:/Program Files/Daylight Compare/DaylightCompare.exe" --wait "$LOCAL" "$REMOTE"'
+git config --global difftool.daylight.cmd '"C:/Program Files/Daylight Compare/DaylightCompare.exe" --wait "$LOCAL" "$REMOTE" -title1="$MERGED (before)" -title2="$MERGED"'
 git config --global difftool.prompt false
 ```
 
-On macOS use `"/Applications/Daylight Compare.app/Contents/MacOS/DaylightCompare"`; on Linux, `DaylightCompare` in the extracted folder.
+On macOS use `"/Applications/Daylight Compare.app/Contents/MacOS/DaylightCompare"`; on Linux, `DaylightCompare` in the extracted folder. In git config use the `-title1=` form even on Windows — Git for Windows (MSYS) may rewrite arguments starting with `/` into paths.
 Then `git difftool` (or `git difftool HEAD~1 -- file`) opens one compare window per changed file.
 
-- Don't turn on `difftool.trustExitCode` — git would stop at the first file that differs (exit code 1).
+- Like BC, a window comparison always exits with 0, so `difftool.trustExitCode` never stops git.
 - `git difftool --dir-diff` (whole folders) works once folder compare (stage 4) lands. `git mergetool` is stage 7.
 
 ## Build from source
