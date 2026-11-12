@@ -1,6 +1,6 @@
 # 계획서 — Daylight Compare (Avalonia)
 
-> 상태: **확정 (2026-11-12)** — §10의 결정이 모두 끝났다. 다음은 0단계(앱 골격). Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지·표 비교, 병합, 동기화)을 하는 데스크톱 앱.
+> 상태: **확정 (2026-11-12)** — §10의 결정이 모두 끝났다. 0·1단계 완료, 다음은 2단계(Compare Policy). 사용자 편의 원칙은 §6-1. Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지·표 비교, 병합, 동기화)을 하는 데스크톱 앱.
 > 각 단계는 실행 가능한 상태로 끝내고, 끝에 사용자가 직접 실행해 눈으로 확인한다. 한 번에 한 단계.
 > 공통 규약: `jejezz/application-release-templates/conventions` (identity, versioning, tagging, workflow, packaging, about-dialog,
 > icons, licensing, ui-ux, theming, settings, settings-screen, fonts, localization, window-placement, readme-guide).
@@ -204,8 +204,44 @@ tests/*.Tests              xUnit. Domain은 골든 파일, Services는 가짜 �
   독립 창 정책(Daylight `CLAUDE.md`): 비교·병합·정책 편집·설정은 창, 짧은 질문은 대화상자.
 - 공통 단축키(ui-ux §7) + 비교 전용: 다음/이전 차이 `F8`/`Shift+F8`(또는 `Alt+↓/↑`), 왼쪽→오른쪽 복사 `Ctrl+→`, 반대 `Ctrl+←`, 다시 비교 `F5`,
   같은 것 숨기기 토글, 비중요 차이 보기 토글. 목록은 정보 창/도움말(F1)에.
-- 끌어다 놓기: 창 왼쪽/오른쪽 절반에 놓으면 그 쪽에, 두 개를 한 번에 놓으면 양쪽에.
+- 끌어다 놓기: §6-1.
 - 색: 차이 종류(추가·삭제·변경·비중요·충돌) 토큰을 theming.md 방식으로 테마에서 읽는다 (`{DynamicResource AppDiff...}`). 고대비 색 구성에서도 구분되게 모양(가장자리 막대·기호)을 함께 쓴다.
+
+### 6-1. 사용자 편의 (원칙 — 모든 단계에 적용)
+
+> 2026-11-12 사용자 요청: "사용자 편의성 강화가 중요하다." 각 단계의 끝나는 조건에 아래 해당 항목이 들어간다.
+
+**① 파일·폴더 끌어다 놓기** — 규칙은 `Domain/Drop/DropPlanner`(시험 있음), 경로 분류는 `Services/DropClassifier`. 화면은 3단계(홈 창·비교 창)부터.
+- 어느 창이든 창 전체가 놓는 자리다. 끌고 들어오면 왼쪽·오른쪽 절반을 강조하고(ui-ux §7), 놓을 수 없는 것이면 그렇다고 보인다.
+- **두 개**를 한 번에 놓으면 어디에 놓든 양쪽을 채우고 바로 비교. **하나**는 놓은 쪽 절반만 바꾸고, 가운데에 놓으면 빈 쪽부터 채운다(양쪽이 차 있으면 새 비교).
+- 폴더·압축 파일끼리 → 폴더 비교, 파일끼리 → 파일 비교, **파일 + 폴더 → 폴더 안의 같은 이름 파일과 비교**(없으면 알리고 그쪽만 비움).
+- **파일 세 개 → 3-way 병합**(가운데가 공통 조상, 화면에서 역할 바꾸기). 네 개 이상은 이유와 함께 거절.
+- 비교 창의 각 칸(경로 표시줄)에도 놓을 수 있고, 폴더 비교 안에서 항목을 반대쪽으로 끌면 복사(확인 대화상자, 7단계).
+
+**② 인코딩 오류 복구** — 로직은 `Services/TextEncodings`·`TextFiles`(시험 있음), 화면은 3단계.
+- 감지가 "깨진 곳 있음"이면(`EncodingAnalysis.IsDamaged`, `EditorTextFile.DecodeErrors`) 비교 칸 위에 안내 띠: *"UTF-8로 읽었지만 3줄에서 깨졌습니다"* +
+  [깨진 곳으로 이동](`FindErrors`) · [다른 인코딩으로 다시 열기](`Previews`: 후보마다 오류 수와 미리보기) · [줄마다 섞인 인코딩 복구](`RepairMixed`, 예: UTF-8 + CP949).
+- 상태 표시줄의 인코딩 이름을 누르면 같은 "다시 열기" 목록. 좌우 인코딩이 다르면 비교는 글자 기준으로 하고 "인코딩만 다름"을 따로 알린다.
+- 어느 것으로도 안 읽히면 Latin-1(서유럽) 텍스트로 열고 편집·저장할 수 있다 — Commander처럼 통째로 읽기 전용이 되지 않는다. NUL이 있으면 바이너리 비교로 안내.
+- 저장 전 손실 확인: 깨진 곳이 남았거나(� 저장) 고른 인코딩에 없는 글자가 있으면(`Unencodable`) 그 글자들을 보여 주고 [UTF-8로 저장]을 제안.
+  원본은 저장 전에 백업(아래 ⑤).
+- BOM·줄바꿈(CRLF/LF)·인코딩만 다른 파일은 기본 정책에서 "중요하지 않은 차이"로 두고, 띠에 한 줄로 알린다.
+
+**③ 더 제안하는 것** (들어갈 단계)
+| 제안 | 이유 | 단계 |
+|---|---|---|
+| **탐색기·Finder 연동**: 우클릭 [왼쪽으로 고르기] → 다른 항목에서 [고른 것과 비교] (Beyond Compare의 Select Left / Compare to) | 창을 열지 않고 두 번 클릭으로 시작 | 3b (Windows 레지스트리 · macOS 서비스 · Linux `.desktop` 동작) |
+| **클립보드 비교**: 한쪽 칸에 붙여 넣은 글을 바로 비교 (파일 없이) | 로그·설정 조각 비교가 잦다 | 3 |
+| **실행 중이면 새 탭으로**: CLI·탐색기·끌어다 놓기로 다시 열면 떠 있는 창의 새 탭 | 창이 흩어지지 않게 | 3b (Jack's Bean `SingleInstance`) |
+| **파일이 바뀌면 자동 다시 비교**(감시) + 스크롤 위치 유지, 편집 중이면 묻기 | 빌드 산출물·로그 비교 | 3 |
+| **최근 쌍 · 세션 복원**: 홈 창에 최근 비교 쌍(한 번 클릭), 다시 켜면 열려 있던 비교 복원 | 같은 쌍을 반복 비교 | 3·4 |
+| **좌우 바꾸기**(`Ctrl+U`, Commander와 같은 키) · 경로 한쪽에 맞추기 | 방향을 잘못 놓았을 때 | 3 |
+| **차이만 보기 / 문맥 n줄** 토글, 다음·이전 차이, 개요 막대 클릭 이동 | 긴 파일 탐색 | 3 |
+| **되돌리기**: 복사·편집·동기화 각각 한 단계 이상 실행 취소, 덮어쓰기 전 자동 백업(`.bak` 또는 휴지통) | 비교 도구의 가장 큰 사고는 잘못 덮어쓰기 | 3·7 |
+| **큰 파일·느린 원격**: 진행률·취소, 결과는 나오는 대로, UI는 절대 멈추지 않음 | ui-ux §6 로딩 규칙 | 4·5 |
+| **이유 있는 오류**: 권한·연결·인코딩 오류를 스낵바 + [복사] + 해결 버튼(다시 연결, 다른 인코딩…) | ui-ux §6 | 모든 단계 |
+| **명령 팔레트**(`Ctrl+Shift+P`): 모든 명령을 이름으로 찾기 | 기능이 많아질수록 발견성이 중요 | 8 |
+| **첫 실행 안내**: 빈 홈 창에 "두 파일을 끌어다 놓으세요" + 예제 비교 열기 | 처음 쓰는 사람 | 3 |
 
 ---
 
@@ -225,9 +261,17 @@ tests/*.Tests              xUnit. Domain은 골든 파일, Services는 가짜 �
 - 끝나는 조건: **`v0.1.0-rc.1` 태그로 파이프라인이 끝까지 돈다.** 빈 홈 창이 세 OS에서 뜬다.
 
 ### 1. 공통 부품 이식
-- [ ] `IFileSystem` 계열 + 원격 세션·호스트 키 + `OperationQueue` 이식, 출처 주석
-- [ ] 인코딩 확장(CP949·UTF-16·Shift-JIS), 인코딩 수동 선택
-- [ ] `ZipFileSystem`·`TarFileSystem`(읽기 전용)
+- [x] `IFileSystem` 계열(Local·SFTP·FTP·WebDAV) + 원격 세션·호스트 키(설정 `network_profiles`·`known_host_keys`) + `FileOperations`·`OperationQueue`·`Trash` 이식,
+  출처 주석 `// From daylight-commander-avalonia @ 4686eb7`. Commander의 서비스 테스트(원격 통합 테스트 포함)도 함께 가져왔다
+- [x] 인코딩 확장: `TextEncodings` — BOM → BOM 없는 UTF-16 → UTF-8 → CP949/Shift-JIS(자주 쓰는 한글·가나 바이트 영역으로 판정) → Latin-1.
+  `TextFiles.Decode/LoadAsync(…, forced)`로 수동 선택, 저장은 읽은 인코딩 그대로(`EditorTextFile.Encoding`), `CanEncode`로 손실 확인. 선택 UI는 3단계
+- [x] `ArchiveFileSystem`(읽기 전용, zip·jar·apk·nupkg / tar / tar.gz·tgz) — 경로 `<압축 파일>!/<안쪽>`(`ArchivePaths`), 폴더 항목 없는 압축 파일도 경로로 폴더를 만든다,
+  `..` 이름은 뺀다. .NET 내장(`System.IO.Compression`, `System.Formats.Tar`)만 쓴다. 7z·rar은 나중
+- 확인: 테스트 198개 통과(원격 통합 테스트 37개는 asyncssh·pyftpdlib·wsgidav·cheroot가 있는 파이썬을 `DC_TEST_PYTHON`으로 줘서 실제 서버로 돌림), Windows AOT 게시 성공.
+  다만 앱 화면이 아직 원격·압축 코드를 쓰지 않아 AOT가 그 코드를 잘라 낸다 — 실제 AOT 확인은 4단계(폴더 비교 화면)에서. (SSH.NET·FluentFTP의 AOT 동작은 Commander가 이미 확인)
+- [x] (사용자 편의 §6-1 선행 작업) 인코딩 오류 복구 로직: 손상 텍스트 감지(`Analyze`), 깨진 곳 찾기(`FindErrors`), 다른 인코딩 미리보기(`Previews`),
+  줄 단위 섞인 인코딩 복구(`RepairMixed`/`TextFiles.DecodeMixed`), 저장 손실 찾기(`Unencodable`). 끌어다 놓기 규칙 `DropPlanner` + `DropClassifier`
+- Commander에도 필요한 수정 2건: 앱 바 [정보] 툴팁 리소스 누락(0단계), SFTP 통합 테스트의 순서 의존(공용 서버 폴더를 테스트마다 비움)
 - 끝나는 조건: 가짜·실제 SFTP/FTP, zip/tar.gz 목록을 시험으로 읽는다.
 
 ### 2. Compare Policy 도메인 + 저장소

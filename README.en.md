@@ -64,6 +64,9 @@ bash scripts/publish-aot.sh linux-x64        # Linux / macOS (osx-arm64)
 dotnet test DaylightCompare.slnx
 ```
 
+The SFTP/FTP/WebDAV integration tests start Python servers (`asyncssh`, `pyftpdlib`, `wsgidav`, `cheroot`).
+They are skipped when the packages or Python are missing; point `DC_TEST_PYTHON` at another interpreter if needed.
+
 ## App icon
 
 `tool/icon/draw_glyph.py` draws the glyph (`assets/icon/source_glyph.svg` and `.png`), and

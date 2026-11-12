@@ -61,10 +61,31 @@ public sealed record AppSettings
     [JsonPropertyName("ui_font_family")]
     public string? UiFontFamily { get; init; }
 
+    /// <summary>자주 쓰는 네트워크 서버 (연결 대화상자에서 한 번에 고른다). Daylight Commander와 같은 키.</summary>
+    [JsonPropertyName("network_profiles")]
+    public IReadOnlyList<NetworkProfile> NetworkProfiles { get; init; } = [];
+
+    /// <summary>접속한 적 있는 SSH 서버의 호스트 키 지문 (<c>host:port</c> → 지문). 다음 접속 때 같은 서버인지 확인한다.</summary>
+    [JsonPropertyName("known_host_keys")]
+    public IReadOnlyDictionary<string, string> KnownHostKeys { get; init; } = new Dictionary<string, string>();
+
     [JsonPropertyName("window_placement")]
     public WindowPlacement? Window { get; init; }
 
     public AppSettings WithTextScale(double scale) => this with { TextScale = TextScales.Snap(scale) };
+
+    /// <summary>서버를 저장한다. 같은 서버(스킴·호스트·포트·계정)가 이미 있으면 그 자리를 바꾸고, 없으면 맨 끝에 더한다.</summary>
+    public AppSettings WithNetworkProfile(NetworkProfile profile)
+    {
+        static bool Same(NetworkProfile a, NetworkProfile b) =>
+            a.Scheme == b.Scheme && a.Port == b.Port && a.User == b.User && string.Equals(a.Host, b.Host, StringComparison.OrdinalIgnoreCase);
+        return NetworkProfiles.Any(p => Same(p, profile))
+            ? this with { NetworkProfiles = NetworkProfiles.Select(p => Same(p, profile) ? profile : p).ToList() }
+            : this with { NetworkProfiles = [.. NetworkProfiles, profile] };
+    }
+
+    public AppSettings WithoutNetworkProfile(NetworkProfile profile) =>
+        this with { NetworkProfiles = NetworkProfiles.Where(p => p != profile).ToList() };
 
     /// <summary>
     /// 파일에서 읽은 값을 쓸 수 있는 값으로 고친다 (배율은 범위 안으로).
@@ -73,8 +94,32 @@ public sealed record AppSettings
     public AppSettings Normalized()
     {
         var snapped = TextScales.Snap(TextScale);
-        return snapped == TextScale ? this : this with { TextScale = snapped };
+        var result = snapped == TextScale ? this : this with { TextScale = snapped };
+        // 파일에 없던 목록·표는 null로 읽힌다 (컴파일러는 null이 아니라고 믿으므로 object로 본다).
+        if ((object?)result.NetworkProfiles is null) result = result with { NetworkProfiles = [] };
+        if ((object?)result.KnownHostKeys is null) result = result with { KnownHostKeys = new Dictionary<string, string>() };
+        return result;
     }
+}
+
+/// <summary>저장해 둔 네트워크 서버. 비밀번호는 저장하지 않는다 (연결할 때마다 묻는다).</summary>
+public sealed record NetworkProfile
+{
+    [JsonPropertyName("scheme")]
+    public string Scheme { get; init; } = "sftp";
+
+    [JsonPropertyName("host")]
+    public string Host { get; init; } = "";
+
+    [JsonPropertyName("port")]
+    public int Port { get; init; }
+
+    [JsonPropertyName("user")]
+    public string User { get; init; } = "";
+
+    /// <summary>시작 폴더 (WebDAV처럼 서버 주소 뒤에 <c>/dav/</c> 같은 경로가 붙는 곳). 옛 파일에는 없으므로 null일 수 있다.</summary>
+    [JsonPropertyName("path")]
+    public string? Path { get; init; }
 }
 
 /// <summary>설정을 읽고 쓴다. 구현은 data 계층.</summary>
