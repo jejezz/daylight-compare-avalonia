@@ -57,6 +57,11 @@ public interface IAppStrings
     string DropFolderLater { get; }
     string DropNoCounterpart(string name);
     string CommonClose { get; }
+    string CliUsageTitle { get; }
+    string CliUsage { get; }
+    string CliUnknownOption(string option);
+    string CliTooManyPaths { get; }
+    string CliSilentNeedsTwoPaths { get; }
     string CompareSave { get; }
     string CompareCopyToRight { get; }
     string CompareCopyToLeft { get; }

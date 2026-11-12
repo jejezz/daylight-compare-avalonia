@@ -1,13 +1,18 @@
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using DaylightCompare.App.Cli;
+using DaylightCompare.App.Dialogs;
 using DaylightCompare.App.Updates;
 using DaylightCompare.Data;
 using DaylightCompare.Domain;
+using DaylightCompare.Domain.Cli;
 using DaylightCompare.Domain.Policy;
 using DaylightCompare.Domain.Settings;
 using DaylightCompare.Services;
+using DaylightCompare.Services.Cli;
 using DaylightCompare.Services.Updates;
 
 namespace DaylightCompare.App;
@@ -45,13 +50,23 @@ public partial class App : Application
         ApplyAppearance(Settings.Value);
         Settings.Changed += s => Dispatcher.UIThread.Post(() => ApplyAppearance(s));
 
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { } standalone && Program.Mode == LaunchMode.WaitStandalone)
+        {
+            var desktop = standalone;
+            // --wait인데 본체가 없다: 비교 창 하나만 띄우고, 닫으면 결과를 종료 코드로 남기고 끝난다 (업데이트 확인도 하지 않는다).
+            var request = Program.Request;
+            var window = Compare.CompareWindow.Open(null, request.Paths[0], request.Paths.ElementAtOrDefault(1));
+            desktop.MainWindow = window;
+            window.Closed += async (_, _) => desktop.Shutdown(await ResultOfAsync(window));
+            desktop.Exit += (_, _) => Settings.Dispose();
+        }
+        else if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { } desktop)
         {
             var home = new HomeWindow();
             desktop.MainWindow = home;
-            // 실행 인자로 파일 두 개를 주면 비교 창을 바로 연다 (CLI·git difftool은 3b에서 넓힌다: 단일 실행, --wait, 종료 코드).
-            var files = (desktop.Args ?? []).Where(a => !a.StartsWith('-')).ToList();
-            if (files.Count == 2) home.Opened += (_, _) => Compare.CompareWindow.Open(home, Path.GetFullPath(files[0]), Path.GetFullPath(files[1]));
+            home.Opened += async (_, _) => await HandleAsync(desktop, Program.Request, home);
+            // 다른 실행(CLI·git difftool·탐색기)이 넘긴 인자. 응답(종료 코드)은 그 실행이 --wait일 때 의미가 있다.
+            SingleInstance.Listen(args => Dispatcher.UIThread.InvokeAsync(() => HandleAsync(desktop, CommandLine.Parse(args), null)));
             Updates = UpdateService.Create(
                 FileUpdateStateStore.BesideSettings(JsonSettingsRepository.DefaultFile(AppIdentity.FileName)),
                 owner: () => desktop.Windows.FirstOrDefault(w => w.IsActive) ?? desktop.MainWindow,
@@ -62,6 +77,65 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// 실행 인자 하나를 처리한다 — 처음 실행한 인자(<paramref name="near"/> = 홈 창)든 다른 실행이 넘긴 것이든.
+    /// 돌려주는 값은 그 실행의 종료 코드: <c>--wait</c>면 비교 창을 닫을 때의 결과, 아니면 0(잘못된 인자는 2).
+    /// </summary>
+    static async Task<int> HandleAsync(IClassicDesktopStyleApplicationLifetime desktop, CliRequest request, Window? near)
+    {
+        near ??= desktop.Windows.FirstOrDefault(w => w.IsActive) ?? desktop.Windows.LastOrDefault(w => w.IsVisible);
+        if (!request.IsValid || request.Help)
+        {
+            var owner = near ?? ShowHome(desktop);
+            var s = Strings.Current;
+            var message = request.IsValid ? s.CliUsage : $"{CliErrorText(request)}\n\n{s.CliUsage}";
+            await MessageDialog.ShowAsync(owner, s.CliUsageTitle, message, [s.CommonClose], 0, 0);
+            return (int)(request.IsValid ? ExitCode.Same : ExitCode.Error);
+        }
+        if (!request.IsCompare)
+        {
+            // 인자 없이 다시 실행했다 — 떠 있는 창을 앞으로 (홈 창을 닫았으면 다시 연다).
+            BringToFront(desktop.Windows.OfType<HomeWindow>().FirstOrDefault() ?? ShowHome(desktop));
+            return 0;
+        }
+        var window = Compare.CompareWindow.Open(near, request.Paths[0], request.Paths.ElementAtOrDefault(1));
+        BringToFront(window);
+        if (!request.Wait) return 0;
+        var closed = new TaskCompletionSource();
+        window.Closed += (_, _) => closed.TrySetResult();
+        await closed.Task;
+        return await ResultOfAsync(window);
+    }
+
+    /// <summary>닫은 비교 창의 결과 (저장한 뒤의 디스크 내용을 정책으로 다시 비교한다).</summary>
+    static async Task<int> ResultOfAsync(Compare.CompareWindow window)
+    {
+        if (window.LeftPath is not { } left || window.RightPath is not { } right) return (int)ExitCode.Error;
+        var policy = await Policy.LoadAsync();
+        return (int)await Task.Run(() => QuickCompare.RunAsync(left, right, policy));
+    }
+
+    static string CliErrorText(CliRequest request) => request.Error switch
+    {
+        CliError.UnknownOption => Strings.Current.CliUnknownOption(request.ErrorArgument ?? ""),
+        CliError.TooManyPaths => Strings.Current.CliTooManyPaths,
+        CliError.SilentNeedsTwoPaths => Strings.Current.CliSilentNeedsTwoPaths,
+        _ => "",
+    };
+
+    static HomeWindow ShowHome(IClassicDesktopStyleApplicationLifetime desktop)
+    {
+        var home = new HomeWindow();
+        home.Show();
+        return home;
+    }
+
+    static void BringToFront(Window window)
+    {
+        if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
+        window.Activate();
     }
 
     void ApplyAppearance(AppSettings s)

@@ -44,6 +44,36 @@ Get it from the [Releases page](https://github.com/jejezz/daylight-compare-avalo
   `xattr -dr com.apple.quarantine "/Applications/Daylight Compare.app"`.
 - **Linux**: extract and run `./install.sh` (`--remove` uninstalls). Runs on X11 or XWayland.
 
+## Command line · git difftool
+
+```text
+DaylightCompare [options] [<left> [<right>]]
+
+  --wait, -w     Wait until the compare window closes and return the result as the exit code
+  --silent, -s   Compare without a window (two paths)
+  --help, -h     Usage
+```
+
+- Exit codes: `0` same · `1` different · `2` error (unreadable, a folder, bad arguments). "Same" follows the Compare Policy,
+  so files that differ only in unimportant ways (line endings, BOM, whitespace) return `0`. With `--wait` the result is taken
+  from **the files as saved** when the window closes.
+- If the app is already running, the compare window opens there instead of in a new process. With `--wait` it waits until that window closes.
+- A file inside an archive can be given as `a.zip!/folder/file` (read-only).
+
+**Use it as git difftool** (Windows, default install location. Run these in Git Bash — Windows PowerShell 5.1 strips the inner double quotes):
+
+```bash
+git config --global diff.tool daylight
+git config --global difftool.daylight.cmd '"C:/Program Files/Daylight Compare/DaylightCompare.exe" --wait "$LOCAL" "$REMOTE"'
+git config --global difftool.prompt false
+```
+
+On macOS use `"/Applications/Daylight Compare.app/Contents/MacOS/DaylightCompare"`; on Linux, `DaylightCompare` in the extracted folder.
+Then `git difftool` (or `git difftool HEAD~1 -- file`) opens one compare window per changed file.
+
+- Don't turn on `difftool.trustExitCode` — git would stop at the first file that differs (exit code 1).
+- `git difftool --dir-diff` (whole folders) works once folder compare (stage 4) lands. `git mergetool` is stage 7.
+
 ## Build from source
 
 Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download).

@@ -43,6 +43,11 @@ public sealed class EnglishStrings : IAppStrings
     public string DropFolderLater => "Folder comparison arrives in a later version";
     public string DropNoCounterpart(string name) => $"The folder has no file named {name}";
     public string CommonClose => "Close";
+    public string CliUsageTitle => "Command-Line Usage";
+    public string CliUsage => "DaylightCompare [options] [<left> [<right>]]\n\n--wait, -w   Wait until the compare window closes and return the result as the exit code (git difftool)\n--silent, -s   Compare without a window (two paths)\n--help, -h   This help\n\nExit codes: 0 same · 1 different · 2 error. If the app is already running, it opens there.";
+    public string CliUnknownOption(string option) => $"Unknown option: {option}";
+    public string CliTooManyPaths => "Give at most two paths.";
+    public string CliSilentNeedsTwoPaths => "--silent needs two paths.";
     public string CompareSave => "Save (Ctrl+S)";
     public string CompareCopyToRight => "Copy This Difference to the Right (Ctrl+→)";
     public string CompareCopyToLeft => "Copy This Difference to the Left (Ctrl+←)";

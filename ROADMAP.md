@@ -321,7 +321,19 @@ tests/*.Tests              xUnit. Domain은 골든 파일, Services는 가짜 �
   - **바깥 변경 감지**(`FileSystemWatcher`): 고친 것이 없으면 자동으로 다시 읽어 비교, 있으면 안내 띠 [다시 읽기 (여기서 고친 것 버림)]. 내가 저장한 직후 2초는 무시
   - 화면 시험: 복사 → 실행 취소 → 다시 실행 → 저장 + 백업, 채움 줄에 쓰기, 닫기 확인, 바깥 변경 자동 다시 비교
 - [ ] 3a. 남은 것(편의): 클립보드 비교, 차이만 보기/문맥 n줄, 가운데 연결선(필요하면), 찾기(Ctrl+F)
-- [ ] 3b. **CLI + git difftool**: `DaylightCompare <왼쪽> <오른쪽>`, 이미 떠 있으면 그 창에 새 탭(단일 실행 신호, Jack's Bean `SingleInstance`), `--wait`, 종료 코드(0 같음 / 1 다름 / 2 오류), `git config` 안내를 README에
+- [x] 3b. **CLI + git difftool** (2026-11-12):
+  - `DaylightCompare [--wait] [--silent] [<왼쪽> [<오른쪽>]]` — 해석은 `Domain/Cli/CommandLine`(옵션은 `--`꼴만, `--` 뒤는 모두 경로), 상대 경로는 실행한 폴더 기준(압축 안 경로는 압축 파일 부분만)
+  - **종료 코드** `Domain/Cli/ExitCode`: 0 같음 / 1 다름 / 2 오류. 판정은 `Services/Cli/QuickCompare` — 둘 다 텍스트면 Compare Policy로(`IsEquivalent`), 아니면 바이트로.
+    `--wait` 창은 닫을 때 저장한 뒤의 디스크 내용으로 판정
+  - **단일 실행**(`App/Cli/SingleInstance`, Jack's Bean 패턴): 이름 있는 뮤텍스(= 식별자, 설치 프로그램 `AppMutex`도 같은 이름)로 본체를 정하고,
+    다른 실행은 **이름 있는 파이프**(`Services/Cli/InstanceChannel`, 같은 사용자만, 모든 OS)로 인자를 넘긴 뒤 본체가 돌려준 종료 코드로 끝난다.
+    인자 없이 다시 실행하면 떠 있는 창을 앞으로. Windows는 넘기기 전에 `AllowSetForegroundWindow`로 본체가 앞으로 나올 수 있게 한다
+  - `--wait`: 본체가 있으면 거기 연 창이 닫힐 때까지 기다린다. 없으면 **본체가 되지 않고** 비교 창 하나만 띄웠다가 닫으면 끝난다(git difftool이 파일마다 띄웠다 닫는 창이 앱 수명을 쥐지 않게)
+  - `--silent`: 창 없이 비교만(스크립트용) — 잘못된 인자여도 창을 띄우지 않고 2. 잘못된 인자·`--help`는 창에서 사용법 대화상자
+  - README에 `git config` 안내(`trustExitCode`는 끄라고 — 다른 파일에서 git이 멈춘다). AOT 실행 파일로 `--silent` 종료 코드 0/1/2 확인
+  - **바꾼 것**: "떠 있는 창의 새 탭" → 지금은 떠 있는 앱의 **새 비교 창**. 탭은 폴더 비교에서 파일 비교를 여는 흐름과 함께 4단계에서 정한다(비교 창을 컨트롤로 나누는 큰 작업)
+  - **미룬 것**: 탐색기 연동(우클릭 [왼쪽으로 고르기] → [고른 것과 비교]) — 규약상 설치 프로그램(.iss)에 한국어 메뉴 이름을 넣을 수 없어서,
+    앱이 설정에서 켜면 HKCU에 지금 언어로 등록하는 방식으로 따로 한다(3c 또는 4단계). `--dir-diff`는 4단계, mergetool은 7단계
 - 끝나는 조건: 실제 프로젝트 파일로 git difftool을 써서 쓸 만하다고 사용자가 확인.
 
 ### 4. 폴더 비교
