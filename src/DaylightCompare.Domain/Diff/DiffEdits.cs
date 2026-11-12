@@ -33,7 +33,7 @@ public static class DiffEdits
     }
 
     /// <summary>
-    /// 차이 구간 하나를 반대쪽으로 복사한다 (Ctrl+→ 는 왼쪽 → 오른쪽). 대상 쪽의 그 구간 줄을 원본 쪽 줄로 바꾼다.
+    /// 차이 구간 하나를 반대쪽으로 복사한다 (BC Copy to Right / Left — Ctrl+R / Ctrl+L). 대상 쪽의 그 구간 줄을 원본 쪽 줄로 바꾼다.
     /// 결과는 새 실제 글 한 쌍이다 — 화면은 이것으로 다시 비교한다.
     /// </summary>
     public static (string Left, string Right) CopyBlock(TextDiffResult diff, int blockIndex, bool toRight)
@@ -56,6 +56,32 @@ public static class DiffEdits
             left.InsertRange(block.LeftStart, source);
             if (diff.Left.Text.Length == 0) leftEnds = rightEnds;
         }
+        return (Join(left, leftEnds), Join(right, rightEnds));
+    }
+
+    /// <summary>
+    /// 화면 행 하나만 반대쪽으로 복사한다 (BC Copy Line to Right / Left — Shift+Ctrl+R / Shift+Ctrl+L).
+    /// 양쪽에 줄이 있으면 대상 줄을 바꾸고, 원본에만 있으면 대상의 같은 자리에 넣고, 원본이 채움 줄이면 대상 줄을 지운다.
+    /// </summary>
+    public static (string Left, string Right) CopyRow(AlignedDiff aligned, int row, bool toRight)
+    {
+        var diff = aligned.Diff;
+        var (left, leftEnds) = Split(diff.Left.Text);
+        var (right, rightEnds) = Split(diff.Right.Text);
+        var r = aligned.Rows[row];
+        var (source, target) = toRight ? (left, right) : (right, left);
+        var (sourceLine, targetLine) = toRight ? (r.Left, r.Right) : (r.Right, r.Left);
+        if (sourceLine is { } s && targetLine is { } t) target[t] = source[s];
+        else if (sourceLine is { } s2)
+        {
+            // 대상 쪽에서 이 행보다 앞에 있는 실제 줄 수 = 넣을 자리.
+            var at = 0;
+            for (var i = 0; i < row; i++) if ((toRight ? aligned.Rows[i].Right : aligned.Rows[i].Left) is not null) at++;
+            target.Insert(at, source[s2]);
+        }
+        else if (targetLine is { } t2) target.RemoveAt(t2);
+        if (toRight && diff.Right.Text.Length == 0) rightEnds = leftEnds;
+        if (!toRight && diff.Left.Text.Length == 0) leftEnds = rightEnds;
         return (Join(left, leftEnds), Join(right, rightEnds));
     }
 }

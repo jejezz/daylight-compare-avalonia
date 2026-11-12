@@ -10,6 +10,9 @@ namespace DaylightCompare.Domain.Settings;
 /// </summary>
 public enum AppLocale { Korean, English }
 
+/// <summary>BC 텍스트 비교의 보기 필터. 첫 항목(All)이 기본값이다.</summary>
+public enum CompareViewFilter { All, Differences, Same, Context }
+
 public static class Localization
 {
     /// <summary>
@@ -71,6 +74,21 @@ public sealed record AppSettings
 
     [JsonPropertyName("window_placement")]
     public WindowPlacement? Window { get; init; }
+
+    /// <summary>텍스트 비교 창의 보기 필터 (BC View > Show All / Show Differences / Show Same / Show Context). 다음 창도 그대로 연다.</summary>
+    [JsonPropertyName("compare_view_filter")]
+    [JsonConverter(typeof(CompareViewFilterConverter))]
+    public CompareViewFilter CompareViewFilter { get; init; }
+
+    /// <summary>BC View > Ignore Unimportant Differences: 켜면 중요하지 않은 차이를 차이로 보이지 않는다.</summary>
+    [JsonPropertyName("compare_ignore_unimportant")]
+    public bool CompareIgnoreUnimportant { get; init; }
+
+    /// <summary>Show Context에서 차이 위아래로 남기는 줄 수 (BC Text View Options > Number of context lines) (0~<see cref="MaxContextLines"/>).</summary>
+    [JsonPropertyName("compare_context_lines")]
+    public int CompareContextLines { get; init; } = DefaultContextLines;
+
+    public const int DefaultContextLines = 3, MaxContextLines = 20;
 
     public AppSettings WithTextScale(double scale) => this with { TextScale = TextScales.Snap(scale) };
 

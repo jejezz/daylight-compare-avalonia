@@ -40,8 +40,11 @@
                     <TextBlock Grid.Row="2" Grid.Column="1" x:Name="RightPath" VerticalAlignment="Center" TextTrimming="PathSegmentEllipsis"
                                Foreground="{DynamicResource AppTextMid}"/>
                     <Button Grid.Row="2" Grid.Column="2" x:Name="PickRight" Content="{DynamicResource Str.CompareOpen}"/>
-                    <Button Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" x:Name="CompareButton" Classes="accent"
-                            HorizontalAlignment="Right" Content="{DynamicResource Str.HomeCompare}" IsEnabled="False"/>
+                    <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                        <!-- 파일 없이 글을 붙여 넣어 비교 (클립보드 비교, ROADMAP §6-1) -->
+                        <Button x:Name="PasteCompareButton" Content="{DynamicResource Str.HomePasteCompare}"/>
+                        <Button x:Name="CompareButton" Classes="accent" Content="{DynamicResource Str.HomeCompare}" IsEnabled="False"/>
+                    </StackPanel>
                 </Grid>
             </Border>
         </StackPanel>

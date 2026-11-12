@@ -5,8 +5,11 @@ https://github.com/jejezz/application-release-templates/tree/main/conventions
 규약을 따른다. 이 앱에 적용된 규약 버전: conventions-v1
 
 Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비교, 병합, 동기화)을 하는 C#/Avalonia(.NET 10) 데스크톱 앱. Daylight 패밀리.
-계획·결정·위험은 [ROADMAP.md](ROADMAP.md). **지금 위치: 3단계(텍스트 비교) 진행 중 — 3a 엔진·비교 창·편집·저장, 3b CLI·단일 실행·`--wait`·종료 코드 완료. 남은 것은 3a 편의(클립보드 비교·차이만 보기·찾기)와 사용자의 git difftool 확인.**
+계획·결정·위험은 [ROADMAP.md](ROADMAP.md). **지금 위치: 3단계(텍스트 비교) 구현 완료 — 3a 엔진·비교 창·편집·저장·편의(차이만 보기·찾기·클립보드 비교), 3b CLI·단일 실행·`--wait`·종료 코드. 남은 것은 사용자의 git difftool 확인, 그다음 4단계(폴더 비교).**
 
+- **Beyond Compare에 익숙한 사용자가 쓴다 (가장 먼저 지키는 규칙).** 화면 모습은 달라도 되지만 단축키·명령 이름과 범위·필터 문법·병합 과정·명령줄은
+  BC와 같거나 가깝게, 아이콘이 달라도 BC에 있는 기능은 제공한다. 새 기능·키를 정하기 전에 [BC_COMPAT.md](BC_COMPAT.md)에서 BC의 이름·키·흐름을 찾고,
+  만든 뒤 그 표의 상태를 고친다. 자체 키를 새로 만들지 않는다(BC에 없는 기능만 예외, 그때도 BC 키와 겹치지 않게).
 - **형제 `../daylight-commander-avalonia`가 기준이다.** 원격(SFTP·FTP·WebDAV)·작업 큐·에디터·압축·테마·설정·정보 창·업데이트는
   새로 만들지 않고 거기서 **복사**해 온다(ROADMAP §2-3, 복사로 시작 확정). 복사한 파일은 첫 줄 근처에 출처를 남기고
   (`// From daylight-commander-avalonia @ <커밋>`), 고친 곳이 Commander에도 필요하면 적어 둔다. 0단계의 기준 커밋은 `.copied-from`(`0f38100`), 1단계는 `4686eb7`.

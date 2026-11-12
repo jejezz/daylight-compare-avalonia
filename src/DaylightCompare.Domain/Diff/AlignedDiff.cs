@@ -86,6 +86,53 @@ public sealed class AlignedDiff
     public AlignedRange? RangeAt(int row) =>
         Ranges.Where(r => row >= r.StartRow && row < r.StartRow + r.RowCount).Cast<AlignedRange?>().FirstOrDefault();
 
+    /// <summary>
+    /// BC 보기 필터에서 접을 행 구간. <paramref name="showSame"/>가 아니면(Show Differences / Show Context) 중요한 차이를 남기고
+    /// 그 위아래 <paramref name="context"/>행보다 먼 행(같은 행·중요하지 않은 차이)을 접는다. <paramref name="showSame"/>면(Show Same) 반대로
+    /// 중요한 차이 행을 접는다. 접으면 그 자리에 한 행(접힌 표시)이 남으므로 두 행 이상인 구간만 접는다.
+    /// </summary>
+    public IReadOnlyList<(int StartRow, int RowCount)> CollapsibleRuns(int context, bool showSame = false)
+    {
+        context = Math.Max(0, context);
+        bool Shown(int row) => Rows[row].IsDifference != showSame;
+        var runs = new List<(int, int)>();
+        var start = 0; // 아직 접을지 정하지 않은 숨길 행 구간의 시작
+        void Close(int end, bool afterShown, bool beforeShown)
+        {
+            var from = start + (afterShown ? context : 0);
+            var to = end - (beforeShown ? context : 0);
+            if (to - from >= 2) runs.Add((from, to - from));
+        }
+        var sawShown = false;
+        for (var row = 0; row < Rows.Count; row++)
+        {
+            if (!Shown(row)) continue;
+            Close(row, afterShown: sawShown, beforeShown: true);
+            while (row + 1 < Rows.Count && Shown(row + 1)) row++;
+            start = row + 1;
+            sawShown = true;
+        }
+        Close(Rows.Count, afterShown: sawShown, beforeShown: false);
+        return runs;
+    }
+
+    /// <summary>
+    /// BC Next Difference(줄 단위, Shift+Ctrl+N): <paramref name="row"/> 다음에 오는 차이 행. 한 구간 안에서도 한 행씩 간다. 없으면 null.
+    /// </summary>
+    public int? NextDifferenceRow(int row, bool includeUnimportant = false)
+    {
+        for (var r = Math.Max(0, row + 1); r < Rows.Count; r++)
+            if (includeUnimportant ? Rows[r].Kind != DiffBlockKind.Equal : Rows[r].IsDifference) return r;
+        return null;
+    }
+
+    public int? PreviousDifferenceRow(int row, bool includeUnimportant = false)
+    {
+        for (var r = Math.Min(Rows.Count, row) - 1; r >= 0; r--)
+            if (includeUnimportant ? Rows[r].Kind != DiffBlockKind.Equal : Rows[r].IsDifference) return r;
+        return null;
+    }
+
     static bool IsImportant(DiffBlockKind kind) => kind is DiffBlockKind.Changed or DiffBlockKind.LeftOnly or DiffBlockKind.RightOnly;
 
     static string Build(List<AlignedRow> rows, TextDocument doc, bool left)

@@ -54,3 +54,50 @@ public class AlignedDiffTests
         Assert.Equal("", e.LeftText);
     }
 }
+
+public class CollapsibleRunsTests
+{
+    static AlignedDiff Align(string l, string r) => new(TextDiff.Compare(l, r, ComparePolicy.Builtin.Resolve("a.txt")));
+
+    static string Lines(int from, int to) => string.Concat(Enumerable.Range(from, to - from).Select(i => $"line{i}\n"));
+
+    [Fact]
+    public void 차이_위아래로_문맥만_남기고_접는다()
+    {
+        // 0..9 같음, 10 바뀜, 11..29 같음
+        var a = Align(Lines(0, 10) + "LEFT\n" + Lines(11, 30), Lines(0, 10) + "RIGHT\n" + Lines(11, 30));
+        Assert.Equal([(0, 7), (14, 16)], a.CollapsibleRuns(3));
+        Assert.Equal([(0, 10), (11, 19)], a.CollapsibleRuns(0));
+    }
+
+    [Fact]
+    public void 차이_사이가_문맥의_두_배보다_짧으면_접지_않는다()
+    {
+        var a = Align("a\nX\nb\nc\nd\nY\ne\n", "a\nX2\nb\nc\nd\nY2\ne\n");
+        Assert.Empty(a.CollapsibleRuns(2));
+        Assert.Equal([(2, 3)], a.CollapsibleRuns(0));
+    }
+
+    [Fact]
+    public void 한_줄만_남는_구간은_접지_않는다()
+    {
+        // 접으면 그 자리에 표시 한 행이 남으므로 한 행짜리는 접어도 줄지 않는다.
+        var a = Align("a\nb\nX\n", "a\nb\nY\n");
+        Assert.Empty(a.CollapsibleRuns(1));
+        Assert.Equal([(0, 2)], a.CollapsibleRuns(0));
+    }
+
+    [Fact]
+    public void 같은_파일은_전체가_한_구간이다()
+    {
+        var a = Align(Lines(0, 5), Lines(0, 5));
+        Assert.Equal([(0, a.Rows.Count)], a.CollapsibleRuns(3));
+    }
+
+    [Fact]
+    public void 중요하지_않은_차이도_접는다()
+    {
+        var a = Align("a\nb \nc\nd\nX\n", "a\nb\nc\nd\nY\n");
+        Assert.Equal([(0, 4)], a.CollapsibleRuns(0));
+    }
+}

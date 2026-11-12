@@ -29,14 +29,14 @@ class Program
     [STAThread]
     public static int Main(string[] args)
     {
-        var request = CommandLine.Parse(args);
+        var request = CommandLine.Parse(args, slashSwitches: OperatingSystem.IsWindows());
         if (request.IsValid)
             request = request with { Paths = [.. request.Paths.Select(p => QuickCompare.ResolvePath(p, Environment.CurrentDirectory))] };
         Request = request;
 
-        // --silent는 어떤 경우에도 창을 띄우지 않는다 (스크립트가 멈추지 않게) — 잘못된 인자면 오류 코드만.
-        var silent = request.Silent || (!request.IsValid && args.Any(a => a is "--silent" or "-s")); // 오류 뒤의 --silent도
-        if (silent && !request.Help) return (int)(request.IsValid ? RunSilent(request) : ExitCode.Error);
+        // /qc(빠른 비교)는 어떤 경우에도 창을 띄우지 않는다 (스크립트가 멈추지 않게) — 잘못된 인자면 오류 코드(100)만.
+        var quick = request.QuickCompare is not null || (!request.IsValid && args.Any(IsQuickCompareSwitch)); // 오류 뒤의 /qc도
+        if (quick && !request.Help) return (int)(request.IsValid ? RunQuickCompare(request) : ExitCode.Error);
 
         if (request.IsValid && request.Wait && request.IsCompare && !request.Help)
         {
@@ -62,14 +62,20 @@ class Program
         }
     }
 
-    /// <summary><c>--silent</c>: 창 없이 비교하고 종료 코드만 남긴다.</summary>
-    static ExitCode RunSilent(CliRequest request)
+    static bool IsQuickCompareSwitch(string a)
+    {
+        var name = a.TrimStart('-', '/').Split('=')[0].ToLowerInvariant();
+        return a.Length > 1 && (a[0] == '-' || a[0] == '/' && OperatingSystem.IsWindows()) && name is "qc" or "quickcompare";
+    }
+
+    /// <summary>BC <c>/qc</c>: 창 없이 비교하고 BC와 같은 종료 코드만 남긴다.</summary>
+    static ExitCode RunQuickCompare(CliRequest request)
     {
         var dir = Path.GetDirectoryName(JsonSettingsRepository.DefaultFile(AppIdentity.FileName))!;
         return Task.Run(async () =>
         {
             var policy = await new PolicyStore(dir).LoadAsync();
-            return await QuickCompare.RunAsync(request.Paths[0], request.Paths[1], policy);
+            return await QuickCompare.RunAsync(request.Paths[0], request.Paths[1], policy, request.QuickCompare ?? QuickCompareKind.Rules, request.IgnoreUnimportant);
         }).GetAwaiter().GetResult();
     }
 

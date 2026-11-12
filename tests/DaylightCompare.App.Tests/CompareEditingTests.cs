@@ -51,7 +51,7 @@ public sealed class CompareEditingTests : IDisposable
         var (_, r) = Editors(w);
         Assert.Equal(2, r.TextArea.Caret.Line); // 처음 차이로 이동해 있다
 
-        Press(w, PhysicalKey.ArrowRight, RawInputModifiers.Control);
+        Press(w, PhysicalKey.R, RawInputModifiers.Control); // BC Copy to Right
         await Settle();
         Assert.Equal("a\nLEFT\nc", r.Document.Text);
         Assert.StartsWith("●", w.Title);

@@ -38,6 +38,9 @@ public sealed class ColorPaletteConverter() : LenientEnumConverter<ColorPalette>
     ("saturn", ColorPalette.Saturn), ("teal", ColorPalette.Teal), ("amber", ColorPalette.Amber),
     ("rose", ColorPalette.Rose), ("slate", ColorPalette.Slate), ("highContrast", ColorPalette.HighContrast));
 
+public sealed class CompareViewFilterConverter() : LenientEnumConverter<CompareViewFilter>(
+    ("all", CompareViewFilter.All), ("differences", CompareViewFilter.Differences), ("same", CompareViewFilter.Same), ("context", CompareViewFilter.Context));
+
 /// <summary>언어는 비어 있을 수 있다(null = 시스템). 모르는 값도 null(시스템)로 읽는다.</summary>
 public sealed class AppLocaleConverter : JsonConverter<AppLocale?>
 {

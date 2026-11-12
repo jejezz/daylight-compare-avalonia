@@ -46,6 +46,7 @@ public partial class HomeWindow : Window
         PickLeft.Click += async (_, _) => await PickAsync(left: true);
         PickRight.Click += async (_, _) => await PickAsync(left: false);
         CompareButton.Click += (_, _) => OpenCompare();
+        PasteCompareButton.Click += (_, _) => CompareWindow.Open(this, _left, _right);
         AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
             var ok = ItemsOf(e).Count is > 0 and <= 3;
