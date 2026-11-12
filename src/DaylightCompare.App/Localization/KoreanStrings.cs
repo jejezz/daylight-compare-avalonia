@@ -1,0 +1,78 @@
+using DaylightCompare.Domain;
+using DaylightCompare.Services;
+
+namespace DaylightCompare.App.Localization;
+
+/// <summary>한국어 문구. 기준 언어다. 문체는 간결한 명사형이나 해요체 (localization.md §7).</summary>
+public sealed class KoreanStrings : IAppStrings
+{
+    public static readonly KoreanStrings Instance = new();
+    public string CommonCancel => "취소";
+    public string CommonConfirm => "확인";
+    public string SettingsTooltip => "설정";
+    public string HomeEmptyTitle => "비교할 두 항목을 고르세요";
+    public string HomeEmptyHint => "폴더·텍스트·바이너리·이미지 비교는 다음 버전부터 쓸 수 있어요";
+    public string SettingsWindowTitle(string appName) => $"{appName} 설정";
+    public string SettingsSectionAppearance => "외형";
+    public string SettingsMode => "모드";
+    public string SettingsModeSystem => "시스템";
+    public string ThemeLight => "라이트";
+    public string ThemeDark => "다크";
+    public string SettingsPalette => "색 구성";
+    public string PaletteSaturn => "새턴";
+    public string PaletteTeal => "청록";
+    public string PaletteAmber => "호박";
+    public string PaletteRose => "장미";
+    public string PaletteSlate => "슬레이트";
+    public string PaletteHighContrast => "고대비";
+    public string SettingsFont => "글꼴";
+    public string FontDefaultOption(string name) => $"{name} (기본)";
+    public string FontSearchHint => "글꼴 검색";
+    public string SettingsFontSize => "화면 글자 크기";
+    public string SettingsFontSizeHint => "메뉴, 탭, 폴더 이름, 상태 줄 등 모든 글자의 크기입니다.";
+    public string SettingsLanguage => "언어";
+    public string LanguageSystemShort => "시스템";
+    public string AboutTooltip => "정보";
+    public string AboutTagline => "폴더·텍스트·바이너리·이미지를 나란히 비교하고 병합하는 데스크톱 앱";
+    public string AboutDescription => "로컬·SFTP·FTP·WebDAV·압축 파일 어디에 있든 두 쪽을 맞대어 차이를 찾고, 비교 정책으로 중요하지 않은 차이는 걸러 내는 비교 도구를 목표로 만들고 있어요.";
+    public string AboutVersion(string version, int build) => $"버전 {version} (빌드 {build})";
+    public string AboutOpenSourceLicenses => "오픈소스 라이선스";
+    public string AboutRepository => "GitHub";
+    public string AboutClose => "닫기";
+    public string UpdateCheckButton => "업데이트 확인";
+    public string UpdateChecking => "업데이트를 확인하는 중…";
+    public string UpdateAvailableTitle => "새 버전이 있습니다";
+    public string UpdateAvailableBody(string appName, string current, string latest) => $"{appName} {latest} 버전이 나왔습니다. (현재 {current})";
+    public string UpdateReleaseNotes => "변경 내용";
+    public string UpdateNow => "지금 업데이트";
+    public string UpdateLater => "나중에";
+    public string UpdateSkipVersion => "이 버전 건너뛰기";
+    public string UpdateDownloading => "내려받는 중…";
+    public string UpdateVerifying => "파일을 확인하는 중…";
+    public string UpdateDownloadProgress(string received, string total) => $"{received} / {total}";
+    public string UpdateCancel => "취소";
+    public string UpdateFailedTitle => "업데이트하지 못했습니다";
+    public string UpdateCheckFailedTitle => "업데이트를 확인하지 못했습니다";
+    public string UpdateErrorNetwork => "업데이트 서버에 연결하지 못했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.";
+    public string UpdateErrorChecksum => "내려받은 파일이 올바르지 않아 설치하지 않았습니다. 잠시 뒤에 다시 시도해 주세요.";
+    public string UpdateErrorInstall => "설치를 시작하지 못했습니다.";
+    public string UpdateErrorGeneric => "업데이트 서버에서 예상하지 못한 응답을 받았습니다. 잠시 뒤에 다시 시도해 주세요.";
+    public string UpdateUpToDateTitle => "최신 버전입니다";
+    public string UpdateUpToDateBody(string version) => $"{version} 버전을 사용 중입니다.";
+    public string UpdateUnavailableTitle => "직접 설치해 주세요";
+    public string UpdateUnavailableBody(string latest) => $"{latest} 버전이 있지만 앱에서 자동으로 설치할 수 없습니다. 릴리스 페이지에서 받아 주세요.";
+    public string UpdateOpenReleasePage => "릴리스 페이지 열기";
+    public string UpdateMacosOpenedTitle => "설치 창이 열렸습니다";
+    public string UpdateMacosOpenedBody(string appName) => $"열린 창에서 {appName} 을(를) Applications 폴더로 끌어다 놓아 주세요. 실행 중이면 종료한 뒤 덮어쓰세요.";
+    public string UpdateWindowsInstallTitle => "설치 프로그램을 열었습니다";
+    public string UpdateWindowsInstallBody(string appName) => $"설치하려면 {appName} 을(를) 종료해야 합니다. 설치 프로그램의 안내를 따라 주세요.";
+    public string UpdateQuitApp(string appName) => $"{appName} 종료";
+    public string UpdateLinuxInstallTitle => "설치를 준비했습니다";
+    public string UpdateLinuxInstallBody(string appName) => $"{appName} 을(를) 종료하고 설치합니다. 설치가 끝나면 자동으로 다시 시작됩니다.";
+    public string UpdateQuitAndInstall => "종료하고 설치";
+    public string UpdateBusyTitle => "지금은 업데이트할 수 없습니다";
+    public string UpdateBusyBody => "작업이 진행 중입니다. 끝난 뒤에 다시 시도해 주세요.";
+    public string LicensesTitle => "오픈소스 라이선스";
+    public string LicensesProject => "이 프로젝트";
+    public string LicensesNote => "각 항목의 전문과 저작권 고지는 해당 프로젝트 저장소에서 볼 수 있어요.";
+}

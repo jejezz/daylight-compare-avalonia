@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DaylightCompare.App/DaylightCompare.App.csproj" />
+    <Project Path="src/DaylightCompare.Data/DaylightCompare.Data.csproj" />
+    <Project Path="src/DaylightCompare.Domain/DaylightCompare.Domain.csproj" />
+    <Project Path="src/DaylightCompare.Services/DaylightCompare.Services.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DaylightCompare.Data.Tests/DaylightCompare.Data.Tests.csproj" />
+    <Project Path="tests/DaylightCompare.Domain.Tests/DaylightCompare.Domain.Tests.csproj" />
+  </Folder>
+</Solution>

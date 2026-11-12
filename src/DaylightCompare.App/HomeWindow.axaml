@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="using:DaylightCompare.App.Icons"
+        x:Class="DaylightCompare.App.HomeWindow"
+        Title="Daylight Compare"
+        Width="1200" Height="720" MinWidth="960" MinHeight="600">
+    <Grid RowDefinitions="44,*">
+        <!-- 앱 바 44 (ui-ux.md §4), 오른쪽 끝은 설정 | 정보 -->
+        <Border Grid.Row="0" Background="{DynamicResource AppSurface}"
+                BorderBrush="{DynamicResource AppStroke}" BorderThickness="0,0,0,1" Padding="14,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock x:Name="AppTitle" VerticalAlignment="Center"
+                           FontWeight="ExtraBold" FontSize="{DynamicResource FsTitle}"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button x:Name="SettingsButton" Classes="tool" ToolTip.Tip="{DynamicResource Str.SettingsTooltip}">
+                        <icons:DuoIcon Icon="settings"/>
+                    </Button>
+                    <Button x:Name="AboutButton" Classes="tool" ToolTip.Tip="{DynamicResource Str.AboutTooltip}">
+                        <icons:DuoIcon Icon="info"/>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 빈 상태 (ui-ux.md §6): 48px 아이콘, 한 줄 안내. 비교 시작 버튼은 3단계(텍스트 비교)에서 붙인다. -->
+        <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <icons:DuoIcon Icon="compare" Width="48" Height="48" HorizontalAlignment="Center"/>
+            <TextBlock Text="{DynamicResource Str.HomeEmptyTitle}" HorizontalAlignment="Center"
+                       FontWeight="Bold" FontSize="{DynamicResource FsMid}"/>
+            <TextBlock Text="{DynamicResource Str.HomeEmptyHint}" HorizontalAlignment="Center"
+                       Foreground="{DynamicResource AppTextMid}" FontSize="{DynamicResource FsSmall}"/>
+        </StackPanel>
+    </Grid>
+</Window>

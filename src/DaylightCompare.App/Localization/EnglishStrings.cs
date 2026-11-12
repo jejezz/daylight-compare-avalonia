@@ -1,0 +1,78 @@
+using DaylightCompare.Domain;
+using DaylightCompare.Services;
+
+namespace DaylightCompare.App.Localization;
+
+/// <summary>English strings. Buttons and menus are Title Case, sentences are Sentence case (localization.md §7).</summary>
+public sealed class EnglishStrings : IAppStrings
+{
+    public static readonly EnglishStrings Instance = new();
+    public string CommonCancel => "Cancel";
+    public string CommonConfirm => "OK";
+    public string SettingsTooltip => "Settings";
+    public string HomeEmptyTitle => "Choose two items to compare";
+    public string HomeEmptyHint => "Folder, text, binary and image comparison arrive in the next versions";
+    public string SettingsWindowTitle(string appName) => $"{appName} Settings";
+    public string SettingsSectionAppearance => "Appearance";
+    public string SettingsMode => "Mode";
+    public string SettingsModeSystem => "System";
+    public string ThemeLight => "Light";
+    public string ThemeDark => "Dark";
+    public string SettingsPalette => "Color scheme";
+    public string PaletteSaturn => "Saturn";
+    public string PaletteTeal => "Teal";
+    public string PaletteAmber => "Amber";
+    public string PaletteRose => "Rose";
+    public string PaletteSlate => "Slate";
+    public string PaletteHighContrast => "High contrast";
+    public string SettingsFont => "Font";
+    public string FontDefaultOption(string name) => $"{name} (default)";
+    public string FontSearchHint => "Search fonts";
+    public string SettingsFontSize => "Text size";
+    public string SettingsFontSizeHint => "Size of all text: menus, tabs, folder names, status bar.";
+    public string SettingsLanguage => "Language";
+    public string LanguageSystemShort => "System";
+    public string AboutTooltip => "About";
+    public string AboutTagline => "A desktop app that compares and merges folders, text, binaries and images side by side";
+    public string AboutDescription => "Line up two sides wherever they live (local, SFTP, FTP, WebDAV or an archive), find what differs, and let compare policies filter out differences that don't matter.";
+    public string AboutVersion(string version, int build) => $"Version {version} (build {build})";
+    public string AboutOpenSourceLicenses => "Open Source Licenses";
+    public string AboutRepository => "GitHub";
+    public string AboutClose => "Close";
+    public string UpdateCheckButton => "Check for Updates";
+    public string UpdateChecking => "Checking for updates…";
+    public string UpdateAvailableTitle => "A new version is available";
+    public string UpdateAvailableBody(string appName, string current, string latest) => $"{appName} {latest} is available. You have {current}.";
+    public string UpdateReleaseNotes => "What's new";
+    public string UpdateNow => "Update now";
+    public string UpdateLater => "Later";
+    public string UpdateSkipVersion => "Skip this version";
+    public string UpdateDownloading => "Downloading…";
+    public string UpdateVerifying => "Verifying the file…";
+    public string UpdateDownloadProgress(string received, string total) => $"{received} / {total}";
+    public string UpdateCancel => "Cancel";
+    public string UpdateFailedTitle => "Couldn't update";
+    public string UpdateCheckFailedTitle => "Couldn't check for updates";
+    public string UpdateErrorNetwork => "Couldn't reach the update server. Check your internet connection and try again.";
+    public string UpdateErrorChecksum => "The downloaded file didn't pass verification, so it was not installed. Please try again later.";
+    public string UpdateErrorInstall => "Couldn't start the installation.";
+    public string UpdateErrorGeneric => "The update server sent an unexpected response. Please try again later.";
+    public string UpdateUpToDateTitle => "You're up to date";
+    public string UpdateUpToDateBody(string version) => $"You're using version {version}.";
+    public string UpdateUnavailableTitle => "Install it manually";
+    public string UpdateUnavailableBody(string latest) => $"Version {latest} is available, but the app can't install it automatically. Please download it from the release page.";
+    public string UpdateOpenReleasePage => "Open release page";
+    public string UpdateMacosOpenedTitle => "The installer window is open";
+    public string UpdateMacosOpenedBody(string appName) => $"In the window that opened, drag {appName} to the Applications folder. If it's running, quit it first and replace the old copy.";
+    public string UpdateWindowsInstallTitle => "The installer is open";
+    public string UpdateWindowsInstallBody(string appName) => $"{appName} must quit before it can be updated. Follow the installer's instructions.";
+    public string UpdateQuitApp(string appName) => $"Quit {appName}";
+    public string UpdateLinuxInstallTitle => "Ready to install";
+    public string UpdateLinuxInstallBody(string appName) => $"{appName} will quit and install the update, then start again automatically.";
+    public string UpdateQuitAndInstall => "Quit and install";
+    public string UpdateBusyTitle => "Can't update right now";
+    public string UpdateBusyBody => "A task is in progress. Please try again when it has finished.";
+    public string LicensesTitle => "Open Source Licenses";
+    public string LicensesProject => "This project";
+    public string LicensesNote => "Full license texts and copyright notices are available in each project's repository.";
+}

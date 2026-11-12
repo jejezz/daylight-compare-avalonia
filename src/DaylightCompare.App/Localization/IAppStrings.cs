@@ -1,0 +1,91 @@
+using DaylightCompare.Domain;
+using DaylightCompare.Services;
+
+namespace DaylightCompare.App.Localization;
+
+/// <summary>
+/// 화면에 보이는 모든 문구 (conventions localization.md의 ARB에 해당하는 C# 판).
+/// <list type="bullet">
+/// <item>한국어(<see cref="KoreanStrings"/>)가 기준이고 영어(<see cref="EnglishStrings"/>)는 <b>모든 항목</b>을 가져야 한다.
+/// 인터페이스라서 빠뜨리면 컴파일이 실패한다 — Flutter의 "누락 번역은 CI에서 막는다"를 컴파일 단계에서 지킨다.</item>
+/// <item>이름은 PascalCase에 화면 이름을 접두어로 붙인다 (<c>PaneEmpty</c>, <c>SettingsMode</c>).</item>
+/// <item>값이 들어가는 문구는 메서드다 (<c>PaneItemCount(n)</c>). 복수형·어순은 언어가 정한다.</item>
+/// <item>앱 표시 이름은 번역하지 않는다. <c>AppIdentity.DisplayName</c>을 인자로 받는다.</item>
+/// <item>한국어 문체는 간결한 명사형이나 해요체, 영어 버튼·메뉴는 Title Case, 문장은 Sentence case (localization.md §7).</item>
+/// </list>
+/// </summary>
+public interface IAppStrings
+{
+    // 공통
+    string CommonCancel { get; }
+    string CommonConfirm { get; }
+    string SettingsTooltip { get; }
+
+    // 홈 창
+    string HomeEmptyTitle { get; }
+    string HomeEmptyHint { get; }
+
+    string SettingsWindowTitle(string appName);
+    string SettingsSectionAppearance { get; }
+    string SettingsMode { get; }
+    string SettingsModeSystem { get; }
+    string ThemeLight { get; }
+    string ThemeDark { get; }
+    string SettingsPalette { get; }
+    string PaletteSaturn { get; }
+    string PaletteTeal { get; }
+    string PaletteAmber { get; }
+    string PaletteRose { get; }
+    string PaletteSlate { get; }
+    string PaletteHighContrast { get; }
+    string SettingsFont { get; }
+    string FontDefaultOption(string name);
+    string FontSearchHint { get; }
+    string SettingsFontSize { get; }
+    string SettingsFontSizeHint { get; }
+    string SettingsLanguage { get; }
+    string LanguageSystemShort { get; }
+    string AboutTooltip { get; }
+    string AboutTagline { get; }
+    string AboutDescription { get; }
+    string AboutVersion(string version, int build);
+    string AboutOpenSourceLicenses { get; }
+    string AboutRepository { get; }
+    string AboutClose { get; }
+    string UpdateCheckButton { get; }
+    string UpdateChecking { get; }
+    string UpdateAvailableTitle { get; }
+    string UpdateAvailableBody(string appName, string current, string latest);
+    string UpdateReleaseNotes { get; }
+    string UpdateNow { get; }
+    string UpdateLater { get; }
+    string UpdateSkipVersion { get; }
+    string UpdateDownloading { get; }
+    string UpdateVerifying { get; }
+    string UpdateDownloadProgress(string received, string total);
+    string UpdateCancel { get; }
+    string UpdateFailedTitle { get; }
+    string UpdateCheckFailedTitle { get; }
+    string UpdateErrorNetwork { get; }
+    string UpdateErrorChecksum { get; }
+    string UpdateErrorInstall { get; }
+    string UpdateErrorGeneric { get; }
+    string UpdateUpToDateTitle { get; }
+    string UpdateUpToDateBody(string version);
+    string UpdateUnavailableTitle { get; }
+    string UpdateUnavailableBody(string latest);
+    string UpdateOpenReleasePage { get; }
+    string UpdateMacosOpenedTitle { get; }
+    string UpdateMacosOpenedBody(string appName);
+    string UpdateWindowsInstallTitle { get; }
+    string UpdateWindowsInstallBody(string appName);
+    string UpdateQuitApp(string appName);
+    string UpdateLinuxInstallTitle { get; }
+    string UpdateLinuxInstallBody(string appName);
+    string UpdateQuitAndInstall { get; }
+    string UpdateBusyTitle { get; }
+    string UpdateBusyBody { get; }
+    string LicensesTitle { get; }
+    string LicensesProject { get; }
+    string LicensesNote { get; }
+}
