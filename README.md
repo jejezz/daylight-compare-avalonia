@@ -64,6 +64,9 @@ bash scripts/publish-aot.sh linux-x64        # Linux / macOS (osx-arm64)
 dotnet test DaylightCompare.slnx
 ```
 
+SFTP/FTP/WebDAV 통합 테스트는 Python 서버(`asyncssh`, `pyftpdlib`, `wsgidav`, `cheroot`)를 띄웁니다.
+패키지가 없거나 Python을 못 찾으면 해당 테스트는 건너뜁니다. 인터프리터는 환경변수 `DC_TEST_PYTHON`으로 지정할 수 있습니다.
+
 ## 앱 아이콘
 
 글리프는 `tool/icon/draw_glyph.py`가 그리고(`assets/icon/source_glyph.svg`·`.png`), 플랫폼별 파일은

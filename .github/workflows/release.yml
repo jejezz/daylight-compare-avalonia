@@ -94,11 +94,11 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      # Domain / Data tests (Services tests arrive with the first service tests). (The Avalonia app project is not unit-tested; it is covered by the publish below.)
+      # Domain / Data / Services tests. (The Avalonia app project is not unit-tested; it is covered by the publish below.)
       - name: Unit tests
         shell: pwsh
         run: |
-          foreach ($t in 'Domain', 'Data') {
+          foreach ($t in 'Domain', 'Data', 'Services') {
             dotnet test "tests/DaylightCompare.$t.Tests" -c Release
             if ($LASTEXITCODE -ne 0) { throw "$t tests failed" }
           }
@@ -170,7 +170,7 @@ jobs:
       - name: Unit tests (informational)
         continue-on-error: true
         run: |
-          for t in Domain Data; do
+          for t in Domain Data Services; do
             dotnet test "tests/DaylightCompare.$t.Tests" -c Release
           done
 
@@ -211,7 +211,7 @@ jobs:
       - name: Unit tests (informational)
         continue-on-error: true
         run: |
-          for t in Domain Data; do
+          for t in Domain Data Services; do
             dotnet test "tests/DaylightCompare.$t.Tests" -c Release
           done
 

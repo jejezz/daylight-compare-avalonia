@@ -8,5 +8,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/DaylightCompare.Data.Tests/DaylightCompare.Data.Tests.csproj" />
     <Project Path="tests/DaylightCompare.Domain.Tests/DaylightCompare.Domain.Tests.csproj" />
+    <Project Path="tests/DaylightCompare.Services.Tests/DaylightCompare.Services.Tests.csproj" />
   </Folder>
 </Solution>
