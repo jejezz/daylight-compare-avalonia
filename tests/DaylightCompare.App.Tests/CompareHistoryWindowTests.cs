@@ -111,4 +111,29 @@ public sealed class CompareHistoryWindowTests : IDisposable
         Assert.Empty(Rows(home));
         home.Close();
     }
+
+    [AvaloniaFact]
+    public async Task 이름이_아주_길어도_A_B_두_줄로_이름과_전체_경로가_모두_보인다()
+    {
+        Reset();
+        var longName1 = "SINGLETON_DATABASE_INTEGRATION_COMPLETE_1.md";
+        var longName2 = "SINGLETON_DATABASE_INTEGRATION_COMPLETE_2.md";
+        var l = File_(longName1, "a" + Environment.NewLine);
+        var r = File_(longName2, "b" + Environment.NewLine);
+        App.Settings.Update(s => s with { CompareHistory = [new CompareHistoryEntry { Left = l, Right = r, OpenedAt = DateTimeOffset.Now }] });
+        var home = new HomeWindow();
+        home.Show();
+        await Settle(40);
+
+        var texts = home.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? "").ToList();
+        Assert.Contains("A.", texts);
+        Assert.Contains("B.", texts); // 두 번째 파일도 따로 한 줄로 보인다
+        Assert.Contains(longName1, texts);
+        Assert.Contains(longName2, texts);
+        Assert.Contains(l, texts); // 작은 글씨의 전체 경로
+        Assert.Contains(r, texts);
+        using (var frame = home.CaptureRenderedFrame())
+            frame!.Save(Path.Combine(TestApp.Shots, "home-history-ab.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        home.Close();
+    }
 }

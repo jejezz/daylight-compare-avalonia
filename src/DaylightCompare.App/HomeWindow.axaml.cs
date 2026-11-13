@@ -103,27 +103,34 @@ public partial class HomeWindow : Window
         _ = MarkMissingAsync(rows);
     }
 
+    /// <summary>한 파일(또는 폴더): "A." 표시 + 이름(굵게, 길면 끝을 줄임), 그 아래 작은 글씨의 전체 경로(길면 가운데를 줄임).</summary>
+    Control HistoryPair(string label, string path)
+    {
+        var tag = new TextBlock { Text = label, FontWeight = Avalonia.Media.FontWeight.Bold, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+        tag.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppPrimary"));
+        var name = new TextBlock { Text = Locations.NameOf(Plain(path)), FontWeight = Avalonia.Media.FontWeight.SemiBold, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
+        var full = new TextBlock { Text = path, FontSize = 11, TextTrimming = Avalonia.Media.TextTrimming.PathSegmentEllipsis };
+        full.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("20,*"), RowDefinitions = new RowDefinitions("Auto,Auto"), Children = { tag, name, full } };
+        Grid.SetColumn(name, 1);
+        Grid.SetColumn(full, 1);
+        Grid.SetRow(full, 1);
+        ToolTip.SetTip(grid, path);
+        return grid;
+    }
+
     Control HistoryRow(CompareHistoryEntry e)
     {
         var s = Strings.Current;
         var icon = new DuoIcon { Icon = e.IsFolders ? "folder" : "file", ColorKey = e.IsFolders ? "AppIconFolder" : null, Width = 18, Height = 18, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
-        var title = new TextBlock { Text = $"{Locations.NameOf(Plain(e.Left))}  ↔  {Locations.NameOf(Plain(e.Right))}", FontWeight = Avalonia.Media.FontWeight.SemiBold, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
-        var leftPath = new TextBlock { Text = e.Left, TextTrimming = Avalonia.Media.TextTrimming.PathSegmentEllipsis };
-        var rightPath = new TextBlock { Text = e.Right, TextTrimming = Avalonia.Media.TextTrimming.PathSegmentEllipsis };
-        foreach (var t in new[] { leftPath, rightPath })
-        {
-            t.FontSize = 11;
-            t.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
-        }
-        var paths = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,*"), ColumnSpacing = 6, Children = { leftPath, new TextBlock { Text = "↔", FontSize = 11 }, rightPath } };
-        Grid.SetColumn(paths.Children[1], 1);
-        Grid.SetColumn(rightPath, 2);
+        // 왼쪽(A)과 오른쪽(B)을 위아래 두 블록으로: 파일 이름(굵게) + 그 아래 작은 글씨의 전체 경로.
+        // 한 줄에 나란히 두면 이름이 길 때 두 번째 파일이 아예 안 보였다.
+        var text = new StackPanel { Spacing = 5, Children = { HistoryPair("A.", e.Left), HistoryPair("B.", e.Right) } };
         var time = new TextBlock { Text = TimeText(e.OpenedAt), FontSize = 11, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
         time.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
         var remove = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "close", Width = 12, Height = 12 }, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
         ToolTip.SetTip(remove, s.HomeRecentRemove);
         remove.Click += (_, _) => App.Settings.Update(st => st with { CompareHistory = CompareHistoryList.Remove(st.CompareHistory, e, PolicyStore.NamesIgnoreCase) });
-        var text = new StackPanel { Spacing = 1, Children = { title, paths } };
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), ColumnSpacing = 10, Children = { icon, text, time, remove } };
         Grid.SetColumn(text, 1);
         Grid.SetColumn(time, 2);
