@@ -141,7 +141,7 @@ public sealed class CompareWindow : Window
     readonly Button _save = new() { Classes = { "tool" }, IsEnabled = false };
 
     /// <summary>BC 보기 필터 (Show All / Differences / Same / Context) — 드롭다운 하나.</summary>
-    readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(10, 4) };
+    readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center };
     CompareViewFilter _filter;
     int _contextLines;
     static readonly int[] ContextChoices = [0, 1, 2, 3, 5, 10, 20];
@@ -414,8 +414,8 @@ public sealed class CompareWindow : Window
         Grid.SetColumn(close, 2);
         // 바꾸기 줄 (BC Search > Replace, Ctrl+H): 찾을 쪽에서 지금 고른 일치를 바꾸거나 모두 바꾼다.
         _replaceBox.PlaceholderText = s.CompareReplacePlaceholder;
-        var replaceOne = UiScale.Enable(new Button { Content = s.CompareReplaceOne, Padding = new Thickness(12, 4) });
-        var replaceAll = UiScale.Enable(new Button { Content = s.CompareReplaceAll, Padding = new Thickness(12, 4) });
+        var replaceOne = UiScale.Enable(new Button { Content = s.CompareReplaceOne, Classes = { "compact" } });
+        var replaceAll = UiScale.Enable(new Button { Content = s.CompareReplaceAll, Classes = { "compact" } });
         replaceOne.Click += (_, _) => ReplaceOne();
         replaceAll.Click += (_, _) => ReplaceAll();
         _replaceRow.Children.AddRange([new DuoIcon { Icon = "replace", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, _replaceBox, replaceOne, replaceAll]);
@@ -556,9 +556,9 @@ public sealed class CompareWindow : Window
 
     Control PathRow(Side side)
     {
-        var open = UiScale.Enable(new Button { Content = Strings.Current.CompareOpen, Padding = new Thickness(12, 4) });
+        var open = UiScale.Enable(new Button { Content = Strings.Current.CompareOpen, Classes = { "compact" } });
         open.Click += async (_, _) => await PickAsync(side);
-        var paste = UiScale.Enable(new Button { Content = Strings.Current.CompareOpenClipboard, Padding = new Thickness(12, 4) });
+        var paste = UiScale.Enable(new Button { Content = Strings.Current.CompareOpenClipboard, Classes = { "compact" } });
         ToolTip.SetTip(paste, Tip(Strings.Current.CompareOpenClipboard, "Ctrl+Shift+V"));
         paste.Click += async (_, _) => await PasteAsync(side);
         var icon = new DuoIcon { Icon = "file", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
@@ -1240,7 +1240,7 @@ public sealed class CompareWindow : Window
         {
             side.Banner.IsVisible = true;
             side.BannerText.Text = s.CompareChangedOutside;
-            var reload = UiScale.Enable(new Button { Content = s.CompareReloadDiscard, Padding = new Thickness(12, 4) });
+            var reload = UiScale.Enable(new Button { Content = s.CompareReloadDiscard, Classes = { "compact" } });
             reload.Click += async (_, _) => await ReloadAsync();
             side.BannerActions.Children.Add(reload);
             return;
@@ -1260,7 +1260,7 @@ public sealed class CompareWindow : Window
             if (text.File.Encoding is not (TextEncodingKind.Utf16Le or TextEncodingKind.Utf16Be))
             {
                 var other = OtherEncoding(text.File.Encoding);
-                var repairButton = UiScale.Enable(new Button { Content = s.CompareRepairMixed(TextEncodings.DisplayName(text.File.Encoding), TextEncodings.DisplayName(other)), Padding = new Thickness(12, 4) });
+                var repairButton = UiScale.Enable(new Button { Content = s.CompareRepairMixed(TextEncodings.DisplayName(text.File.Encoding), TextEncodings.DisplayName(other)), Classes = { "compact" } });
                 repairButton.Click += async (_, _) =>
                 {
                     side.RepairRequested = true;
@@ -1274,7 +1274,7 @@ public sealed class CompareWindow : Window
 
     Button EncodingMenuButton(Side side)
     {
-        var button = UiScale.Enable(new Button { Content = Strings.Current.CompareReopenEncoding, Padding = new Thickness(12, 4) });
+        var button = UiScale.Enable(new Button { Content = Strings.Current.CompareReopenEncoding, Classes = { "compact" } });
         button.Click += (_, _) => EncodingFlyout(side).ShowAt(button);
         return button;
     }

@@ -203,6 +203,8 @@ public partial class HomeWindow : Window
         DropZoneStroke.RadiusX = DropZoneStroke.RadiusY = radius;
         DropBig.IsVisible = !compact;
         DropCompact.IsVisible = compact;
+        // 한 줄 모양에서는 [파일 열기]·[폴더 열기]를 위아래 두 줄로, 같은 폭으로 쌓는다.
+        OpenButtons.Orientation = compact ? Avalonia.Layout.Orientation.Vertical : Avalonia.Layout.Orientation.Horizontal;
         var target = compact ? DropCompactButtons : DropBigButtons;
         if (OpenButtons.Parent is Panel from && !ReferenceEquals(from, target))
         {
