@@ -32,6 +32,7 @@ public partial class App : Application
     internal static void RecordHistory(string? left, string? right, bool folders)
     {
         if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return;
+        if (CompareHistoryList.IsSamePath(left, right, PolicyStore.NamesIgnoreCase)) return; // 자기 자신과의 비교는 기록하지 않는다 (설정도 건드리지 않는다)
         var entry = new CompareHistoryEntry
         {
             Left = left, Right = right, OpenedAt = DateTimeOffset.Now,
