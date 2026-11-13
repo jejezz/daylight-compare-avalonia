@@ -326,10 +326,12 @@ public sealed class FolderCompareWindow : Window
             return host;
         }
         var brush = ColorFor(node, left);
-        var chevron = new DuoIcon { Icon = row.IsExpanded ? "caret-down" : "caret-right", Width = 12, Height = 12, VerticalAlignment = VerticalAlignment.Center, IsVisible = row.IsFolder };
-        chevron.PointerPressed += (_, e) => { e.Handled = true; Toggle(node); };
+        var chevron = new DuoIcon { Icon = row.IsExpanded ? "caret-down" : "caret-right", Width = 16, Height = 16, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsVisible = row.IsFolder };
+        // 누르는 자리는 줄 높이 전체 × 24px (투명 배경이라 빈 곳도 눌린다) — 아이콘 크기보다 훨씬 넓게
+        var chevronHit = new Border { Width = 24, Height = RowHeight, Background = Brushes.Transparent, Child = chevron };
+        if (row.IsFolder) chevronHit.PointerPressed += (_, e) => { e.Handled = true; Toggle(node); };
         var icon = new DuoIcon { Icon = row.IsFolder ? (row.IsExpanded ? "folder-open" : "folder") : "file", ColorKey = row.IsFolder ? "AppIconFolder" : null, Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
-        var lead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(row.Depth * 16 + 6, 0, 0, 0), Children = { new Border { Width = 12, Child = chevron }, icon } };
+        var lead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(row.Depth * 16, 0, 0, 0), Children = { chevronHit, icon } };
         var name = new TextBlock { Text = node.Name, Foreground = brush, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
         ToolTip.SetTip(name, node.Error is { } err ? $"{entry.Path}\n{err}" : entry.Path);
         var size = new TextBlock { Text = row.IsFolder ? "" : BytesFormat.Format(entry.SizeBytes), Foreground = brush, Width = 76, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
