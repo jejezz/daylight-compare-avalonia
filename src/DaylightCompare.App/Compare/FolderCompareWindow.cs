@@ -256,22 +256,31 @@ public sealed class FolderCompareWindow : Window
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8, Margin = new Thickness(12, 6), Children = { icon, text, pick } };
         Grid.SetColumn(text, 1);
         Grid.SetColumn(pick, 2);
-        // 폴더(또는 압축 파일)를 주소 창에 끌어다 놓으면 그 폴더를 연다. 글 상자가 먼저 가로채지 못하게 터널로 받는다.
-        DragDrop.SetAllowDrop(grid, true);
+        // 폴더(또는 압축 파일)를 주소 창에 끌어다 놓으면 그 폴더를 연다. 드래그 이벤트는 올라오기(bubble)만 있고
+        // 글 상자가 먼저 처리해 버리므로, 글 상자와 바깥 줄 모두에 "처리된 것도 받기"로 건다.
         static string? DroppedPath(DragEventArgs e) => e.DataTransfer.TryGetFiles()?.FirstOrDefault()?.TryGetLocalPath();
-        grid.AddHandler(DragDrop.DragOverEvent, (_, e) =>
+        void OnOver(object? _, DragEventArgs e)
         {
-            e.DragEffects = DroppedPath(e) is null ? DragDropEffects.None : DragDropEffects.Link;
+            e.DragEffects = DroppedPath(e) is null ? DragDropEffects.None : DragDropEffects.Copy;
             e.Handled = true;
-        }, RoutingStrategies.Tunnel);
-        grid.AddHandler(DragDrop.DropEvent, async (_, e) =>
+        }
+        DragEventArgs? lastDrop = null; // 글 상자에서 올라온 같은 이벤트를 바깥 줄이 또 받지 않게
+        async void OnDropped(object? _, DragEventArgs e)
         {
             e.Handled = true;
+            if (ReferenceEquals(lastDrop, e)) return;
+            lastDrop = e;
             if (DroppedPath(e) is not { } path) return;
             if (!await Task.Run(() => CanOpen(path))) return;
             PickLocations.Remember(path, isFolder: true);
             await ApplyRootAsync(left, path);
-        }, RoutingStrategies.Tunnel);
+        }
+        foreach (Control c in new Control[] { grid, text })
+        {
+            DragDrop.SetAllowDrop(c, true);
+            c.AddHandler(DragDrop.DragOverEvent, OnOver, RoutingStrategies.Bubble, handledEventsToo: true);
+            c.AddHandler(DragDrop.DropEvent, OnDropped, RoutingStrategies.Bubble, handledEventsToo: true);
+        }
         if (!left) Grid.SetColumn(grid, 2);
         return grid;
     }
