@@ -77,6 +77,10 @@ public sealed class KoreanStrings : IAppStrings
     public string FolderViewFilterTooltip => "보기 필터";
     public string FolderMenuActions => "동작";
     public string FolderOpen => "열기";
+    public string FolderCompareNow => "지금 비교";
+    public string FolderFilterExcludeItem => "Filter: 제외";
+    public string FolderFilterIncludeItem => "Filter: 포함";
+    public string FolderCompareNeedBoth => "양쪽에 모두 있는 항목만 지금 비교할 수 있습니다";
     public string FolderDelete => "삭제";
     public string FolderDeleteLeft => "왼쪽에서 삭제";
     public string FolderDeleteRight => "오른쪽에서 삭제";

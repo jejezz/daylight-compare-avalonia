@@ -91,6 +91,10 @@ public interface IAppStrings
     string FolderViewFilterTooltip { get; }
     string FolderMenuActions { get; }
     string FolderOpen { get; }
+    string FolderCompareNow { get; }
+    string FolderFilterExcludeItem { get; }
+    string FolderFilterIncludeItem { get; }
+    string FolderCompareNeedBoth { get; }
     string FolderDelete { get; }
     string FolderDeleteLeft { get; }
     string FolderDeleteRight { get; }
