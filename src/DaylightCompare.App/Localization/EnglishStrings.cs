@@ -10,8 +10,18 @@ public sealed class EnglishStrings : IAppStrings
     public string CommonCancel => "Cancel";
     public string CommonConfirm => "OK";
     public string SettingsTooltip => "Settings";
-    public string HomeEmptyTitle => "Choose two items to compare";
-    public string HomeEmptyHint => "Drop two files (or two folders) anywhere in this window, or choose each side. Binary and image comparison arrive in later versions";
+    public string HomeEmptyTitle => "Drop files or folders to start";
+    public string HomeEmptyHint => "One opens the matching compare window, two are compared right away";
+    public string HomeTagline => "Compare, merge and sync folders and files in one place";
+    public string HomeOpenFiles => "Open Files";
+    public string HomeFolderCompare => "Folder Compare";
+    public string HomeFolderCompareHint => "Compare two folders, copy and delete files";
+    public string HomeTextCompare => "Text Compare";
+    public string HomeTextCompareHint => "Compare and edit two files line by line, or paste text";
+    public string HomeDropOpenTooMany => "You can open up to two at a time.";
+    public string CompareTypedFolder => "A folder can't be opened in Text Compare. Enter a file path.";
+    public string FolderChooseBoth => "Choose or drop a folder on each side";
+    public string FolderDropFoldersOnly => "Only folders or archives can be dropped in Folder Compare.";
     public string CompareWindowTitle(string left, string right) => $"{left} ↔ {right}";
     public string CompareSwap => "Swap Sides";
     public string CompareOpen => "Open…";
@@ -33,7 +43,6 @@ public sealed class EnglishStrings : IAppStrings
     public string CompareEncodingDiffers(string left, string right) => $"Different encodings: {left} / {right}";
     public string HomeLeft => "Left";
     public string HomeRight => "Right";
-    public string HomeCompare => "Compare";
     public string HomeNotChosen => "Not chosen yet";
     public string DropTooMany => "Drop up to two items at a time (three files for a merge — in a later version)";
     public string DropNoCounterpart(string name) => $"The folder has no file named {name}";
@@ -97,7 +106,7 @@ public sealed class EnglishStrings : IAppStrings
     public string FolderDeletePermanent => "The recycle bin isn't available, so these are deleted permanently.";
     public string FolderChooseLeftTitle => "Choose Left Folder";
     public string FolderChooseRightTitle => "Choose Right Folder";
-    public string HomeChooseFolder => "Folder…";
+    public string HomeChooseFolder => "Open Folders";
     public string FolderFileVsFolderLater => "Comparing a file against a folder isn't supported — pick two of the same kind.";
     public string FolderWindowTitle(string left, string right) => $"Folder Compare · {left} ↔ {right}";
     public string FolderStatus(int same, int different, int leftOnly, int rightOnly) => $"Same {same} · Different {different} · Left only {leftOnly} · Right only {rightOnly}";
@@ -163,7 +172,6 @@ public sealed class EnglishStrings : IAppStrings
     public string CompareFindCount(int index, int count) => $"{index} of {count}";
     public string CompareFindInLeft => "Searching left";
     public string CompareFindInRight => "Searching right";
-    public string HomePasteCompare => "Compare Pasted Text";
     public string CliUsageTitle => "Command-Line Usage";
     public string CliUsage => "DaylightCompare [switches] [<left> [<right>]]   (Beyond Compare switches · / on Windows, - on macOS/Linux)\n\n/qc[=size|crc|binary]   Compare without a window and report the result as the exit code\n/title1=name  /title2=name   Pane titles (instead of git temp file names)\n/ro  /ro1  /ro2   Read-only (both · left · right)\n/iu   Ignore unimportant differences\n--wait   Wait until the compare window closes (git difftool)\n/?   This help\n\nExit codes (same as BC): 0 success · 1 binary same · 2 rules-based same · 11 binary differences · 12 similar · 13 rules-based differences · 100 error.\nIf the app is already running, it opens there.";
     public string CliUnknownOption(string option) => $"Unknown option: {option}";

@@ -16,7 +16,7 @@ using DaylightCompare.Services;
 namespace DaylightCompare.App;
 
 /// <summary>
-/// 홈 창: 새 비교(왼쪽·오른쪽 고르기, 끌어다 놓기). 저장한 세션·최근 목록은 4단계 (ROADMAP §6).
+/// 홈 창 (Daylight PDF 홈과 같은 구성): 끌어다 놓거나 열면 맞는 비교 창이 열리고, 아래 카드로 빈 폴더·텍스트 비교 창을 바로 연다. 최근 비교 목록.
 /// 창 위치·크기는 window-placement.md 규칙으로 기억한다 (Daylight Commander의 MainWindow에서 가져옴).
 /// </summary>
 public partial class HomeWindow : Window
@@ -26,6 +26,7 @@ public partial class HomeWindow : Window
         InitializeComponent();
         Title = AppIdentity.DisplayName;
         AppTitle.Text = AppIdentity.DisplayName;
+        HeaderTitle.Text = AppIdentity.DisplayName;
         RestorePlacement();
 
         PositionChanged += (_, _) => SavePlacement();
@@ -45,31 +46,27 @@ public partial class HomeWindow : Window
         AboutButton.Click += (_, _) => AboutDialog.Open(this);
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
 
-        PickLeft.Click += async (_, _) => await PickAsync(left: true);
-        PickRight.Click += async (_, _) => await PickAsync(left: false);
-        PickLeftFolder.Click += async (_, _) => await PickFolderAsync(left: true);
-        PickRightFolder.Click += async (_, _) => await PickFolderAsync(left: false);
-        CompareButton.Click += async (_, _) => await OpenCompareAsync();
-        PasteCompareButton.Click += (_, _) => CompareWindow.Open(this, _left, _right);
+        OpenFilesButton.Click += async (_, _) => await OpenFilesAsync();
+        OpenFoldersButton.Click += async (_, _) => await OpenFoldersAsync();
+        FolderCompareCard.Click += (_, _) => FolderCompareWindow.Open(this, null, null);
+        TextCompareCard.Click += (_, _) => CompareWindow.Open(this, null, null);
         AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
-            var ok = ItemsOf(e).Count is > 0 and <= 3;
+            // 디스크를 만지지 않고 개수만 본다 (종류는 놓은 뒤 백그라운드에서 가린다).
+            var ok = DroppedPaths(e).Count is > 0 and <= 3;
             e.DragEffects = ok ? DragDropEffects.Copy : DragDropEffects.None;
-            DropHint.IsVisible = ok;
+            SetDropHighlight(ok);
         });
-        AddHandler(DragDrop.DragLeaveEvent, (_, _) => DropHint.IsVisible = false);
+        AddHandler(DragDrop.DragLeaveEvent, (_, _) => SetDropHighlight(false));
         AddHandler(DragDrop.DropEvent, OnDrop);
         ClearHistoryButton.Click += (_, _) => App.Settings.Update(s => s with { CompareHistory = [] });
-        Strings.Changed += RefreshPicks;
         Strings.Changed += RefreshHistoryOnUi;
         App.Settings.Changed += OnSettingsChanged;
         Closed += (_, _) =>
         {
-            Strings.Changed -= RefreshPicks;
             Strings.Changed -= RefreshHistoryOnUi;
             App.Settings.Changed -= OnSettingsChanged;
         };
-        RefreshPicks();
         RefreshHistory();
     }
 
@@ -91,6 +88,7 @@ public partial class HomeWindow : Window
         var all = App.Settings.Value.CompareHistory;
         _historyShown = all;
         HistorySection.IsVisible = all.Count > 0;
+        ApplyLayout(compact: all.Count > 0);
         HistoryList.Children.Clear();
         HistoryNotice.Text = "";
         var rows = new List<(CompareHistoryEntry Entry, Control Row)>();
@@ -192,85 +190,104 @@ public partial class HomeWindow : Window
         else CompareWindow.Open(this, e.Left, e.Right);
     }
 
-    // --- 새 비교: 왼쪽·오른쪽 고르기와 끌어다 놓기 (ROADMAP §6-1 ①) ---
+    // --- 놓기 구역의 모양 (Daylight PDF 홈: 최근 목록이 생기면 한 줄로 작아진다) ---
 
-    string? _left, _right;
-
-    void RefreshPicks()
+    /// <summary>최근 비교가 없으면 놓기 구역이 남는 자리를 다 쓰고, 있으면 한 줄로 줄고 그 자리를 목록이 쓴다.</summary>
+    void ApplyLayout(bool compact)
     {
-        LeftPath.Text = _left ?? Strings.Current.HomeNotChosen;
-        RightPath.Text = _right ?? Strings.Current.HomeNotChosen;
-        CompareButton.IsEnabled = _left is not null && _right is not null;
-    }
-
-    async Task PickAsync(bool left)
-    {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        Body.RowDefinitions[1].Height = compact ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        Body.RowDefinitions[2].Height = compact ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        // 모서리: 넓을 때 24(card), 한 줄일 때 20(tile) — Daylight PDF의 DropZone과 같다.
+        var radius = compact ? 20 : 24;
+        DropZoneFill.CornerRadius = new CornerRadius(radius);
+        DropZoneStroke.RadiusX = DropZoneStroke.RadiusY = radius;
+        DropBig.IsVisible = !compact;
+        DropCompact.IsVisible = compact;
+        // 한 줄 모양에서는 [파일 열기]·[폴더 열기]를 위아래 두 줄로, 같은 폭으로 쌓는다.
+        OpenButtons.Orientation = compact ? Avalonia.Layout.Orientation.Vertical : Avalonia.Layout.Orientation.Horizontal;
+        var target = compact ? DropCompactButtons : DropBigButtons;
+        if (OpenButtons.Parent is Panel from && !ReferenceEquals(from, target))
         {
-            Title = left ? Strings.Current.CompareOpenLeftTitle : Strings.Current.CompareOpenRightTitle,
-            AllowMultiple = false,
-            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
-        });
-        if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path) return;
-        PickLocations.Remember(path, isFolder: false);
-        if (left) _left = path; else _right = path;
-        RefreshPicks();
-        if (_left is not null && _right is not null) await OpenCompareAsync();
-    }
-
-    async Task PickFolderAsync(bool left)
-    {
-        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = left ? Strings.Current.FolderChooseLeftTitle : Strings.Current.FolderChooseRightTitle,
-            AllowMultiple = false,
-            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
-        });
-        if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } path) return;
-        PickLocations.Remember(path, isFolder: true);
-        if (left) _left = path; else _right = path;
-        RefreshPicks();
-        if (_left is not null && _right is not null) await OpenCompareAsync();
-    }
-
-    /// <summary>둘 다 폴더(또는 압축 파일)이면 폴더 비교, 둘 다 파일이면 텍스트 비교 (BC처럼 종류는 고른 것이 정한다).</summary>
-    async Task OpenCompareAsync()
-    {
-        if (_left is null || _right is null) return;
-        // 폴더인지 파일인지는 디스크를 만져야 알 수 있다 — 네트워크 드라이브에서 UI가 멈추지 않게 백그라운드에서 확인한다.
-        var (leftPath, rightPath) = (_left, _right);
-        var (leftContainer, rightContainer) = await Task.Run(() => (FolderCompareWindow.CanOpen(leftPath), FolderCompareWindow.CanOpen(rightPath)));
-        if (leftContainer != rightContainer)
-        {
-            _ = MessageDialog.ShowAsync(this, AppIdentity.DisplayName, Strings.Current.FolderFileVsFolderLater, [Strings.Current.CommonClose], 0, 0);
-            return;
+            from.Children.Remove(OpenButtons);
+            target.Children.Add(OpenButtons);
         }
-        if (leftContainer) FolderCompareWindow.Open(this, _left, _right);
-        else CompareWindow.Open(this, _left, _right);
-        _left = _right = null; // 홈 창은 다음 비교를 위해 비운다
-        RefreshPicks();
     }
 
-    static IReadOnlyList<DroppedItem> ItemsOf(DragEventArgs e) =>
-        DropClassifier.Classify(e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>() ?? []);
+    void SetDropHighlight(bool on)
+    {
+        DropZoneStroke.Bind(Avalonia.Controls.Shapes.Shape.StrokeProperty, this.GetResourceObservable(on ? "AppPrimary" : "AppStrokeStrong"));
+        DropZoneStroke.StrokeThickness = on ? 2 : 1.5;
+        DropZoneFill.Bind(Border.BackgroundProperty, this.GetResourceObservable(on ? "AppSurfaceHi" : "AppSurface"));
+    }
+
+    // --- 열기: 놓거나 고른 것에 맞는 비교 창을 연다 ---
+
+    static List<string> DroppedPaths(DragEventArgs e) =>
+        e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>().ToList() ?? [];
 
     async void OnDrop(object? sender, DragEventArgs e)
     {
-        DropHint.IsVisible = false;
-        var x = e.GetPosition(this).X;
-        var target = x < Bounds.Width * 0.45 ? DropTarget.Left : x > Bounds.Width * 0.55 ? DropTarget.Right : DropTarget.Window;
-        static DroppedItem? Item(string? p) => p is null ? null : DropClassifier.Classify([p]).FirstOrDefault();
-        var plan = DropPlanner.Plan(ItemsOf(e), target, Item(_left), Item(_right));
-        await CompareWindow.ApplyDropAsync(this, plan, (l, r) =>
-        {
-            (_left, _right) = (l, r);
-            RefreshPicks();
-            if (l is not null && r is not null) return OpenCompareAsync();
-            return Task.CompletedTask;
-        }, allowPendingFolders: true);
+        SetDropHighlight(false);
+        await OpenPathsAsync(DroppedPaths(e));
     }
 
-    /// <summary>공통 단축키 (ui-ux.md §7). 비교 전용 단축키는 비교 창이 생기는 3단계에서 더한다.</summary>
+    async Task OpenFilesAsync()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = Strings.Current.HomeOpenFiles,
+            AllowMultiple = true,
+            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
+        });
+        var paths = files.Select(f => f.TryGetLocalPath()).OfType<string>().ToList();
+        if (paths.Count > 0) PickLocations.Remember(paths[0], isFolder: false);
+        await OpenPathsAsync(paths);
+    }
+
+    async Task OpenFoldersAsync()
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = Strings.Current.HomeChooseFolder,
+            AllowMultiple = true,
+            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
+        });
+        var paths = folders.Select(f => f.TryGetLocalPath()).OfType<string>().ToList();
+        if (paths.Count > 0) PickLocations.Remember(paths[0], isFolder: true);
+        await OpenPathsAsync(paths);
+    }
+
+    /// <summary>
+    /// 놓거나 고른 경로로 비교 창을 연다 (<see cref="DropPlanner"/>의 규칙).
+    /// 하나면 그 종류에 맞는 창(폴더·압축 파일 → 폴더 비교, 파일 → 텍스트 비교)을 왼쪽만 채워 열고, 오른쪽은 그 창에서 고르거나 놓는다.
+    /// 두 개면 바로 비교한다. 셋 이상(병합)은 아직 없다.
+    /// </summary>
+    /// <returns>연 창 (안내만 하고 열지 않았으면 null). 두 개를 놓았을 때 파일·폴더 짝이면 폴더 안의 같은 이름 파일과 비교한다.</returns>
+    public async Task<Window?> OpenPathsAsync(IReadOnlyList<string> paths)
+    {
+        if (paths.Count == 0) return null;
+        if (paths.Count > 3)
+        {
+            await MessageDialog.ShowAsync(this, AppIdentity.DisplayName, Strings.Current.HomeDropOpenTooMany, [Strings.Current.CommonClose], 0, 0);
+            return null;
+        }
+        // 폴더인지 파일인지는 디스크를 만져야 안다 — 네트워크 드라이브에서 UI가 멈추지 않게 백그라운드에서 가린다.
+        var items = await Task.Run(() => DropClassifier.Classify(paths));
+        var plan = DropPlanner.Plan(items, DropTarget.Window);
+        if (plan is DropPlan.Pending { Left: { } one })
+            return one.IsContainer ? FolderCompareWindow.Open(this, one.Path, null) : CompareWindow.Open(this, one.Path, null);
+        if (plan is DropPlan.Compare { Mode: CompareMode.Folders } folders)
+            return FolderCompareWindow.Open(this, folders.Left.Path, folders.Right.Path);
+        Window? opened = null;
+        await CompareWindow.ApplyDropAsync(this, plan, (l, r) =>
+        {
+            opened = CompareWindow.Open(this, l, r);
+            return Task.CompletedTask;
+        });
+        return opened;
+    }
+
+    /// <summary>공통 단축키 (ui-ux.md §7).</summary>
     void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (!Mods.Primary(e.KeyModifiers)) return;

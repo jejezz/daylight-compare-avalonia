@@ -53,7 +53,8 @@ public sealed class CompareWindow : Window
         public TextEncodingKind? ForcedEncoding;
         public readonly TextEditor Editor = new();
         public RowNumberMargin Margin = null!;
-        public readonly TextBlock PathText = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.PathSegmentEllipsis };
+        /// <summary>주소 창: 평소엔 경로(고친 것이 있으면 앞에 ●)를 보이고, 직접 고쳐 Enter를 누르면 그 파일을 연다 (BC의 경로 칸).</summary>
+        public readonly TextBox PathText = new() { VerticalAlignment = VerticalAlignment.Center };
         public readonly TextBlock EncodingText = new() { VerticalAlignment = VerticalAlignment.Center, Classes = { "small" } };
         public readonly Border Overlay = new() { IsHitTestVisible = false, IsVisible = false };
         public readonly TextBlock OverlayText = new() { TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 420 };
@@ -64,6 +65,8 @@ public sealed class CompareWindow : Window
         /// <summary>편집기 안의 스크롤 뷰어 (프로그램에서 스크롤할 때 이것의 오프셋을 바꾼다 — <see cref="CompareWindow.ScrollTo"/>).</summary>
         public ScrollViewer? Scroller;
         public string? HighlightedPath;
+        /// <summary>주소 창을 고치는 중 (그동안은 표시용 글로 덮어쓰지 않는다).</summary>
+        public bool PathEditing;
         public bool RepairRequested;
         public MixedRepair? Repair;
 
@@ -138,7 +141,7 @@ public sealed class CompareWindow : Window
     readonly Button _save = new() { Classes = { "tool" }, IsEnabled = false };
 
     /// <summary>BC 보기 필터 (Show All / Differences / Same / Context) — 드롭다운 하나.</summary>
-    readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(10, 4) };
+    readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center };
     CompareViewFilter _filter;
     int _contextLines;
     static readonly int[] ContextChoices = [0, 1, 2, 3, 5, 10, 20];
@@ -411,8 +414,8 @@ public sealed class CompareWindow : Window
         Grid.SetColumn(close, 2);
         // 바꾸기 줄 (BC Search > Replace, Ctrl+H): 찾을 쪽에서 지금 고른 일치를 바꾸거나 모두 바꾼다.
         _replaceBox.PlaceholderText = s.CompareReplacePlaceholder;
-        var replaceOne = UiScale.Enable(new Button { Content = s.CompareReplaceOne, Padding = new Thickness(12, 4) });
-        var replaceAll = UiScale.Enable(new Button { Content = s.CompareReplaceAll, Padding = new Thickness(12, 4) });
+        var replaceOne = UiScale.Enable(new Button { Content = s.CompareReplaceOne, Classes = { "compact" } });
+        var replaceAll = UiScale.Enable(new Button { Content = s.CompareReplaceAll, Classes = { "compact" } });
         replaceOne.Click += (_, _) => ReplaceOne();
         replaceAll.Click += (_, _) => ReplaceAll();
         _replaceRow.Children.AddRange([new DuoIcon { Icon = "replace", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, _replaceBox, replaceOne, replaceAll]);
@@ -553,12 +556,31 @@ public sealed class CompareWindow : Window
 
     Control PathRow(Side side)
     {
-        var open = UiScale.Enable(new Button { Content = Strings.Current.CompareOpen, Padding = new Thickness(12, 4) });
+        var open = UiScale.Enable(new Button { Content = Strings.Current.CompareOpen, Classes = { "compact" } });
         open.Click += async (_, _) => await PickAsync(side);
-        var paste = UiScale.Enable(new Button { Content = Strings.Current.CompareOpenClipboard, Padding = new Thickness(12, 4) });
+        var paste = UiScale.Enable(new Button { Content = Strings.Current.CompareOpenClipboard, Classes = { "compact" } });
         ToolTip.SetTip(paste, Tip(Strings.Current.CompareOpenClipboard, "Ctrl+Shift+V"));
         paste.Click += async (_, _) => await PasteAsync(side);
         var icon = new DuoIcon { Icon = "file", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
+        side.PathText.PlaceholderText = side.Left ? Strings.Current.CompareOpenLeftTitle : Strings.Current.CompareOpenRightTitle;
+        // 고치기 시작하면 표시용 글(● 표시·제목·"아직 고르지 않음")을 실제 경로로 바꾸고, 나가면 표시용으로 되돌린다.
+        side.PathText.GotFocus += (_, _) =>
+        {
+            if (side.PathEditing) return;
+            side.PathEditing = true;
+            side.PathText.Text = side.Path ?? "";
+            side.PathText.SelectAll();
+        };
+        side.PathText.LostFocus += (_, _) =>
+        {
+            side.PathEditing = false;
+            UpdateSideChrome(side);
+        };
+        side.PathText.AddHandler(KeyDownEvent, async (_, e) =>
+        {
+            if (e.Key == Key.Enter) { e.Handled = true; await ApplyTypedPathAsync(side); }
+            else if (e.Key == Key.Escape) { e.Handled = true; side.Editor.TextArea.Focus(); }
+        }, RoutingStrategies.Tunnel);
         var row = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"),
@@ -1187,7 +1209,13 @@ public sealed class CompareWindow : Window
     void UpdateSideChrome(Side side)
     {
         var s = Strings.Current;
-        side.PathText.Text = (side.Dirty ? "● " : "") + (side.Title is { Length: > 0 } title ? title : side.Path ?? (side.Real.Length > 0 ? s.CompareScratchName : s.HomeNotChosen));
+        if (!side.PathEditing)
+        {
+            // 아무것도 없으면 비워 두어 "왼쪽(오른쪽) 파일 열기" 안내 글이 보이게 한다. 긴 경로는 끝(파일 이름)이 보이게 커서를 끝에 둔다.
+            var shown = side.Title is { Length: > 0 } title ? title : side.Path ?? (side.Real.Length > 0 ? s.CompareScratchName : "");
+            side.PathText.Text = shown.Length > 0 && side.Dirty ? "● " + shown : shown;
+            side.PathText.CaretIndex = side.PathText.Text.Length;
+        }
         ToolTip.SetTip(side.PathText, side.Path ?? (side.Real.Length > 0 ? s.CompareScratchTooltip : null));
         side.EncodingText.Text = side.Text is { } t && !side.IsScratch
             ? TextEncodings.DisplayName(t.File.Encoding, t.File.HasBom) + (side.HasText && !side.CanEdit ? " · " + s.CompareReadOnly : "")
@@ -1212,7 +1240,7 @@ public sealed class CompareWindow : Window
         {
             side.Banner.IsVisible = true;
             side.BannerText.Text = s.CompareChangedOutside;
-            var reload = UiScale.Enable(new Button { Content = s.CompareReloadDiscard, Padding = new Thickness(12, 4) });
+            var reload = UiScale.Enable(new Button { Content = s.CompareReloadDiscard, Classes = { "compact" } });
             reload.Click += async (_, _) => await ReloadAsync();
             side.BannerActions.Children.Add(reload);
             return;
@@ -1232,7 +1260,7 @@ public sealed class CompareWindow : Window
             if (text.File.Encoding is not (TextEncodingKind.Utf16Le or TextEncodingKind.Utf16Be))
             {
                 var other = OtherEncoding(text.File.Encoding);
-                var repairButton = UiScale.Enable(new Button { Content = s.CompareRepairMixed(TextEncodings.DisplayName(text.File.Encoding), TextEncodings.DisplayName(other)), Padding = new Thickness(12, 4) });
+                var repairButton = UiScale.Enable(new Button { Content = s.CompareRepairMixed(TextEncodings.DisplayName(text.File.Encoding), TextEncodings.DisplayName(other)), Classes = { "compact" } });
                 repairButton.Click += async (_, _) =>
                 {
                     side.RepairRequested = true;
@@ -1246,7 +1274,7 @@ public sealed class CompareWindow : Window
 
     Button EncodingMenuButton(Side side)
     {
-        var button = UiScale.Enable(new Button { Content = Strings.Current.CompareReopenEncoding, Padding = new Thickness(12, 4) });
+        var button = UiScale.Enable(new Button { Content = Strings.Current.CompareReopenEncoding, Classes = { "compact" } });
         button.Click += (_, _) => EncodingFlyout(side).ShowAt(button);
         return button;
     }
@@ -1703,6 +1731,44 @@ public sealed class CompareWindow : Window
         RecordHistory();
     }
 
+    /// <summary>
+    /// 주소 창에 쓴 경로를 연다. 파일이 없거나 폴더면 알리고 지금 파일을 그대로 둔다.
+    /// 있는지는 백그라운드에서 본다 (네트워크 드라이브에서 UI가 멈추지 않게). 압축 파일 안 경로(<c>a.zip!/x</c>)도 받는다.
+    /// </summary>
+    async Task ApplyTypedPathAsync(Side side)
+    {
+        var path = (side.PathText.Text ?? "").Trim().Trim('"');
+        if (path.Length == 0 || path == side.Path) { side.Editor.TextArea.Focus(); return; }
+        var s = Strings.Current;
+        var problem = await Task.Run(async () =>
+        {
+            if (ArchivePaths.TryParse(path) is { } inner)
+                return File.Exists(inner.Archive) && await new ArchiveFileSystem(inner.Archive).StatAsync(path) is { IsDirectory: false } ? null : s.HomeRecentMissing(path);
+            if (Directory.Exists(path)) return s.CompareTypedFolder;
+            return File.Exists(path) ? null : s.HomeRecentMissing(path);
+        });
+        if (problem is not null)
+        {
+            await MessageDialog.ShowAsync(this, AppIdentity.DisplayName, problem, [s.CommonClose], 0, 0);
+            // 지금 파일은 그대로. 고쳐 다시 쓸 수 있게 쓴 글을 주소 창에 되살린다 (Esc나 다른 곳을 누르면 지금 경로로 돌아간다).
+            side.PathText.Focus();
+            side.PathText.Text = path;
+            side.PathText.CaretIndex = path.Length;
+            return;
+        }
+        if (!await ConfirmDiscardAsync()) return;
+        PickLocations.Remember(path, isFolder: false);
+        side.Path = path;
+        side.Title = null;
+        side.ForcedEncoding = null;
+        side.RepairRequested = false;
+        _skipHistory = false;
+        side.PathEditing = false;
+        side.Editor.TextArea.Focus();
+        await ReloadAsync();
+        RecordHistory();
+    }
+
     // --- 끌어다 놓기 (ROADMAP §6-1 ①) ---
 
     DropTarget TargetAt(DragEventArgs e)
@@ -1794,6 +1860,7 @@ public sealed class CompareWindow : Window
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
         var alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
         var handled = true;
+        if (_left.PathText.IsFocused || _right.PathText.IsFocused) return; // 주소 창의 키는 주소 창이 받는다 (Enter·Esc는 PathRow)
         if (_findBox.IsFocused || _replaceBox.IsFocused)
         {
             // 찾기·바꾸기 칸에서는 글자 편집 키(Ctrl+Z·Ctrl+←→·Ctrl+L 등)를 칸에 맡기고, 찾기 키만 받는다.
