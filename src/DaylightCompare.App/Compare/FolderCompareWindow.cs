@@ -651,15 +651,26 @@ public sealed class FolderCompareWindow : Window
     async Task ChooseAsync(bool left)
     {
         var s = Strings.Current;
+        var start = await CurrentFolderAsync(left ? _leftRoot : _rightRoot) ?? await PickLocations.StartAsync(StorageProvider);
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle,
             AllowMultiple = false,
-            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
+            SuggestedStartLocation = start,
         });
         if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } path) return;
         PickLocations.Remember(path, isFolder: true);
         await ApplyRootAsync(left, path);
+    }
+
+    /// <summary>고르기 창이 현재 주소창의 폴더에서 시작하게 한다 (압축 파일이면 그것이 든 폴더). 없으면 null.</summary>
+    async Task<IStorageFolder?> CurrentFolderAsync(string root)
+    {
+        var path = Original(root);
+        var dir = await Task.Run(() => Directory.Exists(path) ? path : Path.GetDirectoryName(path) is { Length: > 0 } d && Directory.Exists(d) ? d : null);
+        if (dir is null) return null;
+        try { return await StorageProvider.TryGetFolderFromPathAsync(dir); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
     }
 
     /// <summary>주소 창에 직접 쓴 경로를 적용한다. 폴더(또는 압축 파일)가 아니면 원래 경로로 되돌린다.</summary>
