@@ -171,7 +171,7 @@ public sealed class FolderCompareWindow : Window
         commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
         ToolTip.SetTip(_viewFilter, s.FolderViewFilterTooltip);
 
-        // 툴바: 보기 필터 | 복사 | 이전·다음 차이 | 좌우 바꾸기 · 새로 고침 · 모든 명령 | 설정 · 정보 — BC 폴더 비교의 묶음 순서.
+        // 툴바: 보기 필터 | 복사 | 이전·다음 차이 | 모두 펴기·접기 | 좌우 바꾸기 · 새로 고침 · 모든 명령 | 설정 · 정보 — BC 폴더 비교의 묶음 순서.
         var tools = new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center,
@@ -184,6 +184,9 @@ public sealed class FolderCompareWindow : Window
                 Separator(),
                 Tool("up", Tip(s.ComparePrevLine, "Ctrl+P"), () => GoDifference(next: false)),
                 Tool("down", Tip(s.CompareNextLine, "Ctrl+N"), () => GoDifference(next: true)),
+                Separator(),
+                Tool("expand-all", s.FolderExpandAll, () => ExpandAll(true)),
+                Tool("collapse-all", s.FolderCollapseAll, () => ExpandAll(false)),
                 Separator(),
                 Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync()),
                 Tool("refresh", Tip(s.FolderRefresh, "F5"), () => _ = StartCompareAsync()),
