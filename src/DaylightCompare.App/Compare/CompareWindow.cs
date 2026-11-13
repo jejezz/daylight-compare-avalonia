@@ -169,9 +169,12 @@ public sealed class CompareWindow : Window
     public string? LeftPath => _left.Path;
     public string? RightPath => _right.Path;
 
-    public static CompareWindow Open(Window? near, string? left, string? right, CompareOptions? options = null)
+    /// <summary>폴더 비교에서 연 파일 비교는 처음 쌍(과 그 좌우 바꾸기)을 최근 비교에 기록하지 않는다. 다른 파일을 고르면 풀린다.</summary>
+    bool _skipHistory;
+
+    public static CompareWindow Open(Window? near, string? left, string? right, CompareOptions? options = null, bool recordHistory = true)
     {
-        var w = new CompareWindow(left, right, options ?? CompareOptions.None);
+        var w = new CompareWindow(left, right, options ?? CompareOptions.None) { _skipHistory = !recordHistory };
         if (near is not null) WindowPlacementHelper.OpenNear(near, w);
         else w.Show();
         return w;
@@ -247,7 +250,10 @@ public sealed class CompareWindow : Window
     }
 
     /// <summary>두 쪽이 모두 파일이면 최근 비교 목록에 기록한다 (붙여 넣은 글은 경로가 없어 건너뛴다).</summary>
-    void RecordHistory() => App.RecordHistory(_left.Path, _right.Path, folders: false);
+    void RecordHistory()
+    {
+        if (!_skipHistory) App.RecordHistory(_left.Path, _right.Path, folders: false);
+    }
 
     void OnLanguageChanged() => Dispatcher.UIThread.Post(() =>
     {
@@ -1631,6 +1637,7 @@ public sealed class CompareWindow : Window
         {
             var saved = await TextFiles.SaveAsync(path, side.Real, template with { DecodeErrors = 0 });
             side.Path = path;
+        _skipHistory = false;
         side.Title = null;
             side.Title = null;
             side.Source = new CompareSource.Text(path, saved with { Text = side.Real }, await File.ReadAllBytesAsync(path));
@@ -1726,6 +1733,7 @@ public sealed class CompareWindow : Window
         {
             if (!await ConfirmDiscardAsync()) return;
             _left.Path = l;
+            _skipHistory = false;
             _left.Title = _right.Title = null;
             _right.Path = r;
             foreach (var side in new[] { _left, _right }) { side.ForcedEncoding = null; side.RepairRequested = false; }

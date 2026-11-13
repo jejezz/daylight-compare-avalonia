@@ -565,7 +565,7 @@ public sealed class FolderCompareWindow : Window
     {
         if (Selected.FirstOrDefault() is not { } row) return;
         if (row.IsFolder) { Toggle(row.Node); return; }
-        CompareWindow.Open(this, row.Node.Left?.Path, row.Node.Right?.Path);
+        CompareWindow.Open(this, row.Node.Left?.Path, row.Node.Right?.Path, recordHistory: false);
     }
 
     // --- 복사·삭제 (BC Copy to Right / Left, Delete) ---
