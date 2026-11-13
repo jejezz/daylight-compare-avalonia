@@ -11,7 +11,7 @@ public sealed class KoreanStrings : IAppStrings
     public string CommonConfirm => "확인";
     public string SettingsTooltip => "설정";
     public string HomeEmptyTitle => "시작하려면 파일이나 폴더를 끌어다 놓으세요";
-    public string HomeEmptyHint => "하나를 놓으면 맞는 비교 창이 열리고 나머지 쪽은 그 창에서 고르거나 놓아요. 두 개를 놓으면 바로 비교해요";
+    public string HomeEmptyHint => "하나는 맞는 비교 창으로 열고, 두 개는 바로 비교해요";
     public string HomeTagline => "폴더·텍스트 비교, 병합, 동기화를 한곳에서";
     public string HomeOpenFiles => "파일 열기";
     public string HomeFolderCompare => "폴더 비교";
@@ -19,6 +19,7 @@ public sealed class KoreanStrings : IAppStrings
     public string HomeTextCompare => "텍스트 비교";
     public string HomeTextCompareHint => "두 파일을 줄 단위로 비교·편집, 글 붙여 넣기";
     public string HomeDropOpenTooMany => "한 번에 두 개까지 열 수 있어요.";
+    public string CompareTypedFolder => "폴더는 텍스트 비교에서 열 수 없어요. 파일 경로를 쓰세요.";
     public string FolderChooseBoth => "왼쪽·오른쪽 폴더를 고르거나 끌어다 놓으세요";
     public string FolderDropFoldersOnly => "폴더 비교에는 폴더나 압축 파일만 놓을 수 있어요.";
     public string CompareWindowTitle(string left, string right) => $"{left} ↔ {right}";

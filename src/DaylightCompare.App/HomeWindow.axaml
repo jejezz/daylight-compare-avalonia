@@ -8,8 +8,8 @@
     <Window.Styles>
         <!-- 아래쪽 바로 열기 카드 (Daylight PDF 홈과 같은 모양) -->
         <Style Selector="Button.homecard">
-            <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="Padding" Value="16,14" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Padding" Value="16" />
             <Setter Property="Background" Value="{DynamicResource AppSurface}" />
             <Setter Property="BorderBrush" Value="{DynamicResource AppStroke}" />
             <Setter Property="BorderThickness" Value="1" />
@@ -22,8 +22,8 @@
             <Setter Property="BorderBrush" Value="{DynamicResource AppStrokeStrong}" />
         </Style>
         <Style Selector="Border.cardicon">
-            <Setter Property="Width" Value="44" />
-            <Setter Property="Height" Value="44" />
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Background" Value="{DynamicResource AppSurfaceHi}" />
         </Style>
@@ -48,50 +48,50 @@
         </Border>
 
         <!--
-          Daylight PDF의 홈 구성: 앱 머리 → 끌어다 놓기 구역 → (최근 비교) → 바로 열기 카드 두 개.
+          Daylight PDF의 홈 구성과 치수(lib/home/home_screen.dart): 가운데 최대 760(안쪽 여백 24 포함), 앱 머리 → 놓기 구역 → (최근 비교) → 바로 열기 카드 두 개.
           최근 비교가 있으면 놓기 구역이 한 줄로 작아지고 남는 자리를 목록이 쓴다 (HomeWindow.ApplyLayout).
         -->
-        <Grid Grid.Row="1" x:Name="Body" MaxWidth="900" Margin="32,28,32,24"
+        <Grid Grid.Row="1" x:Name="Body" MaxWidth="712" Margin="24"
               RowDefinitions="Auto,*,0,Auto">
             <!-- 앱 머리: 아이콘 + 이름 + 한 줄 소개 -->
-            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="16" Margin="4,0,0,24">
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="16" Margin="0,0,0,24">
                 <Image Source="avares://DaylightCompare/Assets/app_icon.png" Width="56" Height="56"/>
-                <StackPanel VerticalAlignment="Center" Spacing="4">
-                    <TextBlock x:Name="HeaderTitle" FontSize="22" FontWeight="SemiBold"/>
-                    <TextBlock Text="{DynamicResource Str.HomeTagline}" Foreground="{DynamicResource AppTextMid}"/>
+                <StackPanel VerticalAlignment="Center" Spacing="2">
+                    <TextBlock x:Name="HeaderTitle" FontSize="20" FontWeight="ExtraBold"/>
+                    <TextBlock Text="{DynamicResource Str.HomeTagline}" Foreground="{DynamicResource AppTextMid}" FontSize="{DynamicResource FsSmall}"/>
                 </StackPanel>
             </StackPanel>
 
             <!-- 끌어다 놓기 구역: 창 어디에 놓아도 되지만 여기가 강조된다 (ui-ux.md §7) -->
             <Panel Grid.Row="1" x:Name="DropZone">
-                <Border x:Name="DropZoneFill" CornerRadius="16" Background="{DynamicResource AppSurface}"/>
-                <Rectangle x:Name="DropZoneStroke" RadiusX="16" RadiusY="16" StrokeThickness="1.5"
+                <Border x:Name="DropZoneFill" CornerRadius="24" Background="{DynamicResource AppSurface}"/>
+                <Rectangle x:Name="DropZoneStroke" RadiusX="24" RadiusY="24" StrokeThickness="1.5"
                            StrokeDashArray="5,4" Stroke="{DynamicResource AppStrokeStrong}"/>
 
                 <!-- 넓은 모양 (최근 비교가 없을 때) -->
-                <StackPanel x:Name="DropBig" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" Margin="24">
-                    <icons:DuoIcon Icon="compare" Width="48" Height="48" HorizontalAlignment="Center"/>
-                    <TextBlock Text="{DynamicResource Str.HomeEmptyTitle}" HorizontalAlignment="Center" Margin="0,6,0,0"
-                               FontWeight="Bold" FontSize="{DynamicResource FsTitle}"/>
-                    <TextBlock Text="{DynamicResource Str.HomeEmptyHint}" HorizontalAlignment="Center" TextAlignment="Center"
-                               TextWrapping="Wrap" MaxWidth="680" Foreground="{DynamicResource AppTextMid}"/>
-                    <StackPanel x:Name="DropBigButtons" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                <StackPanel x:Name="DropBig" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24">
+                    <icons:DuoIcon Icon="compare" ColorKey="AppPrimary" Width="44" Height="44" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{DynamicResource Str.HomeEmptyTitle}" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,12,0,0"
+                               TextWrapping="Wrap" FontWeight="Bold" FontSize="14"/>
+                    <TextBlock Text="{DynamicResource Str.HomeEmptyHint}" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,4,0,0"
+                               TextWrapping="Wrap" Foreground="{DynamicResource AppTextMid}" FontSize="{DynamicResource FsSmall}"/>
+                    <StackPanel x:Name="DropBigButtons" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,16,0,0"/>
                 </StackPanel>
 
                 <!-- 한 줄 모양 (최근 비교가 있을 때) -->
-                <Grid x:Name="DropCompact" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16" Margin="24,20" IsVisible="False">
-                    <icons:DuoIcon Icon="compare" Width="32" Height="32" VerticalAlignment="Center"/>
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
-                        <TextBlock Text="{DynamicResource Str.HomeEmptyTitle}" FontWeight="Bold" FontSize="{DynamicResource FsTitle}"
-                                   TextTrimming="CharacterEllipsis"/>
+                <!-- 너무 낮으면 어디에 놓아야 할지 헷갈리므로 최소 높이 96 (+ 위아래 여백 24) -->
+                <Grid x:Name="DropCompact" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="16,24" MinHeight="96" IsVisible="False">
+                    <icons:DuoIcon Icon="compare" ColorKey="AppPrimary" Width="32" Height="32" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{DynamicResource Str.HomeEmptyTitle}" FontWeight="Bold" TextWrapping="Wrap"/>
                         <TextBlock Text="{DynamicResource Str.HomeEmptyHint}" Foreground="{DynamicResource AppTextMid}"
-                                   TextTrimming="CharacterEllipsis"/>
+                                   FontSize="{DynamicResource FsSmall}" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <StackPanel Grid.Column="2" x:Name="DropCompactButtons" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="2" x:Name="DropCompactButtons" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"/>
                 </Grid>
 
                 <!-- 고르기 단추: 넓은 모양·한 줄 모양 사이를 옮겨 다닌다 -->
-                <StackPanel x:Name="OpenButtons" Orientation="Horizontal" Spacing="10">
+                <StackPanel x:Name="OpenButtons" Orientation="Horizontal" Spacing="8">
                     <Button x:Name="OpenFilesButton" Classes="accent">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <icons:DuoIcon Icon="file" Width="16" Height="16" VerticalAlignment="Center"/>
@@ -108,8 +108,8 @@
             </Panel>
 
             <!-- 최근 비교: 같은 쌍을 매번 다시 고르지 않게 (BC 홈의 Recent Sessions) -->
-            <Grid Grid.Row="2" x:Name="HistorySection" RowDefinitions="Auto,*,Auto" Margin="0,20,0,0" IsVisible="False">
-                <Grid ColumnDefinitions="*,Auto" Margin="4,0,0,6">
+            <Grid Grid.Row="2" x:Name="HistorySection" RowDefinitions="Auto,*,Auto" Margin="0,16,0,0" IsVisible="False">
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                     <TextBlock Text="{DynamicResource Str.HomeRecentTitle}" FontWeight="Bold" VerticalAlignment="Center"/>
                     <Button Grid.Column="1" x:Name="ClearHistoryButton" Classes="text" Content="{DynamicResource Str.HomeRecentClear}"/>
                 </Grid>
@@ -121,33 +121,33 @@
             </Grid>
 
             <!-- 바로 열기: 빈 비교 창을 연다 (양쪽은 그 창에서 고르거나 끌어다 놓는다) -->
-            <Grid Grid.Row="3" ColumnDefinitions="*,16,*" Margin="0,20,0,0">
+            <Grid Grid.Row="3" ColumnDefinitions="*,16,*" Margin="0,16,0,0">
                 <Button x:Name="FolderCompareCard" Classes="homecard">
-                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                         <Border Classes="cardicon">
                             <icons:DuoIcon Icon="folder" ColorKey="AppIconFolder" Width="22" Height="22"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                             <TextBlock Text="{DynamicResource Str.HomeFolderCompare}" FontWeight="Bold"/>
                             <TextBlock Text="{DynamicResource Str.HomeFolderCompareHint}" Foreground="{DynamicResource AppTextMid}"
-                                       TextTrimming="CharacterEllipsis"/>
+                                       FontSize="{DynamicResource FsSmall}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
-                        <icons:DuoIcon Grid.Column="2" Icon="caret-right" Width="16" Height="16" VerticalAlignment="Center"/>
+                        <icons:DuoIcon Grid.Column="2" Icon="caret-right" ColorKey="AppTextMid" Width="16" Height="16" VerticalAlignment="Center"/>
                     </Grid>
                 </Button>
                 <Button Grid.Column="2" x:Name="TextCompareCard" Classes="homecard">
-                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                         <Border Classes="cardicon">
-                            <icons:DuoIcon Icon="file-text" Width="22" Height="22"
+                            <icons:DuoIcon Icon="file-text" ColorKey="AppPrimary" Width="22" Height="22"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
                             <TextBlock Text="{DynamicResource Str.HomeTextCompare}" FontWeight="Bold"/>
                             <TextBlock Text="{DynamicResource Str.HomeTextCompareHint}" Foreground="{DynamicResource AppTextMid}"
-                                       TextTrimming="CharacterEllipsis"/>
+                                       FontSize="{DynamicResource FsSmall}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
                         </StackPanel>
-                        <icons:DuoIcon Grid.Column="2" Icon="caret-right" Width="16" Height="16" VerticalAlignment="Center"/>
+                        <icons:DuoIcon Grid.Column="2" Icon="caret-right" ColorKey="AppTextMid" Width="16" Height="16" VerticalAlignment="Center"/>
                     </Grid>
                 </Button>
             </Grid>

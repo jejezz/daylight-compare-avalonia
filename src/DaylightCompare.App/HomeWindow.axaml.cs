@@ -197,6 +197,10 @@ public partial class HomeWindow : Window
     {
         Body.RowDefinitions[1].Height = compact ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
         Body.RowDefinitions[2].Height = compact ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+        // 모서리: 넓을 때 24(card), 한 줄일 때 20(tile) — Daylight PDF의 DropZone과 같다.
+        var radius = compact ? 20 : 24;
+        DropZoneFill.CornerRadius = new CornerRadius(radius);
+        DropZoneStroke.RadiusX = DropZoneStroke.RadiusY = radius;
         DropBig.IsVisible = !compact;
         DropCompact.IsVisible = compact;
         var target = compact ? DropCompactButtons : DropBigButtons;

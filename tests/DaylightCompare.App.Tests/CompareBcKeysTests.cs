@@ -126,7 +126,7 @@ public sealed class CompareBcKeysTests : IDisposable
         Assert.True(l.IsReadOnly);
         Assert.False(r.IsReadOnly);
         Assert.Contains("a.txt (HEAD)", w.Title);
-        Assert.Contains(w.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "a.txt (HEAD)");
+        Assert.Contains(w.GetVisualDescendants().OfType<TextBox>(), t => t.Text == "a.txt (HEAD)"); // 주소 창에 경로 대신 제목
 
         var picked = r.Document.GetLineByNumber(1);
         r.Select(picked.Offset, picked.Length);
