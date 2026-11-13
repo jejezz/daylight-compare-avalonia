@@ -38,6 +38,14 @@ public sealed class KoreanStrings : IAppStrings
     public string DropTooMany => "한 번에 두 개까지 놓을 수 있어요 (파일 세 개는 병합 — 다음 버전)";
     public string DropNoCounterpart(string name) => $"폴더 안에 같은 이름의 파일({name})이 없습니다";
     public string CommonClose => "닫기";
+    public string CompareCopySelectionToRight => "고른 부분을 오른쪽으로 복사";
+    public string CompareCopySelectionToLeft => "고른 부분을 왼쪽으로 복사";
+    public string CompareMergeSelectFirst => "먼저 합칠 줄을 고르세요 — 줄 번호를 누르거나 글을 끌어 고르면, 반대쪽에 같은 자리가 틀로 표시됩니다";
+    public string CompareMergeWholeFile => "파일 전체는 복사할 수 없습니다. 일부 줄만 고르세요 (파일 전체 복사는 폴더 비교에서 합니다)";
+    public string CompareMergeReselect => "고친 내용을 먼저 반영했습니다. 합칠 줄을 다시 고르세요";
+    public string CompareMergeWrongSide(bool toRight) => toRight ? "오른쪽에서 고른 부분은 왼쪽으로만 복사할 수 있습니다" : "왼쪽에서 고른 부분은 오른쪽으로만 복사할 수 있습니다";
+    public string CompareMergeCopied(int lines, bool toRight) => lines == 0 ? $"고른 곳에 있던 줄을 {(toRight ? "오른쪽" : "왼쪽")}에서 뺐습니다 (되돌리기 Ctrl+Z)" : $"{lines}줄을 {(toRight ? "오른쪽" : "왼쪽")}으로 복사했습니다 (되돌리기 Ctrl+Z)";
+    public string CompareMergeLines(int lines) => lines == 0 ? "없는 줄 반영" : $"{lines}줄";
     public string HomeRecentTitle => "최근 비교";
     public string HomeRecentClear => "모두 지우기";
     public string HomeRecentRemove => "목록에서 빼기";
@@ -116,7 +124,6 @@ public sealed class KoreanStrings : IAppStrings
     public string CompareSaveFileAs => "다른 이름으로 저장";
     public string CompareUndo => "실행 취소";
     public string CompareRedo => "다시 실행";
-    public string CompareCopyToOther => "맞은편으로 복사";
     public string CompareCopyLineToRight => "이 줄을 오른쪽으로 복사";
     public string CompareCopyLineToLeft => "이 줄을 왼쪽으로 복사";
     public string CompareSelectSection => "구간 선택";
@@ -174,7 +181,6 @@ public sealed class KoreanStrings : IAppStrings
     public string CompareChangedOutside => "다른 프로그램이 이 파일을 바꿨습니다. 여기서 고친 내용은 아직 그대로입니다.";
     public string CompareReloadDiscard => "다시 읽기 (여기서 고친 것 버림)";
     public string CompareReadOnly => "읽기 전용 (압축 파일 안)";
-    public string CompareNothingToCopy => "커서를 차이 구간 안에 두고 복사하세요";
     public string SettingsWindowTitle(string appName) => $"{appName} 설정";
     public string SettingsSectionAppearance => "외형";
     public string SettingsMode => "모드";

@@ -48,10 +48,13 @@ public sealed class CompareEditingTests : IDisposable
         var right = Write("r.txt", "a\nright\nc\n");
         var w = CompareWindow.Open(null, left, right);
         await Settle();
-        var (_, r) = Editors(w);
+        var (l, r) = Editors(w);
         Assert.Equal(2, r.TextArea.Caret.Line); // 처음 차이로 이동해 있다
 
-        Press(w, PhysicalKey.R, RawInputModifiers.Control); // BC Copy to Right
+        // 합칠 줄을 사용자가 고른다 (왼쪽 2행) — 고르지 않으면 아무것도 복사하지 않는다.
+        var picked = l.Document.GetLineByNumber(2);
+        l.Select(picked.Offset, picked.Length);
+        Press(w, PhysicalKey.R, RawInputModifiers.Control); // Copy to Right
         await Settle();
         Assert.Equal("a\nLEFT\nc", r.Document.Text);
         Assert.StartsWith("●", w.Title);

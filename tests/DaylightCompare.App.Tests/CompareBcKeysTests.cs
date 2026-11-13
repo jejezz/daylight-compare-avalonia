@@ -81,7 +81,9 @@ public sealed class CompareBcKeysTests : IDisposable
 
         Press(w, PhysicalKey.Z, Ctrl);
         await Settle();
-        Press(w, PhysicalKey.L, Ctrl); // Copy to Left: 구간 전체
+        var from = r.Document.GetLineByNumber(2);
+        r.Select(from.Offset, r.Document.GetLineByNumber(3).EndOffset - from.Offset); // 오른쪽에서 고른 두 줄만
+        Press(w, PhysicalKey.L, Ctrl); // Copy Selection to Left
         await Settle();
         Assert.Equal("a\nR1\nR2\nz", l.Document.Text);
         w.Close();
@@ -126,6 +128,8 @@ public sealed class CompareBcKeysTests : IDisposable
         Assert.Contains("a.txt (HEAD)", w.Title);
         Assert.Contains(w.GetVisualDescendants().OfType<TextBlock>(), t => t.Text == "a.txt (HEAD)");
 
+        var picked = r.Document.GetLineByNumber(1);
+        r.Select(picked.Offset, picked.Length);
         Press(w, PhysicalKey.L, Ctrl); // 읽기 전용 쪽으로는 복사하지 않는다
         await Settle();
         Assert.Equal("a", l.Document.Text);
