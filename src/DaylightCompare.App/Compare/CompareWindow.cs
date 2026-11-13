@@ -7,6 +7,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using AvaloniaEdit;
 using Avalonia.Input.Platform;
 using AvaloniaEdit.Document;
@@ -60,6 +61,8 @@ public sealed class CompareWindow : Window
         public readonly TextBlock BannerText = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         public readonly StackPanel BannerActions = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
         public TextMate.Installation? TextMate;
+        /// <summary>편집기 안의 스크롤 뷰어 (프로그램에서 스크롤할 때 이것의 오프셋을 바꾼다 — <see cref="CompareWindow.ScrollTo"/>).</summary>
+        public ScrollViewer? Scroller;
         public string? HighlightedPath;
         public bool RepairRequested;
         public MixedRepair? Repair;
@@ -235,7 +238,7 @@ public sealed class CompareWindow : Window
         var commands = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } };
         ToolTip.SetTip(commands, s.CompareCommandsTooltip);
         commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
-        Border Separator() => new() { Width = 1, Margin = new Thickness(4, 8), [!Border.BackgroundProperty] = this.GetResourceObservable("AppStroke").ToBinding() };
+        Border Separator() => new() { Width = 1, Margin = new Thickness(4, 8), [!Border.BackgroundProperty] = this.GetResourceObservable("AppStrokeStrong").ToBinding() };
         // 툴바는 BC 텍스트 비교의 묶음 순서를 따른다: 보기 필터 · 중요하지 않은 차이 무시 | 복사 · 저장 | 이전·다음 구간 | 좌우 바꾸기 · 다시 읽기 | 찾기 · 모든 명령.
         var tools = new StackPanel
         {
@@ -275,8 +278,8 @@ public sealed class CompareWindow : Window
             },
         };
         Grid.SetColumn(tools, 1);
-        appBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurface"));
-        appBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStroke"));
+        appBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
+        appBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
 
         var grid = new Grid
         {
@@ -291,12 +294,13 @@ public sealed class CompareWindow : Window
             Place(grid, PathRow(side), 2, col, side.Left ? 1 : 2);
             Place(grid, BannerFor(side), 3, col, side.Left ? 1 : 2);
             var body = new Grid { Children = { side.Editor, side.Overlay } };
+            body.Bind(Panel.BackgroundProperty, this.GetResourceObservable("AppEditorBg")); // 편집기 바탕 — 위의 틀 띠와 한 단 다르게
             side.Overlay.Child = side.OverlayText;
             side.OverlayText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
             Place(grid, body, 4, col, 1);
         }
         var divider = new Border();
-        divider.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppStroke"));
+        divider.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppStrokeStrong"));
         Place(grid, divider, 2, 1, 1, rowSpan: 3);
         Place(grid, _overview, 4, 3, 1);
         _overview.State = _leftState;
@@ -353,8 +357,8 @@ public sealed class CompareWindow : Window
         replaceAll.Click += (_, _) => ReplaceAll();
         _replaceRow.Children.AddRange([new DuoIcon { Icon = "replace", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, _replaceBox, replaceOne, replaceAll]);
         _findBar.Child = new StackPanel { Children = { row, _replaceRow } };
-        _findBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurface"));
-        _findBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStroke"));
+        _findBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
+        _findBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
         return _findBar;
     }
 
@@ -510,7 +514,8 @@ public sealed class CompareWindow : Window
         side.EncodingText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
         side.EncodingText.PointerPressed += (_, _) => { if (side.HasText && !side.IsScratch) EncodingFlyout(side).ShowAt(side.EncodingText); };
         var border = new Border { Child = row, BorderThickness = new Thickness(0, 0, 0, 1) };
-        border.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStroke"));
+        border.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
+        border.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
         return border;
     }
 
@@ -534,7 +539,7 @@ public sealed class CompareWindow : Window
         e.ShowLineNumbers = false;
         e.WordWrap = false; // 줄바꿈하면 좌우 행이 어긋난다
         e.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
-        e.VerticalScrollBarVisibility = side.Left ? ScrollBarVisibility.Hidden : ScrollBarVisibility.Auto;
+        e.VerticalScrollBarVisibility = ScrollBarVisibility.Auto; // 양쪽 모두 보인다 (함께 움직인다)
         e.Options.EnableHyperlinks = false;
         e.Options.EnableEmailHyperlinks = false;
         e.Options.HighlightCurrentLine = false; // 현재 줄 강조가 차이 색과 섞여 색이 달라 보인다
@@ -675,7 +680,7 @@ public sealed class CompareWindow : Window
         {
             var row = k.Left ? aligned.RowOfLeftLine(k.Line) : aligned.RowOfRightLine(k.Line);
             var side = k.Left ? _left : _right;
-            _right.Editor.ScrollToVerticalOffset(offset);
+            ScrollTo(_right, null, offset);
             Dispatcher.UIThread.Post(() =>
             {
                 _syncing = true;
@@ -684,7 +689,7 @@ public sealed class CompareWindow : Window
                 _syncing = false;
             }, DispatcherPriority.Background);
         }
-        else if (!jumpToFirst) Dispatcher.UIThread.Post(() => _right.Editor.ScrollToVerticalOffset(offset), DispatcherPriority.Background);
+        else if (!jumpToFirst) Dispatcher.UIThread.Post(() => ScrollTo(_right, null, offset), DispatcherPriority.Background);
         else Dispatcher.UIThread.Post(() =>
         {
             if (aligned?.Next(-1) is { } first) ScrollToRow(first.StartRow, center: true);
@@ -1067,12 +1072,22 @@ public sealed class CompareWindow : Window
 
     // --- 스크롤·이동 ---
 
+    /// <summary>
+    /// 편집기를 이 위치로 스크롤한다. <c>TextEditor.ScrollToVerticalOffset</c>는 이 구성에서 아무것도 하지 않아서(오른쪽 스크롤 막대를 끌어도 왼쪽이 안 따라오고
+    /// 개요 막대를 눌러도 안 움직였다) 편집기 안 <see cref="ScrollViewer"/>의 오프셋을 직접 바꾼다.
+    /// </summary>
+    static void ScrollTo(Side side, double? x, double? y)
+    {
+        side.Scroller ??= side.Editor.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault();
+        if (side.Scroller is not { } sv) return;
+        sv.Offset = new Vector(x ?? sv.Offset.X, y ?? sv.Offset.Y);
+    }
+
     void SyncScroll(Side from, Side to)
     {
         if (_syncing) return;
         _syncing = true;
-        to.Editor.ScrollToVerticalOffset(from.Editor.VerticalOffset);
-        to.Editor.ScrollToHorizontalOffset(from.Editor.HorizontalOffset);
+        ScrollTo(to, from.Editor.HorizontalOffset, from.Editor.VerticalOffset);
         _syncing = false;
         UpdateViewport();
     }
@@ -1096,7 +1111,7 @@ public sealed class CompareWindow : Window
         var line = Math.Clamp(row + 1, 1, lines);
         var tv = _right.Editor.TextArea.TextView;
         var offset = tv.GetVisualTopByDocumentLine(line) - (center ? tv.Bounds.Height / 3 : 0);
-        _right.Editor.ScrollToVerticalOffset(Math.Max(0, offset));
+        ScrollTo(_right, null, Math.Max(0, offset));
         if (!moveCaret) return;
         _syncing = true;
         _right.Editor.TextArea.Caret.Line = line;

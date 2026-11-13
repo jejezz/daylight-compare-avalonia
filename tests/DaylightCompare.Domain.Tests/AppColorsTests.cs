@@ -48,3 +48,32 @@ public class AppColorsTests
         Assert.Equal(0xFF000000u, light.TextHi);
     }
 }
+
+/// <summary>비교 창은 도구 모음·경로 줄(<c>SurfaceHi</c>)과 편집기·목록 바탕(<c>AppEditorBg</c>)을 다른 색으로 둔다 — 어디서부터 편집기인지 분명하게.</summary>
+public class ChromeContrastTests
+{
+    static double Luminance(uint argb)
+    {
+        static double Channel(uint v) { var c = v / 255.0; return c <= 0.03928 ? c / 12.92 : Math.Pow((c + 0.055) / 1.055, 2.4); }
+        return 0.2126 * Channel((argb >> 16) & 0xFF) + 0.7152 * Channel((argb >> 8) & 0xFF) + 0.0722 * Channel(argb & 0xFF);
+    }
+
+    static double Ratio(uint a, uint b)
+    {
+        var (hi, lo) = (Math.Max(Luminance(a), Luminance(b)), Math.Min(Luminance(a), Luminance(b)));
+        return (hi + 0.05) / (lo + 0.05);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void 틀_띠와_편집기_바탕은_모든_색_구성에서_구분된다(bool dark)
+    {
+        foreach (var palette in Enum.GetValues<ColorPalette>())
+        {
+            var c = AppColors.For(palette, dark);
+            var editor = AppColors.EditorBackground(c, dark);
+            Assert.True(Ratio(c.SurfaceHi, editor) >= 1.2, $"{palette} dark={dark}: 틀 띠와 편집기 바탕의 밝기 차가 작다 ({Ratio(c.SurfaceHi, editor):F2})");
+        }
+    }
+}
