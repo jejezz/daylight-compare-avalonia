@@ -10,8 +10,17 @@ public sealed class KoreanStrings : IAppStrings
     public string CommonCancel => "취소";
     public string CommonConfirm => "확인";
     public string SettingsTooltip => "설정";
-    public string HomeEmptyTitle => "비교할 두 항목을 고르세요";
-    public string HomeEmptyHint => "이 창 어디에든 파일(또는 폴더) 두 개를 끌어다 놓거나, 양쪽을 각각 고르세요. 바이너리·이미지 비교는 다음 버전부터예요";
+    public string HomeEmptyTitle => "시작하려면 파일이나 폴더를 끌어다 놓으세요";
+    public string HomeEmptyHint => "하나를 놓으면 맞는 비교 창이 열리고 나머지 쪽은 그 창에서 고르거나 놓아요. 두 개를 놓으면 바로 비교해요";
+    public string HomeTagline => "폴더·텍스트 비교, 병합, 동기화를 한곳에서";
+    public string HomeOpenFiles => "파일 열기";
+    public string HomeFolderCompare => "폴더 비교";
+    public string HomeFolderCompareHint => "두 폴더의 파일을 견주고 복사·삭제";
+    public string HomeTextCompare => "텍스트 비교";
+    public string HomeTextCompareHint => "두 파일을 줄 단위로 비교·편집, 글 붙여 넣기";
+    public string HomeDropOpenTooMany => "한 번에 두 개까지 열 수 있어요.";
+    public string FolderChooseBoth => "왼쪽·오른쪽 폴더를 고르거나 끌어다 놓으세요";
+    public string FolderDropFoldersOnly => "폴더 비교에는 폴더나 압축 파일만 놓을 수 있어요.";
     public string CompareWindowTitle(string left, string right) => $"{left} ↔ {right}";
     public string CompareSwap => "좌우 바꾸기";
     public string CompareOpen => "열기…";
@@ -33,7 +42,6 @@ public sealed class KoreanStrings : IAppStrings
     public string CompareEncodingDiffers(string left, string right) => $"인코딩 다름: {left} / {right}";
     public string HomeLeft => "왼쪽";
     public string HomeRight => "오른쪽";
-    public string HomeCompare => "비교";
     public string HomeNotChosen => "아직 고르지 않음";
     public string DropTooMany => "한 번에 두 개까지 놓을 수 있어요 (파일 세 개는 병합 — 다음 버전)";
     public string DropNoCounterpart(string name) => $"폴더 안에 같은 이름의 파일({name})이 없습니다";
@@ -97,7 +105,7 @@ public sealed class KoreanStrings : IAppStrings
     public string FolderDeletePermanent => "휴지통을 쓸 수 없어 영구 삭제합니다.";
     public string FolderChooseLeftTitle => "왼쪽 폴더 고르기";
     public string FolderChooseRightTitle => "오른쪽 폴더 고르기";
-    public string HomeChooseFolder => "폴더…";
+    public string HomeChooseFolder => "폴더 열기";
     public string FolderFileVsFolderLater => "파일과 폴더를 짝지어 비교하는 것은 지원하지 않습니다 — 같은 종류 둘을 고르세요.";
     public string FolderWindowTitle(string left, string right) => $"폴더 비교 · {left} ↔ {right}";
     public string FolderStatus(int same, int different, int leftOnly, int rightOnly) => $"같음 {same} · 다름 {different} · 왼쪽에만 {leftOnly} · 오른쪽에만 {rightOnly}";
@@ -163,7 +171,6 @@ public sealed class KoreanStrings : IAppStrings
     public string CompareFindCount(int index, int count) => $"{index}/{count}";
     public string CompareFindInLeft => "왼쪽에서 찾는 중";
     public string CompareFindInRight => "오른쪽에서 찾는 중";
-    public string HomePasteCompare => "글 붙여 넣어 비교";
     public string CliUsageTitle => "명령줄 사용법";
     public string CliUsage => "DaylightCompare [스위치] [<왼쪽> [<오른쪽>]]   (Beyond Compare와 같은 스위치 · Windows는 /, macOS·Linux는 -)\n\n/qc[=size|crc|binary]   창 없이 비교하고 종료 코드로 알립니다\n/title1=이름  /title2=이름   칸 제목 (git 임시 파일 이름 대신)\n/ro  /ro1  /ro2   읽기 전용 (둘 다 · 왼쪽 · 오른쪽)\n/iu   중요하지 않은 차이 무시\n--wait   비교 창을 닫을 때까지 기다립니다 (git difftool)\n/?   이 도움말\n\n종료 코드 (BC와 같음): 0 성공 · 1 바이트까지 같음 · 2 규칙으로 같음 · 11 바이트가 다름 · 12 중요하지 않은 차이만 · 13 다름 · 100 오류.\n이미 떠 있으면 그 앱에서 엽니다.";
     public string CliUnknownOption(string option) => $"모르는 옵션입니다: {option}";

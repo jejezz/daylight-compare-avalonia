@@ -24,6 +24,15 @@ public interface IAppStrings
     // 홈 창
     string HomeEmptyTitle { get; }
     string HomeEmptyHint { get; }
+    string HomeTagline { get; }
+    string HomeOpenFiles { get; }
+    string HomeFolderCompare { get; }
+    string HomeFolderCompareHint { get; }
+    string HomeTextCompare { get; }
+    string HomeTextCompareHint { get; }
+    string HomeDropOpenTooMany { get; }
+    string FolderChooseBoth { get; }
+    string FolderDropFoldersOnly { get; }
 
     // 비교 창 · 홈 창 고르기 · 끌어다 놓기
     string CompareWindowTitle(string left, string right);
@@ -47,7 +56,6 @@ public interface IAppStrings
     string CompareEncodingDiffers(string left, string right);
     string HomeLeft { get; }
     string HomeRight { get; }
-    string HomeCompare { get; }
     string HomeNotChosen { get; }
     string DropTooMany { get; }
     string DropNoCounterpart(string name);
@@ -177,7 +185,6 @@ public interface IAppStrings
     string CompareFindCount(int index, int count);
     string CompareFindInLeft { get; }
     string CompareFindInRight { get; }
-    string HomePasteCompare { get; }
     string CliUsageTitle { get; }
     string CliUsage { get; }
     string CliUnknownOption(string option);

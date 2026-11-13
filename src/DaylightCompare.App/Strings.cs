@@ -40,11 +40,15 @@ static class Strings
         Set("HomeEmptyHint", s.HomeEmptyHint);
         Set("HomeLeft", s.HomeLeft);
         Set("HomeRight", s.HomeRight);
-        Set("HomeCompare", s.HomeCompare);
+        Set("HomeTagline", s.HomeTagline);
+        Set("HomeOpenFiles", s.HomeOpenFiles);
+        Set("HomeFolderCompare", s.HomeFolderCompare);
+        Set("HomeFolderCompareHint", s.HomeFolderCompareHint);
+        Set("HomeTextCompare", s.HomeTextCompare);
+        Set("HomeTextCompareHint", s.HomeTextCompareHint);
         Set("HomeRecentTitle", s.HomeRecentTitle);
         Set("HomeRecentClear", s.HomeRecentClear);
         Set("HomeChooseFolder", s.HomeChooseFolder);
-        Set("HomePasteCompare", s.HomePasteCompare);
         Set("HomeNotChosen", s.HomeNotChosen);
         Set("CompareOpen", s.CompareOpen);
         // Daylight Commander에는 이 줄이 없어 앱 바 [정보] 툴팁이 비어 있다 — Commander에도 필요한 수정.

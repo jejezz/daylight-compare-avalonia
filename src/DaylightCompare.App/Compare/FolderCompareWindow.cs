@@ -71,9 +71,10 @@ public sealed class FolderCompareWindow : Window
             ? (new ArchiveFileSystem(path), ArchivePaths.Format(path))
             : (LocalFileSystem.Instance, path);
 
-    public static FolderCompareWindow Open(Window? near, string left, string right)
+    /// <summary>폴더 비교 창을 연다. 한쪽(또는 양쪽)이 비어 있으면 빈 창으로 열고, 그쪽은 주소 창에서 고르거나 끌어다 놓아 채운다.</summary>
+    public static FolderCompareWindow Open(Window? near, string? left, string? right)
     {
-        var w = new FolderCompareWindow(left, right);
+        var w = new FolderCompareWindow(left ?? "", right ?? "");
         if (near is not null) WindowPlacementHelper.OpenNear(near, w);
         else w.Show();
         return w;
@@ -108,6 +109,14 @@ public sealed class FolderCompareWindow : Window
             var x = e.GetPosition(_list).X;
             _activeLeft = x < _list.Bounds.Width / 2;
         }, RoutingStrategies.Tunnel);
+        // 목록 자리에 폴더를 놓으면: 하나는 놓은 쪽(왼쪽·오른쪽 절반)에, 두 개는 양쪽에 (빈 창으로 열었을 때 고르는 길).
+        DragDrop.SetAllowDrop(_list, true);
+        _list.AddHandler(DragDrop.DragOverEvent, (_, e) =>
+        {
+            var n = DroppedPaths(e).Count;
+            e.DragEffects = n is 1 or 2 ? DragDropEffects.Copy : DragDropEffects.None;
+        });
+        _list.AddHandler(DragDrop.DropEvent, OnListDrop);
         foreach (var box in new[] { _filterBox, _excludeBox })
             box.KeyDown += (_, e) =>
             {
@@ -144,7 +153,13 @@ public sealed class FolderCompareWindow : Window
     });
 
     /// <summary>최근 비교 목록에 기록한다. 압축 파일은 안쪽 경로(<c>a.zip!/</c>)가 아니라 압축 파일 경로로.</summary>
-    void RecordHistory() => App.RecordHistory(Original(_leftRoot), Original(_rightRoot), folders: true);
+    void RecordHistory()
+    {
+        if (BothChosen) App.RecordHistory(Original(_leftRoot), Original(_rightRoot), folders: true);
+    }
+
+    /// <summary>양쪽 폴더가 모두 정해졌나 (홈 창에서 한쪽만 놓거나 빈 창으로 열면 아직 아니다).</summary>
+    bool BothChosen => _leftRoot.Length > 0 && _rightRoot.Length > 0;
 
     static string Original(string root) => ArchivePaths.TryParse(root)?.Archive ?? root;
 
@@ -152,7 +167,8 @@ public sealed class FolderCompareWindow : Window
     {
         _leftPath.Text = _leftRoot;
         _rightPath.Text = _rightRoot;
-        Title = $"{Strings.Current.FolderWindowTitle(Locations.NameOf(_leftRoot.Replace(ArchivePaths.Separator, "/")), Locations.NameOf(_rightRoot.Replace(ArchivePaths.Separator, "/")))} — {AppIdentity.DisplayName}";
+        static string Name(string root) => root.Length == 0 ? Strings.Current.HomeNotChosen : Locations.NameOf(root.Replace(ArchivePaths.Separator, "/"));
+        Title = $"{Strings.Current.FolderWindowTitle(Name(_leftRoot), Name(_rightRoot))} — {AppIdentity.DisplayName}";
     }
 
     // --- 배치 ---
@@ -261,6 +277,7 @@ public sealed class FolderCompareWindow : Window
         ToolTip.SetTip(pick, left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle);
         pick.Click += async (_, _) => await ChooseAsync(left);
         var text = left ? _leftPath : _rightPath;
+        text.PlaceholderText = left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle;
         text.KeyDown += async (_, e) =>
         {
             if (e.Key == Key.Enter) { e.Handled = true; await ApplyTypedPathAsync(left, text); }
@@ -378,6 +395,18 @@ public sealed class FolderCompareWindow : Window
         _cts?.Cancel();
         var cts = _cts = new CancellationTokenSource();
         await ResolveOnce();
+        if (!BothChosen)
+        {
+            // 한쪽이 비어 있으면 비교하지 않고 고르라고 알린다 (목록은 비운다).
+            _comparer = null;
+            _rows = [];
+            _list.ItemsSource = _rows;
+            _allHiddenText.Text = Strings.Current.FolderChooseBoth; // 목록 자리 가운데에도 안내한다
+            _showAllButton.IsVisible = false;
+            _allHidden.IsVisible = true;
+            _status.Text = Strings.Current.FolderChooseBoth;
+            return;
+        }
         var policy = await App.Policy.LoadAsync();
         if (cts.IsCancellationRequested) return;
         var comparer = _comparer = new FolderComparer(_leftFs, _leftRoot, _rightFs, _rightRoot, policy, PolicyStore.NamesIgnoreCase, _filter);
@@ -416,6 +445,7 @@ public sealed class FolderCompareWindow : Window
         _allHidden.IsVisible = rows.Count == 0 && anyItems && _show != FolderShow.All;
         _allHiddenText.Text = Strings.Current.FolderAllHidden;
         _showAllButton.Content = Strings.Current.FolderShowName("all");
+        _showAllButton.IsVisible = true;
         if (selected.Count > 0)
             foreach (var r in rows.Where(r => selected.Contains(r.Node.RelativePath)))
                 _list.SelectedItems?.Add(r);
@@ -760,6 +790,27 @@ public sealed class FolderCompareWindow : Window
         if (path.Length == 0 || path == current || !await Task.Run(() => CanOpen(path))) { box.Text = current; return; }
         PickLocations.Remember(path, isFolder: true);
         await ApplyRootAsync(left, path);
+    }
+
+    static List<string> DroppedPaths(DragEventArgs e) =>
+        e.DataTransfer.TryGetFiles()?.Select(f => f.TryGetLocalPath()).OfType<string>().ToList() ?? [];
+
+    async void OnListDrop(object? sender, DragEventArgs e)
+    {
+        var paths = DroppedPaths(e);
+        if (paths.Count is not (1 or 2)) return;
+        var onLeft = e.GetPosition(_list).X < _list.Bounds.Width / 2;
+        // 폴더인지 압축 파일인지는 디스크를 만져야 안다 — 백그라운드에서.
+        if (!await Task.Run(() => paths.All(CanOpen))) { Notice(Strings.Current.FolderDropFoldersOnly); return; }
+        foreach (var p in paths) PickLocations.Remember(p, isFolder: true);
+        if (paths.Count == 1) { await ApplyRootAsync(onLeft, paths[0]); return; }
+        await ResolveOnce();
+        var (l, r) = await Task.Run(() => (Resolve(paths[0]), Resolve(paths[1])));
+        ((_leftFs, _leftRoot), (_rightFs, _rightRoot)) = (l, r);
+        _expanded.Clear();
+        UpdateTitle();
+        RecordHistory();
+        await StartCompareAsync();
     }
 
     async Task ApplyRootAsync(bool left, string path)
