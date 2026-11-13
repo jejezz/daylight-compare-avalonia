@@ -49,7 +49,7 @@ public partial class HomeWindow : Window
         PickRight.Click += async (_, _) => await PickAsync(left: false);
         PickLeftFolder.Click += async (_, _) => await PickFolderAsync(left: true);
         PickRightFolder.Click += async (_, _) => await PickFolderAsync(left: false);
-        CompareButton.Click += (_, _) => OpenCompare();
+        CompareButton.Click += async (_, _) => await OpenCompareAsync();
         PasteCompareButton.Click += (_, _) => CompareWindow.Open(this, _left, _right);
         AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
@@ -215,7 +215,7 @@ public partial class HomeWindow : Window
         PickLocations.Remember(path, isFolder: false);
         if (left) _left = path; else _right = path;
         RefreshPicks();
-        if (_left is not null && _right is not null) OpenCompare();
+        if (_left is not null && _right is not null) await OpenCompareAsync();
     }
 
     async Task PickFolderAsync(bool left)
@@ -230,15 +230,17 @@ public partial class HomeWindow : Window
         PickLocations.Remember(path, isFolder: true);
         if (left) _left = path; else _right = path;
         RefreshPicks();
-        if (_left is not null && _right is not null) OpenCompare();
+        if (_left is not null && _right is not null) await OpenCompareAsync();
     }
 
     /// <summary>둘 다 폴더(또는 압축 파일)이면 폴더 비교, 둘 다 파일이면 텍스트 비교 (BC처럼 종류는 고른 것이 정한다).</summary>
-    void OpenCompare()
+    async Task OpenCompareAsync()
     {
         if (_left is null || _right is null) return;
-        var leftContainer = FolderCompareWindow.CanOpen(_left);
-        if (leftContainer != FolderCompareWindow.CanOpen(_right))
+        // 폴더인지 파일인지는 디스크를 만져야 알 수 있다 — 네트워크 드라이브에서 UI가 멈추지 않게 백그라운드에서 확인한다.
+        var (leftPath, rightPath) = (_left, _right);
+        var (leftContainer, rightContainer) = await Task.Run(() => (FolderCompareWindow.CanOpen(leftPath), FolderCompareWindow.CanOpen(rightPath)));
+        if (leftContainer != rightContainer)
         {
             _ = MessageDialog.ShowAsync(this, AppIdentity.DisplayName, Strings.Current.FolderFileVsFolderLater, [Strings.Current.CommonClose], 0, 0);
             return;
@@ -263,7 +265,7 @@ public partial class HomeWindow : Window
         {
             (_left, _right) = (l, r);
             RefreshPicks();
-            if (l is not null && r is not null) OpenCompare();
+            if (l is not null && r is not null) return OpenCompareAsync();
             return Task.CompletedTask;
         }, allowPendingFolders: true);
     }

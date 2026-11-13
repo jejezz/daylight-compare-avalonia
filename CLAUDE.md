@@ -13,6 +13,9 @@ Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비�
 - **파일 비교에서 파일 전체를 복사하는 일은 절대 없다 (사용자 결정).** 파일의 내용이 전부 달라도 합치는 것은 **사용자가 골라 틀로 감싼 줄뿐**이고,
   무엇을 합칠지·되돌릴지·버릴지는 모두 사용자의 몫이다. 구간(차이 블록) 통째 복사나 "양쪽을 같게" 같은 단추·단축키를 만들지 않는다
   (`DiffEdits.CopyRows` + `CoversWholeSource`가 막는다). 파일 전체를 옮기는 일은 **폴더 비교의 Copy to Right/Left**가 맡는다.
+- **UI 스레드에서 디스크·네트워크를 만지지 않는다.** 존재 확인(`Directory.Exists`·`File.Exists`)·목록·읽기는 모두 `Task.Run`(또는 엔진 안의 백그라운드)에서 한다 —
+  네트워크 드라이브에서는 호출 하나가 수십 초 걸리고, UI 스레드에서 이어지는 `await`가 쌓이면 입력·그리기보다 먼저 처리되어 앱이 통째로 멈춘다
+  (폴더 비교 엔진 `FolderComparer.RunAsync`와 `CompareSources.LoadAsync`는 스스로 백그라운드로 보낸다). 새 코드는 시험 `FolderCompareResponsivenessTests`처럼 UI 응답을 재 본다.
 - **형제 `../daylight-commander-avalonia`가 기준이다.** 원격(SFTP·FTP·WebDAV)·작업 큐·에디터·압축·테마·설정·정보 창·업데이트는
   새로 만들지 않고 거기서 **복사**해 온다(ROADMAP §2-3, 복사로 시작 확정). 복사한 파일은 첫 줄 근처에 출처를 남기고
   (`// From daylight-commander-avalonia @ <커밋>`), 고친 곳이 Commander에도 필요하면 적어 둔다. 0단계의 기준 커밋은 `.copied-from`(`0f38100`), 1단계는 `4686eb7`.
