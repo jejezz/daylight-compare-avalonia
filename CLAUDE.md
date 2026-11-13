@@ -39,4 +39,10 @@ Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비�
 - 앱 아이콘: `tool/icon/draw_glyph.py`(글리프) → `tool/icon/avalonia_icons.py <고양이 경로>`(ico·png). 판 색 `hue 205` 고정(`assets/icon/cat.json`).
 - 화면은 `tests/DaylightCompare.App.Tests`(Avalonia Headless + Skia)로 창을 띄우지 않고 그려 본다. `DCMP_SHOTS=<폴더>`를 주면 PNG를 남긴다 — 화면을 바꾸면 그림으로 확인한다.
 - 테스트: `dotnet test DaylightCompare.slnx`. 원격 통합 테스트는 asyncssh·pyftpdlib·wsgidav·cheroot가 있는 파이썬이 있어야 돌고(없으면 건너뜀), 다른 파이썬은 `DC_TEST_PYTHON`으로 준다. 실행: `dotnet run -c Release --project src\DaylightCompare.App`.
+- **브랜치 운영 — 로컬 `staging` (사용자 결정, 2026-11-13).**
+  1. 작업은 기능·수정 브랜치(worktree)마다 하고, **커밋한 뒤 `staging`으로 머지**한다(`git checkout staging && git merge --no-ff <브랜치>`). `staging`은 `origin/main`에서 만들고 **로컬에만 둔다**(푸시하지 않는다).
+  2. **사용자의 빌드·실행 시험은 `staging`에서 한다.** 써 보게 할 것은 반드시 `staging`에 합쳐 두고, 체크아웃도 `staging`으로 둔다 — 고침이 다른 브랜치에만 있어 "고쳤는데 또 그렇다"가 되지 않게.
+  3. **`staging`에서 사용자의 검증이 끝나면** 그때 PR을 만들어 올리고 `main`으로 병합한다. 검증 전에 브랜치마다 PR을 먼저 올리지 않는다.
+  4. PR이 병합되면 `staging`을 `origin/main`에 맞춘다(병합·정리). 병합 끝난 기능 브랜치는 사용자에게 물어 지운다.
 - 커밋·푸시는 사용자가 요청할 때만. 앱 창은 요청받을 때만 띄운다. 한 번에 한 단계.
+- **시험은 바꾼 부분과 관련된 것만 돌린다.** 전체 시험(`dotnet test DaylightCompare.slnx`, 2분 이상)은 사용자가 요청하거나 먼저 물어보고 허락받았을 때만.
