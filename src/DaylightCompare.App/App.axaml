@@ -191,21 +191,21 @@
 
         <!-- 일반 버튼은 알약 모양 (원본 Flutter). 아이콘 버튼(tool)·열 머리글(header)은 아래에서 따로 정한다 -->
         <!--
-          글자에 여유를 두고 가운데에 앉힌다 (Daylight PDF의 Flutter 버튼과 같은 느낌: 양옆 넉넉히, 아이콘 단추는 앞 16 · 뒤 24).
-          서울남산체는 글자 윤곽이 줄 상자 안에서 위로 붙어 보이므로 위 여백을 아래보다 1 크게 둔다 (Fluent 기본 8,5,8,6은 반대라 글자가 위로 쏠렸다).
+          Daylight PDF의 Flutter 단추와 같게: 양옆은 넉넉히(아이콘 단추는 앞 16 · 뒤 24), 위아래는 대칭이라 글자 줄이 정확히 가운데에 온다.
+          Fluent 기본 8,5,8,6은 옆이 좁고 아래가 0.5 더 커서 글자가 꽉 차고 위로 쏠려 보였다. 높이는 기본과 같다 (위아래 합 11).
         -->
         <Style Selector="Button">
             <Setter Property="CornerRadius" Value="18" />
-            <Setter Property="Padding" Value="20,7,20,5" />
+            <Setter Property="Padding" Value="20,5.5,20,5.5" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="DropDownButton">
-            <Setter Property="Padding" Value="16,7,12,5" />
+            <Setter Property="Padding" Value="16,5.5,12,5.5" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <!-- 아이콘 + 글자 단추 (Flutter FilledButton.icon): 앞 16, 뒤 24, 아이콘과 글자 사이 8 -->
         <Style Selector="Button.withicon">
-            <Setter Property="Padding" Value="16,7,24,5" />
+            <Setter Property="Padding" Value="16,5.5,24,5.5" />
         </Style>
         <Style Selector="Button.withicon icons|DuoIcon">
             <Setter Property="Width" Value="18" />
@@ -213,7 +213,7 @@
         </Style>
         <!-- 촘촘한 줄(경로 줄·알림 띠·찾기 막대) 안의 단추: 높이는 낮게, 양옆은 넉넉히 -->
         <Style Selector="Button.compact">
-            <Setter Property="Padding" Value="16,5,16,3" />
+            <Setter Property="Padding" Value="16,4,16,4" />
         </Style>
 
         <!-- 즐겨찾기·최근 방문 메뉴 -->
