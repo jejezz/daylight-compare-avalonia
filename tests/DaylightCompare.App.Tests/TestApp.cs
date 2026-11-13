@@ -23,6 +23,8 @@ public static class TestApp
 
     public static AppBuilder BuildAvaloniaApp()
     {
+        // 모든 OS에서 (macOS는 APPDATA·XDG_CONFIG_HOME을 보지 않는다).
+        Environment.SetEnvironmentVariable(DaylightCompare.Data.JsonSettingsRepository.DataDirOverride, DataDir);
         Environment.SetEnvironmentVariable("APPDATA", DataDir);
         Environment.SetEnvironmentVariable("XDG_CONFIG_HOME", DataDir);
         return AppBuilder.Configure<App>()
