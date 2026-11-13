@@ -133,6 +133,9 @@ public sealed record AppSettings
         if ((object?)result.NetworkProfiles is null) result = result with { NetworkProfiles = [] };
         if ((object?)result.KnownHostKeys is null) result = result with { KnownHostKeys = new Dictionary<string, string>() };
         if ((object?)result.CompareHistory is null) result = result with { CompareHistory = [] };
+        // 예전에 쌓인 "같은 파일·폴더를 양쪽에 놓은 비교"는 다시 열 이유가 없으니 시작할 때 정리한다 (파일 시스템 규칙은 PolicyStore.NamesIgnoreCase와 같다).
+        var cleaned = CompareHistoryList.WithoutSelfComparisons(result.CompareHistory, ignoreCase: !OperatingSystem.IsLinux());
+        if (!ReferenceEquals(cleaned, result.CompareHistory)) result = result with { CompareHistory = cleaned };
         return result;
     }
 }
