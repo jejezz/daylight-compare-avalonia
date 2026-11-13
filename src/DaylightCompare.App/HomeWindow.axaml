@@ -60,7 +60,7 @@
                     <TextBlock Text="{DynamicResource Str.HomeRecentTitle}" FontWeight="Bold" VerticalAlignment="Center"/>
                     <Button Grid.Column="1" x:Name="ClearHistoryButton" Classes="text" Content="{DynamicResource Str.HomeRecentClear}"/>
                 </Grid>
-                <ScrollViewer MaxHeight="228" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer MaxHeight="300" VerticalScrollBarVisibility="Auto">
                     <StackPanel x:Name="HistoryList" Spacing="2"/>
                 </ScrollViewer>
                 <TextBlock x:Name="HistoryNotice" Foreground="{DynamicResource AppFolderDifferent}" TextWrapping="Wrap"
