@@ -208,4 +208,28 @@ public sealed class FolderCompareWindowTests : IDisposable
         Assert.Contains("only-in-other.txt", Names(w));
         w.Close();
     }
+
+    [AvaloniaFact]
+    public async Task 포함_칸과_제외_칸을_따로_적용한다()
+    {
+        MakeTrees();
+        ResetSettings();
+        var w = FolderCompareWindow.Open(null, L, R);
+        await Settle();
+        var boxes = w.GetVisualDescendants().OfType<TextBox>().Where(t => t.PlaceholderText is { Length: > 0 }).ToList();
+        var include = boxes.First(t => t.PlaceholderText!.StartsWith("포함"));
+        var exclude = boxes.First(t => t.PlaceholderText!.StartsWith("제외"));
+
+        include.Focus();
+        include.Text = "*.txt";
+        exclude.Text = "only*;changed.txt";
+        w.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        await Settle();
+        var names = Names(w);
+        Assert.Contains("same.txt", names);
+        Assert.DoesNotContain("onlyLeft.txt", names);
+        Assert.DoesNotContain("onlyRight.txt", names);
+        Assert.DoesNotContain("changed.txt", names);
+        w.Close();
+    }
 }

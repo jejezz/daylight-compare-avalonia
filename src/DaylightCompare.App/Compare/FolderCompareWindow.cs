@@ -47,7 +47,8 @@ public sealed class FolderCompareWindow : Window
 
     readonly ListBox _list = new() { SelectionMode = SelectionMode.Multiple, Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
     readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-    readonly TextBox _filterBox = new() { MinWidth = 320, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBox _filterBox = new() { MinWidth = 240, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBox _excludeBox = new() { MinWidth = 240, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBox _leftPath = new() { VerticalAlignment = VerticalAlignment.Center };
     readonly TextBox _rightPath = new() { VerticalAlignment = VerticalAlignment.Center };
     readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(10, 4) };
@@ -107,11 +108,12 @@ public sealed class FolderCompareWindow : Window
             var x = e.GetPosition(_list).X;
             _activeLeft = x < _list.Bounds.Width / 2;
         }, RoutingStrategies.Tunnel);
-        _filterBox.KeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Enter) { ApplyFilter(); e.Handled = true; }
-            else if (e.Key == Key.Escape) { _list.Focus(); e.Handled = true; }
-        };
+        foreach (var box in new[] { _filterBox, _excludeBox })
+            box.KeyDown += (_, e) =>
+            {
+                if (e.Key == Key.Enter) { ApplyFilter(); e.Handled = true; }
+                else if (e.Key == Key.Escape) { _list.Focus(); e.Handled = true; }
+            };
         _timer.Tick += (_, _) => { if (_dirty) { _dirty = false; Rebuild(); } };
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         Strings.Changed += OnLanguageChanged;
@@ -137,6 +139,7 @@ public sealed class FolderCompareWindow : Window
         UpdateTitle();
         UpdateViewFilterButton();
         _filterBox.PlaceholderText = Strings.Current.FolderFilterPlaceholder;
+        _excludeBox.PlaceholderText = Strings.Current.FolderFilterExcludePlaceholder;
         Rebuild();
     });
 
@@ -208,10 +211,18 @@ public sealed class FolderCompareWindow : Window
         // 필터 막대 (BC Filters toolbar edit): 이름 필터를 BC 문법으로 적는다.
         _filterBox.PlaceholderText = s.FolderFilterPlaceholder;
         ToolTip.SetTip(_filterBox, s.FolderFilterTooltip);
+        _excludeBox.PlaceholderText = s.FolderFilterExcludePlaceholder;
+        ToolTip.SetTip(_excludeBox, s.FolderFilterExcludeTooltip);
+        var importButton = Tool("import", s.FolderFilterImport, () => _ = ImportFilterAsync());
+        var exportButton = Tool("export", s.FolderFilterExport, () => _ = ExportFilterAsync());
         var filterBar = new Border
         {
             Padding = new Thickness(12, 6), BorderThickness = new Thickness(0, 0, 0, 1),
-            Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new DuoIcon { Icon = "search", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, _filterBox } },
+            Child = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 8,
+                Children = { new DuoIcon { Icon = "search", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, _filterBox, _excludeBox, importButton, exportButton },
+            },
         };
         filterBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
         filterBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
@@ -663,9 +674,47 @@ public sealed class FolderCompareWindow : Window
 
     void ApplyFilter()
     {
-        _filter = new FileMask(_filterBox.Text ?? "");
+        _filter = CurrentFilter.ToMask();
         _ = StartCompareAsync();
         _list.Focus();
+    }
+
+    FilterSpec CurrentFilter => new(_filterBox.Text ?? "", _excludeBox.Text ?? "");
+
+    /// <summary>필터(포함·제외)를 평문 파일(.dcfilter)로 저장한다.</summary>
+    async Task ExportFilterAsync()
+    {
+        var s = Strings.Current;
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = s.FolderFilterExport,
+            SuggestedFileName = "filter",
+            DefaultExtension = "dcfilter",
+            FileTypeChoices = [new FilePickerFileType(s.FolderFilterFileType) { Patterns = ["*.dcfilter"] }],
+        });
+        if (file?.TryGetLocalPath() is not { } path) return;
+        var text = CurrentFilter.Format();
+        try { await Task.Run(() => File.WriteAllText(path, text)); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Notice(e.Message); }
+    }
+
+    /// <summary>파일에서 필터를 읽어 두 칸에 채우고 바로 적용한다.</summary>
+    async Task ImportFilterAsync()
+    {
+        var s = Strings.Current;
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = s.FolderFilterImport,
+            AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType(s.FolderFilterFileType) { Patterns = ["*.dcfilter"] }, FilePickerFileTypes.All],
+        });
+        if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path) return;
+        FilterSpec? spec;
+        try { spec = await Task.Run(() => FilterSpec.Parse(File.ReadAllText(path))); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Notice(e.Message); return; }
+        if (spec is null) { Notice(s.FolderFilterImportFailed); return; }
+        (_filterBox.Text, _excludeBox.Text) = (spec.Include, spec.Exclude);
+        ApplyFilter();
     }
 
     async Task SwapAsync()
@@ -728,7 +777,7 @@ public sealed class FolderCompareWindow : Window
 
     void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (_dialogs.IsOpen || _filterBox.IsFocused) return;
+        if (_dialogs.IsOpen || _filterBox.IsFocused || _excludeBox.IsFocused) return;
         // 주소 창에 쓰는 중이면 Enter·Delete·Ctrl+A 등은 글 상자의 것이다 (터널로 먼저 받아 가로채지 않는다).
         if (TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox) return;
         var primary = Mods.Primary(e.KeyModifiers);
