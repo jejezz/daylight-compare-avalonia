@@ -12,6 +12,7 @@ namespace DaylightCompare.Services.Folder;
 /// 1) <b>구조</b>: 폴더를 넓이 우선으로 읽어 짝짓고(<see cref="FolderPairing"/>), 필터(정책 + BC 필터 막대)를 적용하고, 빠른 검사(<see cref="FolderJudge.Quick"/>)로
 /// 정해지는 것은 바로 정한다. 읽는 대로 <see cref="Changed"/>를 알리므로 첫 결과가 금방 보인다.
 /// 2) <b>내용</b>: 빠른 검사가 내용을 봐야 한다고 한 짝을 동시에 몇 개씩 비교한다 — 규칙 기준(텍스트는 Compare Policy, 아니면 바이트) 또는 해시.
+/// 해시는 서버가 할 수 있으면(<see cref="IServerHasher"/>, SFTP의 <c>sha256sum</c>) 내려받지 않고 서버에서 구한다.
 /// </para>
 /// 알림은 백그라운드 스레드에서 오므로 화면은 UI 스레드로 넘겨 읽는다. 마디를 바꾸는 일은 <see cref="Gate"/>를 잡고 한다.
 /// </summary>
@@ -71,12 +72,20 @@ public sealed class FolderComparer
         }
 
         using var gate = new SemaphoreSlim(_parallel);
-        await Task.WhenAll(contentJobs.Select(async node =>
+        async Task CompareOne(FolderNode node, FolderCriterion step, ServerHashes? known)
         {
             await gate.WaitAsync(ct);
-            try { await CompareContentAsync(node, ct); }
+            try { await CompareContentAsync(node, step, known, ct); }
             finally { gate.Release(); }
-        }));
+        }
+
+        var jobs = contentJobs.Select(n => (Node: n, Step: FolderJudge.Quick(n.Left!, n.Right!, _rules.Criteria).ContentStep!)).ToList();
+        var serverHash = _leftFs is IServerHasher || _rightFs is IServerHasher;
+        var hashJobs = serverHash ? jobs.Where(j => j.Step.By == CriterionKind.Hash).ToList() : [];
+        var others = serverHash ? jobs.Where(j => j.Step.By != CriterionKind.Hash) : jobs;
+        await Task.WhenAll(
+            Task.WhenAll(others.Select(j => CompareOne(j.Node, j.Step, null))),
+            ServerHashJobsAsync(hashJobs, CompareOne, ct));
         Completed = true;
         Changed?.Invoke(Root);
     }
@@ -145,15 +154,42 @@ public sealed class FolderComparer
             if (f.State != FolderState.Error) f.State = FolderJudge.FolderStateOf(f);
     }
 
-    async Task CompareContentAsync(FolderNode node, CancellationToken ct)
+    /// <summary>서버에서 미리 구한 SHA-256 (쪽마다 경로 → 해시, 서버 해시를 못 하는 쪽은 null).</summary>
+    sealed record ServerHashes(IReadOnlyDictionary<string, byte[]>? Left, IReadOnlyDictionary<string, byte[]>? Right);
+
+    /// <summary>
+    /// 원격 해시 (ROADMAP §8-1): 해시 단계의 짝을 폴더마다 묶어 서버에 한 번에 묻고(<see cref="IServerHasher"/>, 명령 하나에 최대
+    /// <see cref="ServerHashCommands.MaxFilesPerCommand"/>개), 받은 묶음부터 비교한다. 다음 묶음을 묻는 동안 앞 묶음의 비교(로컬 쪽 해시)가 돈다.
+    /// </summary>
+    async Task ServerHashJobsAsync(List<(FolderNode Node, FolderCriterion Step)> jobs, Func<FolderNode, FolderCriterion, ServerHashes?, Task> compare, CancellationToken ct)
+    {
+        var running = new List<Task>();
+        foreach (var chunk in jobs.GroupBy(j => j.Node.Parent).SelectMany(g => g.Chunk(ServerHashCommands.MaxFilesPerCommand)))
+        {
+            ct.ThrowIfCancellationRequested();
+            var left = AskServerAsync(_leftFs, [.. chunk.Select(j => j.Node.Left!.Path)], ct);
+            var right = AskServerAsync(_rightFs, [.. chunk.Select(j => j.Node.Right!.Path)], ct);
+            var known = new ServerHashes(await left, await right);
+            running.AddRange(chunk.Select(j => compare(j.Node, j.Step, known)));
+        }
+        await Task.WhenAll(running);
+    }
+
+    static async Task<IReadOnlyDictionary<string, byte[]>?> AskServerAsync(IFileSystem fs, IReadOnlyList<string> paths, CancellationToken ct)
+    {
+        if (fs is not IServerHasher hasher) return null;
+        try { return await hasher.HashSha256Async(paths, ct); }
+        catch (Exception e) when (e is not OperationCanceledException) { return null; } // 서버가 못 하면 내려받아 해시한다
+    }
+
+    async Task CompareContentAsync(FolderNode node, FolderCriterion step, ServerHashes? known, CancellationToken ct)
     {
         FolderState state;
         string? error = null;
         try
         {
-            var step = FolderJudge.Quick(node.Left!, node.Right!, _rules.Criteria).ContentStep!;
             var same = step.By == CriterionKind.Hash
-                ? await SameHashAsync(node, step.Algorithm, ct)
+                ? await SameHashAsync(node, step.Algorithm, known, ct)
                 : await SameByRulesAsync(node, ct);
             state = same ? FolderState.Same : FolderState.Different;
         }
@@ -204,11 +240,18 @@ public sealed class FolderComparer
         }
     }
 
-    /// <summary>해시 비교 (BC "CRC"). 원격 쪽을 서버에서 해시하는 것(내려받지 않기)은 4c.</summary>
-    async Task<bool> SameHashAsync(FolderNode node, HashAlgorithmKind algorithm, CancellationToken ct)
+    /// <summary>
+    /// 해시 비교 (BC "CRC"). 서버가 구해 둔 해시가 한쪽이라도 있으면 두 쪽 다 SHA-256으로 비교한다 — 서버 도구는 SHA-256만 있고,
+    /// 정책이 CRC32여도 같음/다름의 뜻은 같다. 서버 해시가 없는 쪽은 내려받아(로컬은 읽어) 구한다.
+    /// </summary>
+    async Task<bool> SameHashAsync(FolderNode node, HashAlgorithmKind algorithm, ServerHashes? known, CancellationToken ct)
     {
-        var a = await HashAsync(_leftFs, node.Left!.Path, algorithm, ct);
-        var b = await HashAsync(_rightFs, node.Right!.Path, algorithm, ct);
+        var (l, r) = (node.Left!.Path, node.Right!.Path);
+        var ka = known?.Left?.GetValueOrDefault(l);
+        var kb = known?.Right?.GetValueOrDefault(r);
+        if (ka is not null || kb is not null) algorithm = HashAlgorithmKind.Sha256;
+        var a = ka ?? await HashAsync(_leftFs, l, algorithm, ct);
+        var b = kb ?? await HashAsync(_rightFs, r, algorithm, ct);
         return a.AsSpan().SequenceEqual(b);
     }
 

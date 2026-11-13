@@ -1,4 +1,5 @@
 // From daylight-commander-avalonia @ 4686eb7
+// 고침(이 앱): SFTP 연결이 본 호스트 키 지문을 SftpFileSystem에 넘긴다(서버 해시용 SSH 연결 확인, 4c).
 using System.Net.Sockets;
 using DaylightCompare.Domain;
 using Renci.SshNet;
@@ -185,9 +186,10 @@ public sealed class RemoteSessions : IDisposable
         var client = new SftpClient(info);
         var hostPort = $"{request.Host.ToLowerInvariant()}:{request.Port}";
         HostKeyChangedException? changed = null;
+        string? seen = null;
         client.HostKeyReceived += (_, e) =>
         {
-            var fingerprint = e.FingerPrintSHA256;
+            var fingerprint = seen = e.FingerPrintSHA256;
             var known = hostKeys?.Get(hostPort);
             if (known is null) hostKeys?.Set(hostPort, fingerprint); // 처음 보는 서버: 믿고 기억한다
             else if (known != fingerprint)
@@ -200,7 +202,7 @@ public sealed class RemoteSessions : IDisposable
         {
             ct.ThrowIfCancellationRequested();
             client.Connect();
-            return new SftpFileSystem(client, request.Authority);
+            return new SftpFileSystem(client, request.Authority, seen);
         }
         catch (Exception e)
         {
