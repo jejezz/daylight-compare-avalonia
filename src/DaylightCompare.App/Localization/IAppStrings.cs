@@ -32,6 +32,7 @@ public interface IAppStrings
     string HomeTextCompareHint { get; }
     string HomeDropOpenTooMany { get; }
     string FolderChooseBoth { get; }
+    string CompareTypedFolder { get; }
     string FolderDropFoldersOnly { get; }
 
     // 비교 창 · 홈 창 고르기 · 끌어다 놓기

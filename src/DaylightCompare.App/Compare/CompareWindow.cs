@@ -53,7 +53,8 @@ public sealed class CompareWindow : Window
         public TextEncodingKind? ForcedEncoding;
         public readonly TextEditor Editor = new();
         public RowNumberMargin Margin = null!;
-        public readonly TextBlock PathText = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.PathSegmentEllipsis };
+        /// <summary>주소 창: 평소엔 경로(고친 것이 있으면 앞에 ●)를 보이고, 직접 고쳐 Enter를 누르면 그 파일을 연다 (BC의 경로 칸).</summary>
+        public readonly TextBox PathText = new() { VerticalAlignment = VerticalAlignment.Center };
         public readonly TextBlock EncodingText = new() { VerticalAlignment = VerticalAlignment.Center, Classes = { "small" } };
         public readonly Border Overlay = new() { IsHitTestVisible = false, IsVisible = false };
         public readonly TextBlock OverlayText = new() { TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 420 };
@@ -64,6 +65,8 @@ public sealed class CompareWindow : Window
         /// <summary>편집기 안의 스크롤 뷰어 (프로그램에서 스크롤할 때 이것의 오프셋을 바꾼다 — <see cref="CompareWindow.ScrollTo"/>).</summary>
         public ScrollViewer? Scroller;
         public string? HighlightedPath;
+        /// <summary>주소 창을 고치는 중 (그동안은 표시용 글로 덮어쓰지 않는다).</summary>
+        public bool PathEditing;
         public bool RepairRequested;
         public MixedRepair? Repair;
 
@@ -559,6 +562,25 @@ public sealed class CompareWindow : Window
         ToolTip.SetTip(paste, Tip(Strings.Current.CompareOpenClipboard, "Ctrl+Shift+V"));
         paste.Click += async (_, _) => await PasteAsync(side);
         var icon = new DuoIcon { Icon = "file", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
+        side.PathText.PlaceholderText = side.Left ? Strings.Current.CompareOpenLeftTitle : Strings.Current.CompareOpenRightTitle;
+        // 고치기 시작하면 표시용 글(● 표시·제목·"아직 고르지 않음")을 실제 경로로 바꾸고, 나가면 표시용으로 되돌린다.
+        side.PathText.GotFocus += (_, _) =>
+        {
+            if (side.PathEditing) return;
+            side.PathEditing = true;
+            side.PathText.Text = side.Path ?? "";
+            side.PathText.SelectAll();
+        };
+        side.PathText.LostFocus += (_, _) =>
+        {
+            side.PathEditing = false;
+            UpdateSideChrome(side);
+        };
+        side.PathText.AddHandler(KeyDownEvent, async (_, e) =>
+        {
+            if (e.Key == Key.Enter) { e.Handled = true; await ApplyTypedPathAsync(side); }
+            else if (e.Key == Key.Escape) { e.Handled = true; side.Editor.TextArea.Focus(); }
+        }, RoutingStrategies.Tunnel);
         var row = new Grid
         {
             ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto,Auto"),
@@ -1187,7 +1209,13 @@ public sealed class CompareWindow : Window
     void UpdateSideChrome(Side side)
     {
         var s = Strings.Current;
-        side.PathText.Text = (side.Dirty ? "● " : "") + (side.Title is { Length: > 0 } title ? title : side.Path ?? (side.Real.Length > 0 ? s.CompareScratchName : s.HomeNotChosen));
+        if (!side.PathEditing)
+        {
+            // 아무것도 없으면 비워 두어 "왼쪽(오른쪽) 파일 열기" 안내 글이 보이게 한다. 긴 경로는 끝(파일 이름)이 보이게 커서를 끝에 둔다.
+            var shown = side.Title is { Length: > 0 } title ? title : side.Path ?? (side.Real.Length > 0 ? s.CompareScratchName : "");
+            side.PathText.Text = shown.Length > 0 && side.Dirty ? "● " + shown : shown;
+            side.PathText.CaretIndex = side.PathText.Text.Length;
+        }
         ToolTip.SetTip(side.PathText, side.Path ?? (side.Real.Length > 0 ? s.CompareScratchTooltip : null));
         side.EncodingText.Text = side.Text is { } t && !side.IsScratch
             ? TextEncodings.DisplayName(t.File.Encoding, t.File.HasBom) + (side.HasText && !side.CanEdit ? " · " + s.CompareReadOnly : "")
@@ -1703,6 +1731,44 @@ public sealed class CompareWindow : Window
         RecordHistory();
     }
 
+    /// <summary>
+    /// 주소 창에 쓴 경로를 연다. 파일이 없거나 폴더면 알리고 지금 파일을 그대로 둔다.
+    /// 있는지는 백그라운드에서 본다 (네트워크 드라이브에서 UI가 멈추지 않게). 압축 파일 안 경로(<c>a.zip!/x</c>)도 받는다.
+    /// </summary>
+    async Task ApplyTypedPathAsync(Side side)
+    {
+        var path = (side.PathText.Text ?? "").Trim().Trim('"');
+        if (path.Length == 0 || path == side.Path) { side.Editor.TextArea.Focus(); return; }
+        var s = Strings.Current;
+        var problem = await Task.Run(async () =>
+        {
+            if (ArchivePaths.TryParse(path) is { } inner)
+                return File.Exists(inner.Archive) && await new ArchiveFileSystem(inner.Archive).StatAsync(path) is { IsDirectory: false } ? null : s.HomeRecentMissing(path);
+            if (Directory.Exists(path)) return s.CompareTypedFolder;
+            return File.Exists(path) ? null : s.HomeRecentMissing(path);
+        });
+        if (problem is not null)
+        {
+            await MessageDialog.ShowAsync(this, AppIdentity.DisplayName, problem, [s.CommonClose], 0, 0);
+            // 지금 파일은 그대로. 고쳐 다시 쓸 수 있게 쓴 글을 주소 창에 되살린다 (Esc나 다른 곳을 누르면 지금 경로로 돌아간다).
+            side.PathText.Focus();
+            side.PathText.Text = path;
+            side.PathText.CaretIndex = path.Length;
+            return;
+        }
+        if (!await ConfirmDiscardAsync()) return;
+        PickLocations.Remember(path, isFolder: false);
+        side.Path = path;
+        side.Title = null;
+        side.ForcedEncoding = null;
+        side.RepairRequested = false;
+        _skipHistory = false;
+        side.PathEditing = false;
+        side.Editor.TextArea.Focus();
+        await ReloadAsync();
+        RecordHistory();
+    }
+
     // --- 끌어다 놓기 (ROADMAP §6-1 ①) ---
 
     DropTarget TargetAt(DragEventArgs e)
@@ -1794,6 +1860,7 @@ public sealed class CompareWindow : Window
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
         var alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
         var handled = true;
+        if (_left.PathText.IsFocused || _right.PathText.IsFocused) return; // 주소 창의 키는 주소 창이 받는다 (Enter·Esc는 PathRow)
         if (_findBox.IsFocused || _replaceBox.IsFocused)
         {
             // 찾기·바꾸기 칸에서는 글자 편집 키(Ctrl+Z·Ctrl+←→·Ctrl+L 등)를 칸에 맡기고, 찾기 키만 받는다.

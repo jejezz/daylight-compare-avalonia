@@ -11,7 +11,7 @@ public sealed class EnglishStrings : IAppStrings
     public string CommonConfirm => "OK";
     public string SettingsTooltip => "Settings";
     public string HomeEmptyTitle => "Drop files or folders to start";
-    public string HomeEmptyHint => "Drop one to open the matching compare window and pick the other side there. Drop two to compare right away";
+    public string HomeEmptyHint => "One opens the matching compare window, two are compared right away";
     public string HomeTagline => "Compare, merge and sync folders and files in one place";
     public string HomeOpenFiles => "Open Files";
     public string HomeFolderCompare => "Folder Compare";
@@ -19,6 +19,7 @@ public sealed class EnglishStrings : IAppStrings
     public string HomeTextCompare => "Text Compare";
     public string HomeTextCompareHint => "Compare and edit two files line by line, or paste text";
     public string HomeDropOpenTooMany => "You can open up to two at a time.";
+    public string CompareTypedFolder => "A folder can't be opened in Text Compare. Enter a file path.";
     public string FolderChooseBoth => "Choose or drop a folder on each side";
     public string FolderDropFoldersOnly => "Only folders or archives can be dropped in Folder Compare.";
     public string CompareWindowTitle(string left, string right) => $"{left} ↔ {right}";
