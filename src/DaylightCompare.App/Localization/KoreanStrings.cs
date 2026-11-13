@@ -218,6 +218,12 @@ public sealed class KoreanStrings : IAppStrings
     public string SettingsLanguage => "언어";
     public string LanguageSystemShort => "시스템";
     public string AboutTooltip => "정보";
+    public string MacMenuAbout(string app) => $"{app}에 관하여";
+    public string MacMenuSettings => "설정…";
+    public string MacMenuHide(string app) => $"{app} 가리기";
+    public string MacMenuHideOthers => "기타 가리기";
+    public string MacMenuShowAll => "모두 보기";
+    public string MacMenuQuit(string app) => $"{app} 종료";
     public string AboutTagline => "폴더·텍스트·바이너리·이미지를 나란히 비교하고 병합하는 데스크톱 앱";
     public string AboutDescription => "로컬·SFTP·FTP·WebDAV·압축 파일 어디에 있든 두 쪽을 맞대어 차이를 찾고, 비교 정책으로 중요하지 않은 차이는 걸러 내는 비교 도구를 목표로 만들고 있어요.";
     public string AboutVersion(string version, int build) => $"버전 {version} (빌드 {build})";

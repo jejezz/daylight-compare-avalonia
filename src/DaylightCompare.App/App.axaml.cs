@@ -76,6 +76,7 @@ public partial class App : Application
             var request = Program.Request;
             var window = OpenCompare(null, request);
             desktop.MainWindow = window;
+            MacAppMenu.Install(this, desktop);
             window.Closed += async (_, _) => desktop.Shutdown(await ResultOfAsync(window));
             desktop.Exit += (_, _) => Settings.Dispose();
         }
@@ -83,6 +84,7 @@ public partial class App : Application
         {
             var home = new HomeWindow();
             desktop.MainWindow = home;
+            MacAppMenu.Install(this, desktop);
             home.Opened += async (_, _) => await HandleAsync(desktop, Program.Request, home);
             // 다른 실행(CLI·git difftool·탐색기)이 넘긴 인자. 응답(종료 코드)은 그 실행이 --wait일 때 의미가 있다.
             SingleInstance.Listen(args => Dispatcher.UIThread.InvokeAsync(() => HandleAsync(desktop, CommandLine.Parse(args, slashSwitches: OperatingSystem.IsWindows()), null)));

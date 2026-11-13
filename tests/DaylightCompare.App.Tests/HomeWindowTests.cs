@@ -50,6 +50,17 @@ public sealed class HomeWindowTests : IDisposable
         Assert.Equal("Daylight Compare", Avalonia.Application.Current!.Name); // 기본값 "Avalonia Application"이 아니다
 
     [AvaloniaFact]
+    public void macOS_앱_메뉴는_앱_언어로_macOS_표준_순서와_단축키를_쓴다()
+    {
+        var ko = MacAppMenu.Create(Localization.KoreanStrings.Instance, () => { }, () => { }, () => { });
+        var items = ko.Items.OfType<NativeMenuItem>().Where(i => i is not NativeMenuItemSeparator).ToList();
+        Assert.Equal(["Daylight Compare에 관하여", "설정…", "Daylight Compare 가리기", "기타 가리기", "모두 보기", "Daylight Compare 종료"], items.Select(i => i.Header));
+        Assert.Equal(["", "Cmd+OemComma", "Cmd+H", "Alt+Cmd+H", "", "Cmd+Q"], items.Select(i => i.Gesture?.ToString() ?? ""));
+        var en = MacAppMenu.Create(Localization.EnglishStrings.Instance, () => { }, () => { }, () => { });
+        Assert.Equal("Quit Daylight Compare", en.Items.OfType<NativeMenuItem>().Last().Header);
+    }
+
+    [AvaloniaFact]
     public async Task 폴더_하나를_놓으면_왼쪽만_채운_폴더_비교_창이_열린다()
     {
         var home = new HomeWindow();
