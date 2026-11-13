@@ -183,3 +183,44 @@ public sealed class JsonSettingsRepositoryTests : IDisposable
     }
 
 }
+
+/// <summary>최근 비교 목록과 마지막 고른 폴더가 설정 파일에 저장되고 (AOT 소스 생성기로) 그대로 읽힌다.</summary>
+public sealed class HistorySettingsTests : IDisposable
+{
+    readonly string _dir = Directory.CreateTempSubdirectory("dc-history-test").FullName;
+    public void Dispose() => Directory.Delete(_dir, recursive: true);
+
+    [Fact]
+    public void 최근_비교와_마지막_폴더를_저장하고_읽는다()
+    {
+        var path = Path.Combine(_dir, "settings.json");
+        var repo = new JsonSettingsRepository(path);
+        var at = new DateTimeOffset(2026, 11, 13, 9, 30, 0, TimeSpan.FromHours(9));
+        repo.Save(new AppSettings
+        {
+            LastPickDir = @"C:\work",
+            CompareHistory =
+            [
+                new CompareHistoryEntry { Left = @"C:\a\x.txt", Right = @"C:\b\x.txt", OpenedAt = at },
+                new CompareHistoryEntry { Left = @"C:\a", Right = @"C:\b", Kind = CompareHistoryEntry.Folders, OpenedAt = at.AddHours(-1) },
+            ],
+        });
+        var back = new JsonSettingsRepository(path).Load();
+        Assert.Equal(@"C:\work", back.LastPickDir);
+        Assert.Equal(2, back.CompareHistory.Count);
+        Assert.Equal(@"C:\a\x.txt", back.CompareHistory[0].Left);
+        Assert.True(back.CompareHistory[1].IsFolders);
+        Assert.Equal(at, back.CompareHistory[0].OpenedAt);
+        Assert.Contains("\"compare_history\"", File.ReadAllText(path));
+    }
+
+    [Fact]
+    public void 옛_설정_파일에는_기록이_없어도_읽힌다()
+    {
+        var path = Path.Combine(_dir, "old.json");
+        File.WriteAllText(path, "{ \"theme_mode\": \"dark\" }");
+        var back = new JsonSettingsRepository(path).Load();
+        Assert.Empty(back.CompareHistory);
+        Assert.Null(back.LastPickDir);
+    }
+}

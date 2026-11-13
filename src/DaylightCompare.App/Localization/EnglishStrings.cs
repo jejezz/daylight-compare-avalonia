@@ -11,7 +11,7 @@ public sealed class EnglishStrings : IAppStrings
     public string CommonConfirm => "OK";
     public string SettingsTooltip => "Settings";
     public string HomeEmptyTitle => "Choose two items to compare";
-    public string HomeEmptyHint => "Drop two files anywhere in this window, or choose each side. Folder, binary and image comparison arrive in later versions";
+    public string HomeEmptyHint => "Drop two files (or two folders) anywhere in this window, or choose each side. Binary and image comparison arrive in later versions";
     public string CompareWindowTitle(string left, string right) => $"{left} ↔ {right}";
     public string CompareSwap => "Swap Sides";
     public string CompareOpen => "Open…";
@@ -38,6 +38,11 @@ public sealed class EnglishStrings : IAppStrings
     public string DropTooMany => "Drop up to two items at a time (three files for a merge — in a later version)";
     public string DropNoCounterpart(string name) => $"The folder has no file named {name}";
     public string CommonClose => "Close";
+    public string HomeRecentTitle => "Recent Comparisons";
+    public string HomeRecentClear => "Clear All";
+    public string HomeRecentRemove => "Remove from List";
+    public string HomeRecentMissing(string path) => $"Path not found: {path}";
+    public string HomeRecentYesterday(string time) => $"Yesterday {time}";
     public string FolderLoading => "Comparing…";
     public string FolderColName => "Name";
     public string FolderColSize => "Size";

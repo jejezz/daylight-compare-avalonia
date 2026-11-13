@@ -11,7 +11,7 @@ public sealed class KoreanStrings : IAppStrings
     public string CommonConfirm => "확인";
     public string SettingsTooltip => "설정";
     public string HomeEmptyTitle => "비교할 두 항목을 고르세요";
-    public string HomeEmptyHint => "이 창 어디에든 파일 두 개를 끌어다 놓거나, 양쪽을 각각 고르세요. 폴더·바이너리·이미지 비교는 다음 버전부터예요";
+    public string HomeEmptyHint => "이 창 어디에든 파일(또는 폴더) 두 개를 끌어다 놓거나, 양쪽을 각각 고르세요. 바이너리·이미지 비교는 다음 버전부터예요";
     public string CompareWindowTitle(string left, string right) => $"{left} ↔ {right}";
     public string CompareSwap => "좌우 바꾸기";
     public string CompareOpen => "열기…";
@@ -38,6 +38,11 @@ public sealed class KoreanStrings : IAppStrings
     public string DropTooMany => "한 번에 두 개까지 놓을 수 있어요 (파일 세 개는 병합 — 다음 버전)";
     public string DropNoCounterpart(string name) => $"폴더 안에 같은 이름의 파일({name})이 없습니다";
     public string CommonClose => "닫기";
+    public string HomeRecentTitle => "최근 비교";
+    public string HomeRecentClear => "모두 지우기";
+    public string HomeRecentRemove => "목록에서 빼기";
+    public string HomeRecentMissing(string path) => $"경로를 찾을 수 없습니다: {path}";
+    public string HomeRecentYesterday(string time) => $"어제 {time}";
     public string FolderLoading => "비교 중…";
     public string FolderColName => "이름";
     public string FolderColSize => "크기";
