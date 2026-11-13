@@ -92,15 +92,15 @@
 
                 <!-- 고르기 단추: 넓은 모양·한 줄 모양 사이를 옮겨 다닌다 -->
                 <StackPanel x:Name="OpenButtons" Orientation="Horizontal" Spacing="8">
-                    <Button x:Name="OpenFilesButton" Classes="accent">
+                    <Button x:Name="OpenFilesButton" Classes="accent withicon" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <icons:DuoIcon Icon="file" Width="16" Height="16" VerticalAlignment="Center"/>
+                            <icons:DuoIcon Icon="file" VerticalAlignment="Center"/>
                             <TextBlock Text="{DynamicResource Str.HomeOpenFiles}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>
-                    <Button x:Name="OpenFoldersButton">
+                    <Button x:Name="OpenFoldersButton" Classes="withicon" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
                         <StackPanel Orientation="Horizontal" Spacing="8">
-                            <icons:DuoIcon Icon="folder-open" Width="16" Height="16" VerticalAlignment="Center"/>
+                            <icons:DuoIcon Icon="folder-open" VerticalAlignment="Center"/>
                             <TextBlock Text="{DynamicResource Str.HomeChooseFolder}" VerticalAlignment="Center"/>
                         </StackPanel>
                     </Button>

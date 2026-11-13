@@ -51,7 +51,7 @@ public sealed class FolderCompareWindow : Window
     readonly TextBox _excludeBox = new() { MinWidth = 240, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBox _leftPath = new() { VerticalAlignment = VerticalAlignment.Center };
     readonly TextBox _rightPath = new() { VerticalAlignment = VerticalAlignment.Center };
-    readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(10, 4) };
+    readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center };
     readonly DialogHost _dialogs = new();
 
     /// <summary>보기 필터가 모든 항목을 숨겼을 때 목록 자리에 뜨는 안내와 [모두 보기] — 비교는 끝났는데 목록이 비어 "사라진" 것처럼 보이지 않게.</summary>
