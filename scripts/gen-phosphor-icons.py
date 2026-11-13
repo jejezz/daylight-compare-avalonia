@@ -47,6 +47,8 @@ ICONS = {
     "view-list": ("list-bullets", "duotone"),
     "view-grid": ("squares-four", "duotone"),
     "tree": ("tree-structure", "duotone"),
+    "import": ("download-simple", "duotone"),
+    "export": ("upload-simple", "duotone"),
     "expand-all": ("arrows-out-line-vertical", "duotone"),
     "collapse-all": ("arrows-in-line-vertical", "duotone"),
     "settings": ("gear", "duotone"),

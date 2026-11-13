@@ -57,8 +57,14 @@ public sealed class EnglishStrings : IAppStrings
     public string FolderColName => "Name";
     public string FolderColSize => "Size";
     public string FolderColModified => "Modified";
-    public string FolderFilterPlaceholder => "Filter (e.g. *.cs;-bin\\;-*.obj)";
-    public string FolderFilterTooltip => "Name filter — Beyond Compare syntax (Enter to apply)";
+    public string FolderFilterPlaceholder => "Include (e.g. *.cs;*.h)";
+    public string FolderFilterTooltip => "Include filter — only these names are shown; empty means all. Beyond Compare syntax (Enter to apply)";
+    public string FolderFilterExcludePlaceholder => "Exclude (e.g. bin\\;*.obj)";
+    public string FolderFilterExcludeTooltip => "Exclude filter — these names are hidden. End folders with \\ (Enter to apply)";
+    public string FolderFilterImport => "Import Filter…";
+    public string FolderFilterExport => "Export Filter…";
+    public string FolderFilterFileType => "Daylight Compare filter";
+    public string FolderFilterImportFailed => "Could not read the filter file";
     public string FolderViewFilterTooltip => "Display Filter";
     public string FolderMenuActions => "Actions";
     public string FolderOpen => "Open";

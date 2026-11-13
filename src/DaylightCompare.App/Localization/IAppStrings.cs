@@ -73,6 +73,12 @@ public interface IAppStrings
     string FolderColModified { get; }
     string FolderFilterPlaceholder { get; }
     string FolderFilterTooltip { get; }
+    string FolderFilterExcludePlaceholder { get; }
+    string FolderFilterExcludeTooltip { get; }
+    string FolderFilterImport { get; }
+    string FolderFilterExport { get; }
+    string FolderFilterFileType { get; }
+    string FolderFilterImportFailed { get; }
     string FolderViewFilterTooltip { get; }
     string FolderMenuActions { get; }
     string FolderOpen { get; }
