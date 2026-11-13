@@ -106,7 +106,8 @@ SFTP/FTP/WebDAV 통합 테스트는 Python 서버(`asyncssh`, `pyftpdlib`, `wsgi
 ## 앱 아이콘
 
 글리프는 `tool/icon/draw_glyph.py`가 그리고(`assets/icon/source_glyph.svg`·`.png`), 플랫폼별 파일은
-`python3 tool/icon/avalonia_icons.py <고양이 이미지 경로>`로 만듭니다. 고양이 원본(Icons8 유료)은 저장소에 두지 않습니다.
+`python3 tool/icon/avalonia_icons.py <고양이 이미지 경로>`로 만듭니다. macOS 아이콘(`installer/macos/AppIcon.icns`)도 이때
+`tool/icon/make_icns.py`가 함께 만들고, 1024px 마스터만 바뀌었으면 `python3 tool/icon/make_icns.py`만 다시 돌립니다. 고양이 원본(Icons8 유료)은 저장소에 두지 않습니다.
 
 ## 프로젝트 구조
 
