@@ -156,7 +156,7 @@ public sealed class FolderCompareWindow : Window
             b.Click += (_, _) => click();
             return b;
         }
-        Border Separator() => new() { Width = 1, Margin = new Thickness(4, 8), [!Border.BackgroundProperty] = this.GetResourceObservable("AppStroke").ToBinding() };
+        Border Separator() => new() { Width = 1, Margin = new Thickness(4, 8), [!Border.BackgroundProperty] = this.GetResourceObservable("AppStrokeStrong").ToBinding() };
         var commands = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } };
         ToolTip.SetTip(commands, s.CompareCommandsTooltip);
         commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
@@ -190,8 +190,8 @@ public sealed class FolderCompareWindow : Window
             Child = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 12, Children = { _status, tools } },
         };
         Grid.SetColumn(tools, 1);
-        appBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurface"));
-        appBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStroke"));
+        appBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
+        appBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
 
         // 필터 막대 (BC Filters toolbar edit): 이름 필터를 BC 문법으로 적는다.
         _filterBox.PlaceholderText = s.FolderFilterPlaceholder;
@@ -201,11 +201,13 @@ public sealed class FolderCompareWindow : Window
             Padding = new Thickness(12, 6), BorderThickness = new Thickness(0, 0, 0, 1),
             Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new DuoIcon { Icon = "search", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, _filterBox } },
         };
-        filterBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurface"));
-        filterBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStroke"));
+        filterBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
+        filterBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
 
         var header = new Border { BorderThickness = new Thickness(0, 0, 0, 1), Child = new Grid { ColumnDefinitions = new ColumnDefinitions("*,1,*"), Children = { PathHeader(left: true), PathHeader(left: false) } } };
-        header.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStroke"));
+        header.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
+        header.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
+        _list.Bind(ListBox.BackgroundProperty, this.GetResourceObservable("AppEditorBg")); // 목록 바탕 — 위의 틀 띠와 한 단 다르게
         _list.Bind(ListBox.FontSizeProperty, this.GetResourceObservable("FsBody"));
 
         var grid = new Grid { RowDefinitions = new RowDefinitions("44,Auto,Auto,*") };

@@ -24,6 +24,12 @@ public static class AppColors
                 0xFF101828, 0xFF5B6676, primary, onPrimary, Accent, Danger);
     }
 
+    /// <summary>
+    /// 편집기·목록의 바탕 (<c>AppEditorBg</c>): 라이트는 흰색(<see cref="AppColorSet.Surface"/>), 다크는 페이지 바탕(<see cref="AppColorSet.Bg"/>, 더 어둡게).
+    /// 위의 도구 모음·경로 줄 띠(<see cref="AppColorSet.SurfaceHi"/>)와 뚜렷이 다르게 해서 어디서부터 편집기인지 분명하다.
+    /// </summary>
+    public static uint EditorBackground(AppColorSet c, bool dark) => dark ? c.Bg : c.Surface;
+
     /// <summary>고대비: 배경·글자·테두리를 순흑/순백으로.</summary>
     static AppColorSet HighContrast(bool dark)
     {

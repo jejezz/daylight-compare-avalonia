@@ -176,7 +176,8 @@ sealed class RowNumberMargin(DiffViewState state, bool left) : AbstractMargin
 }
 
 /// <summary>
-/// 개요 막대: 파일 전체에서 차이가 어디 있는지 세로 막대로 보이고, 누르거나 끌면 그 위치로 간다. 지금 보이는 범위는 테두리 상자.
+/// 개요 막대 = 이 창의 <b>하나뿐인 세로 스크롤 막대</b> (편집기 자신의 세로 막대는 숨긴다). 파일 전체에서 차이가 어디 있는지 보이고,
+/// 보이는 범위는 반투명 손잡이 — 손잡이를 끌면 따라가고, 빈 자리를 누르면 그 자리로 가고, 휠도 된다 (캐럿은 옮기지 않는다).
 /// </summary>
 sealed class OverviewBar : Control
 {
@@ -185,18 +186,34 @@ sealed class OverviewBar : Control
     /// <summary>보이는 범위 (행).</summary>
     public (double Top, double Rows) Viewport { get; set; }
 
-    public event Action<int>? RowRequested;
+    /// <summary>눌러서 끌면 보이는 범위의 맨 위가 이 행(소수 가능)이 되도록 스크롤해 달라는 요청.</summary>
+    public event Action<double>? ScrollRequested;
+
+    /// <summary>마우스 휠: 줄 단위로 얼마나 (위로 굴리면 음수).</summary>
+    public event Action<double>? WheelRequested;
+
+    double _grab;
+    bool _dragging;
 
     public OverviewBar()
     {
-        Width = 14;
-        Cursor = new Cursor(StandardCursorType.Hand);
+        Width = 16;
+        Cursor = new Cursor(StandardCursorType.Arrow);
+    }
+
+    /// <summary>보이는 범위를 나타내는 상자 (스크롤 막대의 손잡이).</summary>
+    Rect Thumb()
+    {
+        if (State?.Diff is not { } diff || diff.Rows.Count == 0) return default;
+        double total = diff.Rows.Count;
+        var (top, rows) = Viewport;
+        return new Rect(0.5, top / total * Bounds.Height, Math.Max(0, Bounds.Width - 1), Math.Max(10, rows / total * Bounds.Height));
     }
 
     public override void Render(DrawingContext dc)
     {
         var h = Bounds.Height;
-        dc.FillRectangle(DiffViewState.Brush("AppSurface") ?? Brushes.Transparent, new Rect(Bounds.Size));
+        dc.FillRectangle(DiffViewState.Brush("AppSurfaceHi") ?? Brushes.Transparent, new Rect(Bounds.Size));
         if (State?.Diff is not { } diff || diff.Rows.Count == 0) return;
         double total = diff.Rows.Count;
         foreach (var range in diff.Ranges)
@@ -211,29 +228,53 @@ sealed class OverviewBar : Control
             };
             if (key is null || DiffViewState.Brush(key) is not { } brush) continue;
             var y = range.StartRow / total * h;
-            dc.FillRectangle(brush, new Rect(2, y, Bounds.Width - 4, Math.Max(2, range.RowCount / total * h)));
+            dc.FillRectangle(brush, new Rect(3, y, Bounds.Width - 6, Math.Max(2, range.RowCount / total * h)));
         }
-        var (top, rows) = Viewport;
-        var pen = new Pen(DiffViewState.Brush("AppTextMid") ?? Brushes.Gray, 1);
-        dc.DrawRectangle(null, pen, new Rect(0.5, top / total * h, Bounds.Width - 1, Math.Max(4, rows / total * h)));
+        // 손잡이: 반투명 채움 + 테두리 — 차이 표시가 비쳐 보이면서도 스크롤 막대의 손잡이로 읽힌다.
+        var thumb = Thumb();
+        var mid = DiffViewState.Brush("AppTextMid") ?? Brushes.Gray;
+        var fill = mid is ISolidColorBrush solid ? new SolidColorBrush(solid.Color, 0.22) : null;
+        dc.DrawRectangle(fill, new Pen(mid, 1), thumb, 3, 3);
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
-        Request(e.GetPosition(this).Y);
+        var y = e.GetPosition(this).Y;
+        var thumb = Thumb();
+        // 손잡이를 누르면 잡은 자리를 그대로 끌고, 빈 자리를 누르면 그 자리가 보이는 범위의 가운데가 되도록 바로 이동한다.
+        _grab = thumb.Height > 0 && y >= thumb.Top && y <= thumb.Bottom ? y - thumb.Top : thumb.Height / 2;
+        _dragging = true;
         e.Pointer.Capture(this);
+        Request(y);
+        e.Handled = true;
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) Request(e.GetPosition(this).Y);
+        if (_dragging && e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) Request(e.GetPosition(this).Y);
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        _dragging = false;
+        e.Pointer.Capture(null);
+    }
+
+    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    {
+        base.OnPointerWheelChanged(e);
+        WheelRequested?.Invoke(-e.Delta.Y * 3);
+        e.Handled = true;
     }
 
     void Request(double y)
     {
         if (State?.Diff is not { } diff || diff.Rows.Count == 0 || Bounds.Height <= 0) return;
-        RowRequested?.Invoke((int)Math.Clamp(y / Bounds.Height * diff.Rows.Count, 0, diff.Rows.Count - 1));
+        double total = diff.Rows.Count;
+        var top = (y - _grab) / Bounds.Height * total;
+        ScrollRequested?.Invoke(Math.Clamp(top, 0, Math.Max(0, total - Viewport.Rows)));
     }
 }

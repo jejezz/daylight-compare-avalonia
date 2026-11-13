@@ -72,6 +72,7 @@ static class ThemeService
         Brush(app, "AppBg", c.Bg);
         Brush(app, "AppSurface", c.Surface);
         Brush(app, "AppSurfaceHi", c.SurfaceHi);
+        Brush(app, "AppEditorBg", AppColors.EditorBackground(c, dark));
         Brush(app, "AppStroke", c.Stroke);
         Brush(app, "AppStrokeStrong", c.StrokeStrong);
         Brush(app, "AppTextHi", c.TextHi);

@@ -28,7 +28,7 @@ public sealed class CompareEditingTests : IDisposable
         for (var i = 0; i < rounds; i++)
         {
             Dispatcher.UIThread.RunJobs();
-            await Task.Delay(25);
+            await Task.Delay(15);
         }
         Dispatcher.UIThread.RunJobs();
     }

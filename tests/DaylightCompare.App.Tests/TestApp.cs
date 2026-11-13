@@ -3,6 +3,8 @@ using Avalonia.Headless;
 using DaylightCompare.App.Tests;
 
 [assembly: AvaloniaTestApplication(typeof(TestApp))]
+// 테스트마다 앱 설정(보기 필터 등)과 UI 스레드를 함께 쓰므로 클래스끼리 동시에 돌리지 않는다 (동시에 돌면 앞 테스트의 설정이 새어 간헐적으로 실패했다).
+[assembly: CollectionBehavior(DisableTestParallelization = true)]
 
 namespace DaylightCompare.App.Tests;
 
