@@ -13,6 +13,9 @@ macOS에서 "Read-only file system" 에러가 났다. 대신 서버 프로세스
 루트를 "/"로 가정하지 않고 그냥 URI의 path를 그대로 쓰므로 실제 서버 동작과도
 더 가깝다.
 
+원격 해시(4c) 시험을 위해 exec 요청도 받는다 — 명령을 이 컴퓨터의 /bin/sh로 그대로
+돌린다(127.0.0.1에서만 뜨는 시험 서버라 괜찮다). 셸 세션은 받지 않는다.
+
 사용: python3 sftp_test_server.py <host> <port> <root_dir> <username> <password>
 필요 패키지: pip3 install --user asyncssh
 """
@@ -38,6 +41,19 @@ class _PasswordAuthServer(asyncssh.SSHServer):
         return username == self._username and password == self._password
 
 
+async def _handle_process(process: asyncssh.SSHServerProcess) -> None:
+    if not process.command:
+        process.exit(1)
+        return
+    proc = await asyncio.create_subprocess_exec(
+        "/bin/sh", "-c", process.command,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    out, err = await proc.communicate()
+    process.stdout.write(out.decode("utf-8", "replace"))
+    process.stderr.write(err.decode("utf-8", "replace"))
+    process.exit(proc.returncode or 0)
+
+
 async def _start(host: str, port: int, username: str, password: str) -> None:
     host_key = asyncssh.generate_private_key("ssh-rsa")
 
@@ -47,6 +63,7 @@ async def _start(host: str, port: int, username: str, password: str) -> None:
         server_host_keys=[host_key],
         server_factory=lambda: _PasswordAuthServer(username, password),
         sftp_factory=asyncssh.SFTPServer,
+        process_factory=_handle_process,
     )
     print("READY", flush=True)
     await asyncio.Event().wait()
