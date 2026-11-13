@@ -213,6 +213,8 @@ public sealed class EnglishStrings : IAppStrings
     public string SettingsFont => "Font";
     public string FontDefaultOption(string name) => $"{name} (default)";
     public string FontSearchHint => "Search fonts";
+    public string SettingsEditorFont => "Editor font";
+    public string SettingsEditorFontHint => "Used by the left and right editors in compare windows. Only monospaced fonts are listed so lines and columns stay aligned.";
     public string SettingsFontSize => "Text size";
     public string SettingsFontSizeHint => "Size of all text: menus, tabs, folder names, status bar.";
     public string SettingsLanguage => "Language";

@@ -36,8 +36,6 @@ namespace DaylightCompare.App.Compare;
 /// </summary>
 public sealed class CompareWindow : Window
 {
-    static readonly FontFamily Mono = new("Cascadia Mono, Consolas, Menlo, Monaco, DejaVu Sans Mono, monospace");
-
     /// <summary>강조(TextMate)를 켜는 크기 상한 — 큰 생성 파일에서 화면이 느려지지 않게.</summary>
     const int HighlightMaxChars = 2 * 1024 * 1024;
 
@@ -613,7 +611,7 @@ public sealed class CompareWindow : Window
     {
         var e = side.Editor;
         e.IsReadOnly = true;
-        e.FontFamily = Mono;
+        e.Bind(TextEditor.FontFamilyProperty, this.GetResourceObservable("AppEditorFont")); // 설정의 편집기 글꼴 (고정폭)
         e.Bind(TextEditor.FontSizeProperty, this.GetResourceObservable("FsBody"));
         e.Bind(TextEditor.ForegroundProperty, this.GetResourceObservable("AppTextHi"));
         e.Background = Brushes.Transparent;
@@ -658,7 +656,8 @@ public sealed class CompareWindow : Window
         e.Document.TextChanged += (_, _) => OnEdited(side);
         e.PropertyChanged += (_, args) =>
         {
-            if (args.Property == TextEditor.FontSizeProperty) side.Margin.SetFont(Mono, e.FontSize * 0.9);
+            if (args.Property == TextEditor.FontSizeProperty || args.Property == TextEditor.FontFamilyProperty)
+                side.Margin.SetFont(e.FontFamily, e.FontSize * 0.9);
         };
     }
 

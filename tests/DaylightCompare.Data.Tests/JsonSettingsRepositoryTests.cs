@@ -34,6 +34,7 @@ public sealed class JsonSettingsRepositoryTests : IDisposable
         TextScale = 1.15,
         Locale = AppLocale.English,
         UiFontFamily = "Malgun Gothic",
+        EditorFontFamily = "Menlo",
         Window = new WindowPlacement { X = 10, Y = 20, Width = 1000, Height = 600, Scale = 1.5, Maximized = true },
     };
 
@@ -47,6 +48,7 @@ public sealed class JsonSettingsRepositoryTests : IDisposable
         Assert.Equal(Full.TextScale, back.TextScale);
         Assert.Equal(Full.Locale, back.Locale);
         Assert.Equal(Full.UiFontFamily, back.UiFontFamily);
+        Assert.Equal(Full.EditorFontFamily, back.EditorFontFamily);
         Assert.Equal(Full.Window, back.Window);
     }
 
@@ -111,6 +113,7 @@ public sealed class JsonSettingsRepositoryTests : IDisposable
         Assert.Equal(1.5, w.GetProperty("scale").GetDouble());
         Assert.True(w.GetProperty("max").GetBoolean());
         Assert.Equal("Malgun Gothic", j.GetProperty("ui_font_family").GetString());
+        Assert.Equal("Menlo", j.GetProperty("editor_font_family").GetString());
     }
 
     [Fact]
