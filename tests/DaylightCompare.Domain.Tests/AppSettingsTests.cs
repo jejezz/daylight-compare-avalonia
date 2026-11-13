@@ -14,6 +14,7 @@ public class AppSettingsTests
         Assert.Equal(1.0, s.TextScale);
         Assert.Null(s.Locale);
         Assert.Null(s.UiFontFamily);
+        Assert.Null(s.EditorFontFamily);
         Assert.Null(s.Window);
     }
 

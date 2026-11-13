@@ -38,6 +38,7 @@ static class ThemeService
         Apply(settings.Theme, settings.Palette);
         var app = Application.Current!;
         app.Resources["AppFont"] = FontFamilyFor(settings.UiFontFamily);
+        app.Resources["AppEditorFont"] = EditorFonts.For(settings.EditorFontFamily); // 고정폭만
         var scale = settings.TextScale;
         app.Resources["FsBody"] = 13 * scale;
         app.Resources["FsMid"] = 12 * scale;

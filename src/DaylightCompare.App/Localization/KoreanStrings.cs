@@ -213,6 +213,8 @@ public sealed class KoreanStrings : IAppStrings
     public string SettingsFont => "글꼴";
     public string FontDefaultOption(string name) => $"{name} (기본)";
     public string FontSearchHint => "글꼴 검색";
+    public string SettingsEditorFont => "편집기 글꼴";
+    public string SettingsEditorFontHint => "비교 창의 좌우 편집기에 쓰는 글꼴입니다. 줄과 글자 열이 맞도록 고정폭 글꼴만 고를 수 있습니다.";
     public string SettingsFontSize => "화면 글자 크기";
     public string SettingsFontSizeHint => "메뉴, 탭, 폴더 이름, 상태 줄 등 모든 글자의 크기입니다.";
     public string SettingsLanguage => "언어";

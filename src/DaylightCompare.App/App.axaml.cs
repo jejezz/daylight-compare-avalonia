@@ -185,7 +185,8 @@ public partial class App : Application
         var previous = _applied;
         _applied = s;
         if (previous is null || previous.Theme != s.Theme || previous.Palette != s.Palette
-            || previous.TextScale != s.TextScale || previous.UiFontFamily != s.UiFontFamily)
+            || previous.TextScale != s.TextScale || previous.UiFontFamily != s.UiFontFamily
+            || previous.EditorFontFamily != s.EditorFontFamily)
             ThemeService.Apply(s);
         if (previous is null || previous.Locale != s.Locale) Strings.Apply(s.Locale);
     }
