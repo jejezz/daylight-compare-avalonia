@@ -40,6 +40,7 @@ Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비�
 - 화면은 `tests/DaylightCompare.App.Tests`(Avalonia Headless + Skia)로 창을 띄우지 않고 그려 본다. `DCMP_SHOTS=<폴더>`를 주면 PNG를 남긴다 — 화면을 바꾸면 그림으로 확인한다.
 - 테스트: `dotnet test DaylightCompare.slnx`. 원격 통합 테스트는 asyncssh·pyftpdlib·wsgidav·cheroot가 있는 파이썬이 있어야 돌고(없으면 건너뜀), 다른 파이썬은 `DC_TEST_PYTHON`으로 준다. 실행: `dotnet run -c Release --project src\DaylightCompare.App`.
 - **브랜치 운영 — 로컬 `staging` (사용자 결정, 2026-11-13).**
+  0. **`staging`이 있으면 `staging`이 최신이다 — `origin/main`이 아니다.** 새 기능·수정 브랜치는 **항상 `staging`에서 딴다**(`git checkout -b <브랜치> staging`). `origin/main`에서 따면 `staging`에만 있는 고침이 빠진다.
   1. 작업은 기능·수정 브랜치(worktree)마다 하고, **커밋한 뒤 `staging`으로 머지**한다(`git checkout staging && git merge --no-ff <브랜치>`). `staging`은 `origin/main`에서 만들고 **로컬에만 둔다**(푸시하지 않는다).
   2. **사용자의 빌드·실행 시험은 `staging`에서 한다.** 써 보게 할 것은 반드시 `staging`에 합쳐 두고, 체크아웃도 `staging`으로 둔다 — 고침이 다른 브랜치에만 있어 "고쳤는데 또 그렇다"가 되지 않게.
   3. **`staging`에서 사용자의 검증이 끝나면** 그때 PR을 만들어 올리고 `main`으로 병합한다. 검증 전에 브랜치마다 PR을 먼저 올리지 않는다.
