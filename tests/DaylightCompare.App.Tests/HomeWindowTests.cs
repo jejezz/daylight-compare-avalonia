@@ -46,6 +46,10 @@ public sealed class HomeWindowTests : IDisposable
     string Folder(string name) => Directory.CreateDirectory(Path.Combine(_dir, name)).FullName;
 
     [AvaloniaFact]
+    public void macOS_앱_메뉴에_앱_이름이_보인다() =>
+        Assert.Equal("Daylight Compare", Avalonia.Application.Current!.Name); // 기본값 "Avalonia Application"이 아니다
+
+    [AvaloniaFact]
     public async Task 폴더_하나를_놓으면_왼쪽만_채운_폴더_비교_창이_열린다()
     {
         var home = new HomeWindow();
