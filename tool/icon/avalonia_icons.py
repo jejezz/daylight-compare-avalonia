@@ -11,7 +11,8 @@ reuses its drawing code and writes where the Avalonia build and packaging read:
   assets/icon/app_icon_1024.png, app_icon.png   master + 256px (as generate_icons.py)
   src/DaylightCompare.App/Assets/app_icon.ico   Windows exe/window icon, no plate
   src/DaylightCompare.App/Assets/app_icon.png   256px, About dialog
-  installer/macos/app_icon_1024.png             package-macos.sh builds the .icns
+  installer/macos/app_icon_1024.png             master for the .icns
+  installer/macos/AppIcon.icns                  make_icns.py; package-macos.sh puts it in the .app
   installer/linux/app_icon.png                  512px, package-linux.sh
 
 The cat artwork is a paid Icons8 asset: pass its path, do not commit it.
@@ -26,6 +27,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import generate_icons as g  # noqa: E402
+from make_icns import make_icns  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 ASSETS = ROOT / 'src/DaylightCompare.App/Assets'
@@ -53,11 +55,12 @@ def main() -> None:
 
     (ROOT / 'installer/macos').mkdir(parents=True, exist_ok=True)
     mac.save(ROOT / 'installer/macos/app_icon_1024.png')
+    make_icns()
     (ROOT / 'installer/linux').mkdir(parents=True, exist_ok=True)
     g.desktop_icon(glyph).resize((512, 512), Image.LANCZOS).save(ROOT / 'installer/linux/app_icon.png')
 
     print(f'hue {round(g.APP_HUE * 360)}°  → assets/icon, {ASSETS.relative_to(ROOT)}/app_icon.ico+png, '
-          'installer/macos/app_icon_1024.png, installer/linux/app_icon.png')
+          'installer/macos/app_icon_1024.png+AppIcon.icns, installer/linux/app_icon.png')
 
 
 if __name__ == '__main__':
