@@ -5,7 +5,7 @@ https://github.com/jejezz/application-release-templates/tree/main/conventions
 규약을 따른다. 이 앱에 적용된 규약 버전: conventions-v1
 
 Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비교, 병합, 동기화)을 하는 C#/Avalonia(.NET 10) 데스크톱 앱. Daylight 패밀리.
-계획·결정·위험은 [ROADMAP.md](ROADMAP.md). **지금 위치: 3단계(텍스트 비교) 구현 완료 — 3a 엔진·비교 창·편집·저장·편의(차이만 보기·찾기·클립보드 비교), 3b CLI·단일 실행·`--wait`·종료 코드. 4단계(폴더 비교) 진행 중 — 4a 엔진·BC 필터 문법, 4b 폴더 비교 창(BC 색·보기 필터·복사·삭제) 완료, 다음은 4c 원격 해시·세션·Commander 연동.**
+계획·결정·위험은 [ROADMAP.md](ROADMAP.md). **지금 위치: `v0.1.0` 릴리스(2026-11-14). 3단계(텍스트 비교) 구현 완료 — 3a 엔진·비교 창·편집·저장·편의(차이만 보기·찾기·클립보드 비교), 3b CLI·단일 실행·`--wait`·종료 코드. 4단계(폴더 비교) 진행 중 — 4a 엔진·BC 필터 문법, 4b 폴더 비교 창(BC 색·보기 필터·복사·삭제)과 홈 창 개편(Daylight PDF 구성, 놓으면 맞는 창) 완료, 다음은 4c 원격 해시·세션·Commander 연동.**
 
 - **Beyond Compare에 익숙한 사용자가 쓴다 (가장 먼저 지키는 규칙).** 화면 모습은 달라도 되지만 단축키·명령 이름과 범위·필터 문법·병합 과정·명령줄은
   BC와 같거나 가깝게, 아이콘이 달라도 BC에 있는 기능은 제공한다. 새 기능·키를 정하기 전에 [BC_COMPAT.md](BC_COMPAT.md)에서 BC의 이름·키·흐름을 찾고,
