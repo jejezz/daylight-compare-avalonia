@@ -52,6 +52,11 @@ public sealed class FolderCompareWindow : Window
     readonly TextBlock _rightPath = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.PathSegmentEllipsis };
     readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(10, 4) };
     readonly DialogHost _dialogs = new();
+
+    /// <summary>보기 필터가 모든 항목을 숨겼을 때 목록 자리에 뜨는 안내와 [모두 보기] — 비교는 끝났는데 목록이 비어 "사라진" 것처럼 보이지 않게.</summary>
+    readonly TextBlock _allHiddenText = new() { TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap };
+    readonly Button _showAllButton = new() { Name = "ShowAllButton", Classes = { "accent" }, HorizontalAlignment = HorizontalAlignment.Center };
+    readonly StackPanel _allHidden = new() { Spacing = 12, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsVisible = false };
     readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(150) };
 
     public string LeftRoot => _leftRoot;
@@ -78,7 +83,9 @@ public sealed class FolderCompareWindow : Window
         (_leftFs, _leftRoot) = Resolve(left);
         (_rightFs, _rightRoot) = Resolve(right);
         var settings = App.Settings.Value;
+        // 저장된 토글이 하나도 켜져 있지 않으면(예전에 모두 끈 채 저장됨) 창을 열 때마다 목록이 비므로 모두 보기로 되돌린다.
         _show = (FolderShow)settings.FolderShowFlags & FolderShow.All;
+        if (_show == FolderShow.None) _show = FolderShow.All;
         _alwaysFolders = settings.FolderAlwaysShowFolders;
         Width = 1280;
         Height = 780;
@@ -215,6 +222,11 @@ public sealed class FolderCompareWindow : Window
         Place(grid, filterBar, 1);
         Place(grid, header, 2);
         Place(grid, _list, 3);
+        _allHidden.Children.Add(_allHiddenText);
+        _allHidden.Children.Add(_showAllButton);
+        _allHiddenText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
+        _showAllButton.Click += (_, _) => SetShow(FolderShow.All);
+        Place(grid, _allHidden, 3);
         grid.Children.Add(_dialogs);
         Grid.SetRowSpan(_dialogs, 4);
         return grid;
@@ -336,6 +348,11 @@ public sealed class FolderCompareWindow : Window
         var offset = scroll?.Offset ?? default;
         _rows = rows;
         _list.ItemsSource = rows;
+        // 항목은 있는데 필터가 전부 숨겼다면 이유와 [모두 보기]를 보인다.
+        var anyItems = count.Same + count.Different + count.LeftOrphan + count.RightOrphan + count.Pending > 0;
+        _allHidden.IsVisible = rows.Count == 0 && anyItems && _show != FolderShow.All;
+        _allHiddenText.Text = Strings.Current.FolderAllHidden;
+        _showAllButton.Content = Strings.Current.FolderShowName("all");
         if (selected.Count > 0)
             foreach (var r in rows.Where(r => selected.Contains(r.Node.RelativePath)))
                 _list.SelectedItems?.Add(r);
@@ -373,7 +390,10 @@ public sealed class FolderCompareWindow : Window
     void UpdateViewFilterButton()
     {
         var s = Strings.Current;
-        _viewFilter.Content = FolderShowPresets.IdOf(_show) is { } id ? s.FolderShowName(id) : s.FolderCustomFilter;
+        // BC 이름이 없는 조합은 "사용자 지정 (켜진 토글 수/6)"로 — 얼마나 걸러지고 있는지 단추만 봐도 알 수 있게.
+        _viewFilter.Content = FolderShowPresets.IdOf(_show) is { } id
+            ? s.FolderShowName(id)
+            : $"{s.FolderCustomFilter} ({System.Numerics.BitOperations.PopCount((uint)(_show & FolderShow.All))}/6)";
         var flyout = new MenuFlyout();
         foreach (var item in ViewFilterItems()) flyout.Items.Add(item);
         _viewFilter.Flyout = flyout;
@@ -401,7 +421,18 @@ public sealed class FolderCompareWindow : Window
         {
             var item = new MenuItem { Header = name, ToggleType = MenuItemToggleType.CheckBox, IsChecked = (_show & flag) != 0 };
             var f = flag;
-            item.Click += (_, _) => SetShow(_show ^ f);
+            item.Click += (_, _) =>
+            {
+                var next = _show ^ f;
+                if ((next & FolderShow.All) == FolderShow.None)
+                {
+                    // 모두 끄면 아무것도 안 보인다 — 막고 안내한다 (메뉴의 체크 표시도 되돌린다).
+                    Notice(Strings.Current.FolderFilterKeepOne);
+                    UpdateViewFilterButton();
+                    return;
+                }
+                SetShow(next);
+            };
             toggles.Items.Add(item);
         }
         yield return toggles;
