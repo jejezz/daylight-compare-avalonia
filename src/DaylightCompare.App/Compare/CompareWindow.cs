@@ -199,8 +199,15 @@ public sealed class CompareWindow : Window
                 side.Watcher?.Dispose();
             }
         };
-        Opened += async (_, _) => await ReloadAsync();
+        Opened += async (_, _) =>
+        {
+            await ReloadAsync();
+            RecordHistory();
+        };
     }
+
+    /// <summary>두 쪽이 모두 파일이면 최근 비교 목록에 기록한다 (붙여 넣은 글은 경로가 없어 건너뛴다).</summary>
+    void RecordHistory() => App.RecordHistory(_left.Path, _right.Path, folders: false);
 
     void OnLanguageChanged() => Dispatcher.UIThread.Post(() =>
     {
@@ -1379,6 +1386,7 @@ public sealed class CompareWindow : Window
         {
             Title = Strings.Current.CompareSaveFileAs,
             SuggestedFileName = side.Path is null ? "pasted.txt" : System.IO.Path.GetFileName(side.Path.Replace(ArchivePaths.Separator, "/")),
+            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
         });
         if (file?.TryGetLocalPath() is not { } path) return;
         var template = side.Text is { } t && !side.IsScratch
@@ -1432,6 +1440,7 @@ public sealed class CompareWindow : Window
         (_left.ForcedEncoding, _right.ForcedEncoding) = (_right.ForcedEncoding, _left.ForcedEncoding);
         (_left.RepairRequested, _right.RepairRequested) = (_right.RepairRequested, _left.RepairRequested);
         await ReloadAsync();
+        RecordHistory();
     }
 
     async Task PickAsync(Side side)
@@ -1440,13 +1449,16 @@ public sealed class CompareWindow : Window
         {
             Title = side.Left ? Strings.Current.CompareOpenLeftTitle : Strings.Current.CompareOpenRightTitle,
             AllowMultiple = false,
+            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
         });
         if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path) return;
+        PickLocations.Remember(path, isFolder: false);
         if (!await ConfirmDiscardAsync()) return;
         side.Path = path;
         side.ForcedEncoding = null;
         side.RepairRequested = false;
         await ReloadAsync();
+        RecordHistory();
     }
 
     // --- 끌어다 놓기 (ROADMAP §6-1 ①) ---
@@ -1483,6 +1495,7 @@ public sealed class CompareWindow : Window
             _right.Path = r;
             foreach (var side in new[] { _left, _right }) { side.ForcedEncoding = null; side.RepairRequested = false; }
             await ReloadAsync();
+            RecordHistory();
         });
     }
 

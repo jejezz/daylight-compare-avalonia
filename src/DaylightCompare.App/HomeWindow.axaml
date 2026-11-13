@@ -53,6 +53,19 @@
                     </StackPanel>
                 </Grid>
             </Border>
+
+            <!-- 최근 비교: 같은 쌍을 매번 다시 고르지 않게 (BC 홈의 Recent Sessions) -->
+            <StackPanel x:Name="HistorySection" Spacing="4" Margin="0,12,0,0" IsVisible="False">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{DynamicResource Str.HomeRecentTitle}" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" x:Name="ClearHistoryButton" Classes="text" Content="{DynamicResource Str.HomeRecentClear}"/>
+                </Grid>
+                <ScrollViewer MaxHeight="228" VerticalScrollBarVisibility="Auto">
+                    <StackPanel x:Name="HistoryList" Spacing="2"/>
+                </ScrollViewer>
+                <TextBlock x:Name="HistoryNotice" Foreground="{DynamicResource AppFolderDifferent}" TextWrapping="Wrap"
+                           FontSize="{DynamicResource FsSmall}"/>
+            </StackPanel>
         </StackPanel>
 
         <!-- 끌고 들어오면 창 전체를 강조 (ui-ux.md §7) -->

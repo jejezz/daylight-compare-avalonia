@@ -52,6 +52,11 @@ public interface IAppStrings
     string DropTooMany { get; }
     string DropNoCounterpart(string name);
     string CommonClose { get; }
+    string HomeRecentTitle { get; }
+    string HomeRecentClear { get; }
+    string HomeRecentRemove { get; }
+    string HomeRecentMissing(string path);
+    string HomeRecentYesterday(string time);
     string FolderLoading { get; }
     string FolderColName { get; }
     string FolderColSize { get; }

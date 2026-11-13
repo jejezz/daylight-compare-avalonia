@@ -90,6 +90,14 @@ public sealed record AppSettings
 
     public const int DefaultContextLines = 3, MaxContextLines = 20;
 
+    /// <summary>최근 비교 목록 (맨 앞이 가장 최근, 최대 <see cref="CompareHistoryList.Max"/>개). 홈 창에서 한 번 눌러 다시 연다.</summary>
+    [JsonPropertyName("compare_history")]
+    public IReadOnlyList<CompareHistoryEntry> CompareHistory { get; init; } = [];
+
+    /// <summary>파일·폴더 고르기 창이 처음 열릴 폴더 (마지막으로 고른 곳). 없으면 OS 기본.</summary>
+    [JsonPropertyName("last_pick_dir")]
+    public string? LastPickDir { get; init; }
+
     /// <summary>폴더 비교의 보기 필터 토글 (<c>FolderShow</c> 비트, BC View > Show …). 기본은 모두 보기(63).</summary>
     [JsonPropertyName("folder_show")]
     public int FolderShowFlags { get; init; } = 63;
@@ -124,6 +132,7 @@ public sealed record AppSettings
         // 파일에 없던 목록·표는 null로 읽힌다 (컴파일러는 null이 아니라고 믿으므로 object로 본다).
         if ((object?)result.NetworkProfiles is null) result = result with { NetworkProfiles = [] };
         if ((object?)result.KnownHostKeys is null) result = result with { KnownHostKeys = new Dictionary<string, string>() };
+        if ((object?)result.CompareHistory is null) result = result with { CompareHistory = [] };
         return result;
     }
 }

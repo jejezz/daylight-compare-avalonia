@@ -116,6 +116,7 @@ public sealed class FolderCompareWindow : Window
         Opened += (_, _) =>
         {
             _timer.Start();
+            RecordHistory();
             _ = StartCompareAsync();
         };
         UpdateTitle();
@@ -129,6 +130,11 @@ public sealed class FolderCompareWindow : Window
         _filterBox.PlaceholderText = Strings.Current.FolderFilterPlaceholder;
         Rebuild();
     });
+
+    /// <summary>최근 비교 목록에 기록한다. 압축 파일은 안쪽 경로(<c>a.zip!/</c>)가 아니라 압축 파일 경로로.</summary>
+    void RecordHistory() => App.RecordHistory(Original(_leftRoot), Original(_rightRoot), folders: true);
+
+    static string Original(string root) => ArchivePaths.TryParse(root)?.Archive ?? root;
 
     void UpdateTitle()
     {
@@ -582,18 +588,26 @@ public sealed class FolderCompareWindow : Window
         (_leftRoot, _rightRoot) = (_rightRoot, _leftRoot);
         (_leftFs, _rightFs) = (_rightFs, _leftFs);
         UpdateTitle();
+        RecordHistory();
         await StartCompareAsync();
     }
 
     async Task ChooseAsync(bool left)
     {
         var s = Strings.Current;
-        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle, AllowMultiple = false });
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle,
+            AllowMultiple = false,
+            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
+        });
         if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } path) return;
+        PickLocations.Remember(path, isFolder: true);
         var (fs, root) = Resolve(path);
         if (left) (_leftFs, _leftRoot) = (fs, root); else (_rightFs, _rightRoot) = (fs, root);
         _expanded.Clear();
         UpdateTitle();
+        RecordHistory();
         await StartCompareAsync();
     }
 

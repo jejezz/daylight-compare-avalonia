@@ -25,6 +25,21 @@ public partial class App : Application
     /// <summary>Compare Policy 파일 (설정과 같은 폴더의 <c>policy.json</c>). 비교 화면이 열 때마다 <see cref="PolicyStore.LoadAsync"/>로 다시 읽는다.</summary>
     public static PolicyStore Policy { get; private set; } = null!;
 
+    /// <summary>
+    /// 최근 비교 목록에 이 쌍을 기록한다 (맨 앞으로, 같은 쌍은 하나로). 비교 창이 열릴 때와 한쪽을 바꿀 때 부른다.
+    /// 경로가 없는 쪽(붙여 넣은 글 등)이 있으면 기록하지 않는다.
+    /// </summary>
+    internal static void RecordHistory(string? left, string? right, bool folders)
+    {
+        if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return;
+        var entry = new CompareHistoryEntry
+        {
+            Left = left, Right = right, OpenedAt = DateTimeOffset.Now,
+            Kind = folders ? CompareHistoryEntry.Folders : CompareHistoryEntry.Files,
+        };
+        Settings.Update(s => s with { CompareHistory = CompareHistoryList.Record(s.CompareHistory, entry, PolicyStore.NamesIgnoreCase) });
+    }
+
     /// <summary>시작할 때 읽은 정책 (경고·깨진 파일 안내용). 비교 화면은 최신 파일을 다시 읽는다.</summary>
     public static ComparePolicy? StartupPolicy { get; private set; }
 

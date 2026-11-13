@@ -5,9 +5,11 @@ using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using DaylightCompare.App.Compare;
 using DaylightCompare.App.Dialogs;
+using DaylightCompare.App.Icons;
 using DaylightCompare.App.Views;
 using DaylightCompare.Domain;
 using DaylightCompare.Domain.Drop;
+using DaylightCompare.Domain.Settings;
 using DaylightCompare.Domain.Window;
 using DaylightCompare.Services;
 
@@ -57,9 +59,130 @@ public partial class HomeWindow : Window
         });
         AddHandler(DragDrop.DragLeaveEvent, (_, _) => DropHint.IsVisible = false);
         AddHandler(DragDrop.DropEvent, OnDrop);
+        ClearHistoryButton.Click += (_, _) => App.Settings.Update(s => s with { CompareHistory = [] });
         Strings.Changed += RefreshPicks;
-        Closed += (_, _) => Strings.Changed -= RefreshPicks;
+        Strings.Changed += RefreshHistoryOnUi;
+        App.Settings.Changed += OnSettingsChanged;
+        Closed += (_, _) =>
+        {
+            Strings.Changed -= RefreshPicks;
+            Strings.Changed -= RefreshHistoryOnUi;
+            App.Settings.Changed -= OnSettingsChanged;
+        };
         RefreshPicks();
+        RefreshHistory();
+    }
+
+    // --- 최근 비교 (ROADMAP §6-1: 같은 쌍을 매번 다시 고르지 않게) ---
+
+    /// <summary>화면에 올린 목록 (설정이 바뀔 때 이 목록이 바뀐 경우에만 다시 그린다 — 창 위치 같은 다른 설정에는 반응하지 않는다).</summary>
+    IReadOnlyList<CompareHistoryEntry>? _historyShown;
+    int _historyVersion;
+
+    void OnSettingsChanged(AppSettings s)
+    {
+        if (!ReferenceEquals(s.CompareHistory, _historyShown)) Avalonia.Threading.Dispatcher.UIThread.Post(RefreshHistory);
+    }
+
+    void RefreshHistoryOnUi() => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshHistory);
+
+    void RefreshHistory()
+    {
+        var all = App.Settings.Value.CompareHistory;
+        _historyShown = all;
+        HistorySection.IsVisible = all.Count > 0;
+        HistoryList.Children.Clear();
+        HistoryNotice.Text = "";
+        var rows = new List<(CompareHistoryEntry Entry, Control Row)>();
+        foreach (var entry in all)
+        {
+            var row = HistoryRow(entry);
+            rows.Add((entry, row));
+            HistoryList.Children.Add(row);
+        }
+        _ = MarkMissingAsync(rows);
+    }
+
+    Control HistoryRow(CompareHistoryEntry e)
+    {
+        var s = Strings.Current;
+        var icon = new DuoIcon { Icon = e.IsFolders ? "folder" : "file", ColorKey = e.IsFolders ? "AppIconFolder" : null, Width = 18, Height = 18, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+        var title = new TextBlock { Text = $"{Locations.NameOf(Plain(e.Left))}  ↔  {Locations.NameOf(Plain(e.Right))}", FontWeight = Avalonia.Media.FontWeight.SemiBold, TextTrimming = Avalonia.Media.TextTrimming.CharacterEllipsis };
+        var leftPath = new TextBlock { Text = e.Left, TextTrimming = Avalonia.Media.TextTrimming.PathSegmentEllipsis };
+        var rightPath = new TextBlock { Text = e.Right, TextTrimming = Avalonia.Media.TextTrimming.PathSegmentEllipsis };
+        foreach (var t in new[] { leftPath, rightPath })
+        {
+            t.FontSize = 11;
+            t.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
+        }
+        var paths = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,*"), ColumnSpacing = 6, Children = { leftPath, new TextBlock { Text = "↔", FontSize = 11 }, rightPath } };
+        Grid.SetColumn(paths.Children[1], 1);
+        Grid.SetColumn(rightPath, 2);
+        var time = new TextBlock { Text = TimeText(e.OpenedAt), FontSize = 11, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+        time.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
+        var remove = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "close", Width = 12, Height = 12 }, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center };
+        ToolTip.SetTip(remove, s.HomeRecentRemove);
+        remove.Click += (_, _) => App.Settings.Update(st => st with { CompareHistory = CompareHistoryList.Remove(st.CompareHistory, e, PolicyStore.NamesIgnoreCase) });
+        var text = new StackPanel { Spacing = 1, Children = { title, paths } };
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), ColumnSpacing = 10, Children = { icon, text, time, remove } };
+        Grid.SetColumn(text, 1);
+        Grid.SetColumn(time, 2);
+        Grid.SetColumn(remove, 3);
+        var row = new Border { Classes = { "historyrow" }, Child = grid };
+        ToolTip.SetTip(row, $"{e.Left}\n{e.Right}");
+        row.PointerPressed += (_, args) =>
+        {
+            if (args.GetCurrentPoint(row).Properties.IsLeftButtonPressed) _ = OpenHistoryAsync(e);
+        };
+        return row;
+    }
+
+    /// <summary>압축 파일 안 경로(<c>a.zip!/x</c>)는 이름만 보일 때 압축 파일 이름으로.</summary>
+    static string Plain(string path) => path.Replace(ArchivePaths.Separator, "/");
+
+    static string TimeText(DateTimeOffset at)
+    {
+        var local = at.ToLocalTime();
+        var today = DateTime.Today;
+        return local.Date == today ? local.ToString("HH:mm")
+            : local.Date == today.AddDays(-1) ? Strings.Current.HomeRecentYesterday(local.ToString("HH:mm"))
+            : local.ToString("yyyy-MM-dd");
+    }
+
+    /// <summary>기록의 두 경로 중 지금 없는 첫 경로 (모두 있으면 null). 압축 파일 안 경로는 압축 파일이 있는지만 본다.</summary>
+    static string? FirstMissing(CompareHistoryEntry e)
+    {
+        foreach (var path in new[] { e.Left, e.Right })
+        {
+            var real = ArchivePaths.TryParse(path)?.Archive ?? path;
+            if (!(Directory.Exists(real) || File.Exists(real))) return path;
+        }
+        return null;
+    }
+
+    /// <summary>없어진 경로의 줄은 흐리게. 느린 네트워크 경로가 화면을 막지 않게 백그라운드에서 확인한다.</summary>
+    async Task MarkMissingAsync(List<(CompareHistoryEntry Entry, Control Row)> rows)
+    {
+        var version = ++_historyVersion;
+        var missing = await Task.Run(() => rows.Select(r => FirstMissing(r.Entry)).ToArray());
+        if (version != _historyVersion) return;
+        for (var i = 0; i < rows.Count; i++)
+        {
+            rows[i].Row.Opacity = missing[i] is null ? 1 : 0.5;
+            if (missing[i] is { } path) ToolTip.SetTip(rows[i].Row, Strings.Current.HomeRecentMissing(path));
+        }
+    }
+
+    async Task OpenHistoryAsync(CompareHistoryEntry e)
+    {
+        if (await Task.Run(() => FirstMissing(e)) is { } missing)
+        {
+            HistoryNotice.Text = Strings.Current.HomeRecentMissing(missing);
+            return;
+        }
+        HistoryNotice.Text = "";
+        if (e.IsFolders) FolderCompareWindow.Open(this, e.Left, e.Right);
+        else CompareWindow.Open(this, e.Left, e.Right);
     }
 
     // --- 새 비교: 왼쪽·오른쪽 고르기와 끌어다 놓기 (ROADMAP §6-1 ①) ---
@@ -79,8 +202,10 @@ public partial class HomeWindow : Window
         {
             Title = left ? Strings.Current.CompareOpenLeftTitle : Strings.Current.CompareOpenRightTitle,
             AllowMultiple = false,
+            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
         });
         if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path) return;
+        PickLocations.Remember(path, isFolder: false);
         if (left) _left = path; else _right = path;
         RefreshPicks();
         if (_left is not null && _right is not null) OpenCompare();
@@ -92,8 +217,10 @@ public partial class HomeWindow : Window
         {
             Title = left ? Strings.Current.FolderChooseLeftTitle : Strings.Current.FolderChooseRightTitle,
             AllowMultiple = false,
+            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
         });
         if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } path) return;
+        PickLocations.Remember(path, isFolder: true);
         if (left) _left = path; else _right = path;
         RefreshPicks();
         if (_left is not null && _right is not null) OpenCompare();
