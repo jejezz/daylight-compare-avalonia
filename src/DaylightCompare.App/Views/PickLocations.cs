@@ -10,7 +10,9 @@ static class PickLocations
 {
     public static async Task<IStorageFolder?> StartAsync(IStorageProvider provider)
     {
-        if (App.Settings.Value.LastPickDir is not { Length: > 0 } dir || !Directory.Exists(dir)) return null;
+        if (App.Settings.Value.LastPickDir is not { Length: > 0 } dir) return null;
+        // 마지막으로 고른 폴더가 네트워크 드라이브면 존재 확인이 오래 걸릴 수 있다 — UI 스레드에서 하지 않는다.
+        if (!await Task.Run(() => Directory.Exists(dir))) return null;
         try { return await provider.TryGetFolderFromPathAsync(dir); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
     }

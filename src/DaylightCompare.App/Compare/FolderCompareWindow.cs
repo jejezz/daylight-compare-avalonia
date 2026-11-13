@@ -75,8 +75,10 @@ public sealed class FolderCompareWindow : Window
 
     FolderCompareWindow(string left, string right)
     {
-        (_leftFs, _leftRoot) = Resolve(left);
-        (_rightFs, _rightRoot) = Resolve(right);
+        // 경로가 폴더인지 압축 파일인지는 열 때 UI 스레드에서 디스크를 만져 알아내지 않는다 (네트워크 드라이브에서는 이것만으로 앱이 멈출 수 있다).
+        // 일단 받은 그대로 두고, 첫 비교를 시작할 때 백그라운드에서 정한다 (ResolveOnce).
+        (_leftFs, _leftRoot) = (LocalFileSystem.Instance, left);
+        (_rightFs, _rightRoot) = (LocalFileSystem.Instance, right);
         var settings = App.Settings.Value;
         _show = (FolderShow)settings.FolderShowFlags & FolderShow.All;
         _alwaysFolders = settings.FolderAlwaysShowFolders;
@@ -299,10 +301,24 @@ public sealed class FolderCompareWindow : Window
 
     // --- 비교 ---
 
+    Task? _resolveTask;
+
+    /// <summary>양쪽 경로가 폴더인지 압축 파일인지 백그라운드에서 한 번만 정한다 (디스크를 만지므로 UI 스레드에서 하지 않는다).</summary>
+    Task ResolveOnce() => _resolveTask ??= ResolveAsync();
+
+    async Task ResolveAsync()
+    {
+        var (left, right) = await Task.Run(() => (Resolve(_leftRoot), Resolve(_rightRoot)));
+        (_leftFs, _leftRoot) = left;
+        (_rightFs, _rightRoot) = right;
+        UpdateTitle();
+    }
+
     async Task StartCompareAsync()
     {
         _cts?.Cancel();
         var cts = _cts = new CancellationTokenSource();
+        await ResolveOnce();
         var policy = await App.Policy.LoadAsync();
         if (cts.IsCancellationRequested) return;
         var comparer = _comparer = new FolderComparer(_leftFs, _leftRoot, _rightFs, _rightRoot, policy, PolicyStore.NamesIgnoreCase, _filter);
@@ -587,6 +603,7 @@ public sealed class FolderCompareWindow : Window
 
     async Task SwapAsync()
     {
+        await ResolveOnce();
         (_leftRoot, _rightRoot) = (_rightRoot, _leftRoot);
         (_leftFs, _rightFs) = (_rightFs, _leftFs);
         UpdateTitle();
@@ -605,7 +622,8 @@ public sealed class FolderCompareWindow : Window
         });
         if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } path) return;
         PickLocations.Remember(path, isFolder: true);
-        var (fs, root) = Resolve(path);
+        await ResolveOnce();
+        var (fs, root) = await Task.Run(() => Resolve(path));
         if (left) (_leftFs, _leftRoot) = (fs, root); else (_rightFs, _rightRoot) = (fs, root);
         _expanded.Clear();
         UpdateTitle();

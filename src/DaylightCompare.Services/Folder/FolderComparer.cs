@@ -51,7 +51,14 @@ public sealed class FolderComparer
     /// <summary>모든 비교가 끝났다.</summary>
     public bool Completed { get; private set; }
 
-    public async Task RunAsync(CancellationToken ct = default)
+    /// <summary>
+    /// 비교를 실행한다. <b>항상 백그라운드(스레드 풀)에서</b> 돈다 — 부르는 쪽이 UI 스레드여도 파일을 읽고 해석하고 diff하는 일의 이어지기가
+    /// UI 스레드로 돌아오지 않는다. (UI 스레드에서 이어지면 일반 우선순위의 이어지기가 입력·그리기보다 먼저 처리되어, 파일이 많거나 읽기가 느린
+    /// 네트워크 드라이브에서 앱이 통째로 멈췄다.) 그래서 <see cref="Changed"/>도 백그라운드 스레드에서 온다.
+    /// </summary>
+    public Task RunAsync(CancellationToken ct = default) => Task.Run(() => RunCoreAsync(ct), ct);
+
+    async Task RunCoreAsync(CancellationToken ct)
     {
         var contentJobs = new List<FolderNode>();
         var queue = new Queue<FolderNode>();

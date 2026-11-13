@@ -25,7 +25,13 @@ public static class CompareSources
     /// <summary>텍스트 비교로 여는 크기 상한 (편집기 상한 5MB보다 크게 — 로그·생성 파일 비교).</summary>
     public const int TextMaxBytes = 32 * 1024 * 1024;
 
-    public static async Task<CompareSource> LoadAsync(string path, TextEncodingKind? forced = null, CancellationToken ct = default)
+    /// <summary>
+    /// 한쪽을 읽는다. 파일 정보 확인(존재·크기)과 읽기는 <b>백그라운드에서</b> 한다 — 네트워크 드라이브에서는 이 호출만으로 UI가 멈출 수 있다.
+    /// </summary>
+    public static Task<CompareSource> LoadAsync(string path, TextEncodingKind? forced = null, CancellationToken ct = default) =>
+        Task.Run(() => LoadCoreAsync(path, forced, ct), ct);
+
+    static async Task<CompareSource> LoadCoreAsync(string path, TextEncodingKind? forced, CancellationToken ct)
     {
         try
         {
