@@ -64,6 +64,10 @@ public sealed record AppSettings
     [JsonPropertyName("ui_font_family")]
     public string? UiFontFamily { get; init; }
 
+    /// <summary>편집기(비교 창의 좌우 편집기) 글꼴 이름. 고정폭 글꼴만 고를 수 있고, null이면 OS의 기본 고정폭 글꼴.</summary>
+    [JsonPropertyName("editor_font_family")]
+    public string? EditorFontFamily { get; init; }
+
     /// <summary>자주 쓰는 네트워크 서버 (연결 대화상자에서 한 번에 고른다). Daylight Commander와 같은 키.</summary>
     [JsonPropertyName("network_profiles")]
     public IReadOnlyList<NetworkProfile> NetworkProfiles { get; init; } = [];

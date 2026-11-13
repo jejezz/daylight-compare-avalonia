@@ -228,6 +228,9 @@ public interface IAppStrings
     string SettingsFont { get; }
     string FontDefaultOption(string name);
     string FontSearchHint { get; }
+    /// <summary>설정 "편집기 글꼴" (고정폭 글꼴만).</summary>
+    string SettingsEditorFont { get; }
+    string SettingsEditorFontHint { get; }
     string SettingsFontSize { get; }
     string SettingsFontSizeHint { get; }
     string SettingsLanguage { get; }
