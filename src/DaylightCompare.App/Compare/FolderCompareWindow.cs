@@ -256,6 +256,22 @@ public sealed class FolderCompareWindow : Window
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8, Margin = new Thickness(12, 6), Children = { icon, text, pick } };
         Grid.SetColumn(text, 1);
         Grid.SetColumn(pick, 2);
+        // 폴더(또는 압축 파일)를 주소 창에 끌어다 놓으면 그 폴더를 연다. 글 상자가 먼저 가로채지 못하게 터널로 받는다.
+        DragDrop.SetAllowDrop(grid, true);
+        static string? DroppedPath(DragEventArgs e) => e.DataTransfer.TryGetFiles()?.FirstOrDefault()?.TryGetLocalPath();
+        grid.AddHandler(DragDrop.DragOverEvent, (_, e) =>
+        {
+            e.DragEffects = DroppedPath(e) is null ? DragDropEffects.None : DragDropEffects.Link;
+            e.Handled = true;
+        }, RoutingStrategies.Tunnel);
+        grid.AddHandler(DragDrop.DropEvent, async (_, e) =>
+        {
+            e.Handled = true;
+            if (DroppedPath(e) is not { } path) return;
+            if (!await Task.Run(() => CanOpen(path))) return;
+            PickLocations.Remember(path, isFolder: true);
+            await ApplyRootAsync(left, path);
+        }, RoutingStrategies.Tunnel);
         if (!left) Grid.SetColumn(grid, 2);
         return grid;
     }
