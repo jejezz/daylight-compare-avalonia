@@ -13,6 +13,9 @@ Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비�
 - **파일 비교에서 파일 전체를 복사하는 일은 절대 없다 (사용자 결정).** 파일의 내용이 전부 달라도 합치는 것은 **사용자가 골라 틀로 감싼 줄뿐**이고,
   무엇을 합칠지·되돌릴지·버릴지는 모두 사용자의 몫이다. 구간(차이 블록) 통째 복사나 "양쪽을 같게" 같은 단추·단축키를 만들지 않는다
   (`DiffEdits.CopyRows` + `CoversWholeSource`가 막는다). 파일 전체를 옮기는 일은 **폴더 비교의 Copy to Right/Left**가 맡는다.
+- **UI 스레드에서 디스크·네트워크를 만지지 않는다.** 존재 확인(`Directory.Exists`·`File.Exists`)·목록·읽기는 모두 `Task.Run`(또는 엔진 안의 백그라운드)에서 한다 —
+  네트워크 드라이브에서는 호출 하나가 수십 초 걸리고, UI 스레드에서 이어지는 `await`가 쌓이면 입력·그리기보다 먼저 처리되어 앱이 통째로 멈춘다
+  (폴더 비교 엔진 `FolderComparer.RunAsync`와 `CompareSources.LoadAsync`는 스스로 백그라운드로 보낸다). 새 코드는 시험 `FolderCompareResponsivenessTests`처럼 UI 응답을 재 본다.
 - **형제 `../daylight-commander-avalonia`가 기준이다.** 원격(SFTP·FTP·WebDAV)·작업 큐·에디터·압축·테마·설정·정보 창·업데이트는
   새로 만들지 않고 거기서 **복사**해 온다(ROADMAP §2-3, 복사로 시작 확정). 복사한 파일은 첫 줄 근처에 출처를 남기고
   (`// From daylight-commander-avalonia @ <커밋>`), 고친 곳이 Commander에도 필요하면 적어 둔다. 0단계의 기준 커밋은 `.copied-from`(`0f38100`), 1단계는 `4686eb7`.
@@ -36,4 +39,11 @@ Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비�
 - 앱 아이콘: `tool/icon/draw_glyph.py`(글리프) → `tool/icon/avalonia_icons.py <고양이 경로>`(ico·png). 판 색 `hue 205` 고정(`assets/icon/cat.json`).
 - 화면은 `tests/DaylightCompare.App.Tests`(Avalonia Headless + Skia)로 창을 띄우지 않고 그려 본다. `DCMP_SHOTS=<폴더>`를 주면 PNG를 남긴다 — 화면을 바꾸면 그림으로 확인한다.
 - 테스트: `dotnet test DaylightCompare.slnx`. 원격 통합 테스트는 asyncssh·pyftpdlib·wsgidav·cheroot가 있는 파이썬이 있어야 돌고(없으면 건너뜀), 다른 파이썬은 `DC_TEST_PYTHON`으로 준다. 실행: `dotnet run -c Release --project src\DaylightCompare.App`.
+- **브랜치 운영 — 로컬 `staging` (사용자 결정, 2026-11-13).**
+  0. **`staging`이 있으면 `staging`이 최신이다 — `origin/main`이 아니다.** 새 기능·수정 브랜치는 **항상 `staging`에서 딴다**(`git checkout -b <브랜치> staging`). `origin/main`에서 따면 `staging`에만 있는 고침이 빠진다.
+  1. 작업은 기능·수정 브랜치(worktree)마다 하고, **커밋한 뒤 `staging`으로 머지**한다(`git checkout staging && git merge --no-ff <브랜치>`). `staging`은 `origin/main`에서 만들고 **로컬에만 둔다**(푸시하지 않는다).
+  2. **사용자의 빌드·실행 시험은 `staging`에서 한다.** 써 보게 할 것은 반드시 `staging`에 합쳐 두고, 체크아웃도 `staging`으로 둔다 — 고침이 다른 브랜치에만 있어 "고쳤는데 또 그렇다"가 되지 않게.
+  3. **`staging`에서 사용자의 검증이 끝나면** 그때 PR을 만들어 올리고 `main`으로 병합한다. 검증 전에 브랜치마다 PR을 먼저 올리지 않는다.
+  4. PR이 병합되면 `staging`을 `origin/main`에 맞춘다(병합·정리). 병합 끝난 기능 브랜치는 사용자에게 물어 지운다.
 - 커밋·푸시는 사용자가 요청할 때만. 앱 창은 요청받을 때만 띄운다. 한 번에 한 단계.
+- **시험은 바꾼 부분과 관련된 것만 돌린다.** 전체 시험(`dotnet test DaylightCompare.slnx`, 2분 이상)은 사용자가 요청하거나 먼저 물어보고 허락받았을 때만.

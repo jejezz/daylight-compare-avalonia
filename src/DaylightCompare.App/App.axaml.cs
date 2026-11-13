@@ -32,6 +32,7 @@ public partial class App : Application
     internal static void RecordHistory(string? left, string? right, bool folders)
     {
         if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return;
+        if (CompareHistoryList.IsSamePath(left, right, PolicyStore.NamesIgnoreCase)) return; // 자기 자신과의 비교는 기록하지 않는다 (설정도 건드리지 않는다)
         var entry = new CompareHistoryEntry
         {
             Left = left, Right = right, OpenedAt = DateTimeOffset.Now,
@@ -115,7 +116,7 @@ public partial class App : Application
             BringToFront(desktop.Windows.OfType<HomeWindow>().FirstOrDefault() ?? ShowHome(desktop));
             return 0;
         }
-        var window = OpenCompare(near, request);
+        var window = await OpenCompareAsync(near, request);
         BringToFront(window);
         if (!request.Wait) return 0;
         var closed = new TaskCompletionSource();
@@ -131,6 +132,17 @@ public partial class App : Application
     static Task<int> ResultOfAsync(Window window) => Task.FromResult((int)ExitCode.Success);
 
     /// <summary>경로 둘이 모두 폴더(또는 압축 파일)이면 폴더 비교 창, 아니면 텍스트 비교 창 (BC처럼 종류는 경로가 정한다).</summary>
+    static async Task<Window> OpenCompareAsync(Window? near, CliRequest request)
+    {
+        // 종류 판별은 디스크를 만지므로 백그라운드에서 (네트워크 드라이브 경로가 와도 UI가 멈추지 않게).
+        var asFolders = request.Paths.Count == 2
+            && await Task.Run(() => Compare.FolderCompareWindow.CanOpen(request.Paths[0]) && Compare.FolderCompareWindow.CanOpen(request.Paths[1]));
+        return asFolders
+            ? Compare.FolderCompareWindow.Open(near, request.Paths[0], request.Paths[1])
+            : Compare.CompareWindow.Open(near, request.Paths[0], request.Paths.ElementAtOrDefault(1), OptionsOf(request));
+    }
+
+    /// <summary>시작할 때(--wait 단독 실행) 쓰는 동기 판. 여기서는 창이 아직 없어 UI가 멈출 일이 없다.</summary>
     static Window OpenCompare(Window? near, CliRequest request)
     {
         if (request.Paths.Count == 2 && Compare.FolderCompareWindow.CanOpen(request.Paths[0]) && Compare.FolderCompareWindow.CanOpen(request.Paths[1]))

@@ -136,4 +136,28 @@ public sealed class CompareHistoryWindowTests : IDisposable
             frame!.Save(Path.Combine(TestApp.Shots, "home-history-ab.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
         home.Close();
     }
+
+    [AvaloniaFact]
+    public async Task 같은_파일이나_폴더를_양쪽에_놓은_비교는_기록하지_않는다()
+    {
+        Reset();
+        var one = File_("same.txt", "a" + Environment.NewLine);
+        var file = CompareWindow.Open(null, one, one);
+        await Settle();
+        Assert.Empty(App.Settings.Value.CompareHistory);
+        file.Close();
+
+        Directory.CreateDirectory(Path.Combine(_dir, "d"));
+        var dir = Path.Combine(_dir, "d");
+        var folder = FolderCompareWindow.Open(null, dir, dir + Path.DirectorySeparatorChar); // 끝 구분자만 다른 같은 폴더
+        await Settle();
+        Assert.Empty(App.Settings.Value.CompareHistory);
+        folder.Close();
+
+        // 서로 다른 둘은 그대로 기록된다.
+        var other = File_("other.txt", "b" + Environment.NewLine);
+        CompareWindow.Open(null, one, other).Close();
+        await Settle();
+        Assert.Single(App.Settings.Value.CompareHistory);
+    }
 }

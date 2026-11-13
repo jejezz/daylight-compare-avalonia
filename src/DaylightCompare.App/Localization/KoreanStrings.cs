@@ -38,6 +38,8 @@ public sealed class KoreanStrings : IAppStrings
     public string DropTooMany => "한 번에 두 개까지 놓을 수 있어요 (파일 세 개는 병합 — 다음 버전)";
     public string DropNoCounterpart(string name) => $"폴더 안에 같은 이름의 파일({name})이 없습니다";
     public string CommonClose => "닫기";
+    public string FolderAllHidden => "보기 필터 때문에 모든 항목이 숨겨졌습니다";
+    public string FolderFilterKeepOne => "보기 토글을 모두 끌 수는 없습니다 — 하나는 켜 두세요";
     public string CompareCopySelectionToRight => "고른 부분을 오른쪽으로 복사";
     public string CompareCopySelectionToLeft => "고른 부분을 왼쪽으로 복사";
     public string CompareMergeSelectFirst => "먼저 합칠 줄을 고르세요 — 줄 번호를 누르거나 글을 끌어 고르면, 반대쪽에 같은 자리가 틀로 표시됩니다";

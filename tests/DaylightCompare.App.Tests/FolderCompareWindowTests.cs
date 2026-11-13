@@ -156,4 +156,36 @@ public sealed class FolderCompareWindowTests : IDisposable
         Assert.False(File.Exists(Path.Combine(R, "onlyLeft.txt")));
         w.Close();
     }
+
+    [AvaloniaFact]
+    public async Task 저장된_보기_필터가_아무것도_안_보이는_상태여도_목록은_보인다()
+    {
+        MakeTrees();
+        ResetSettings(FolderShow.None); // 토글을 모두 끈 채로 저장된 설정 — 예전에는 창을 열 때마다 빈 목록이 나왔다
+        var w = FolderCompareWindow.Open(null, L, R);
+        await Settle();
+        Assert.NotEmpty(Names(w));
+        w.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task 필터가_모든_항목을_숨기면_이유와_모두_보기_단추를_보인다()
+    {
+        MakeTrees();
+        ResetSettings(FolderShow.LeftOrphan); // 왼쪽에만 있는 것만 보기
+        File.Delete(Path.Combine(L, "onlyLeft.txt")); // 그런데 왼쪽에만 있는 것이 없다 → 모두 숨겨진다
+        var w = FolderCompareWindow.Open(null, L, R);
+        await Settle();
+        Assert.Empty(Names(w));
+        var showAll = w.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ShowAllButton");
+        Assert.True(showAll.IsEffectivelyVisible, "모든 항목이 숨겨졌는데 이유와 [모두 보기]가 보이지 않는다");
+        using (var frame = w.CaptureRenderedFrame())
+            frame!.Save(Path.Combine(TestApp.Shots, "folder-compare-all-hidden.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+
+        showAll.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+        await Settle(20);
+        Assert.NotEmpty(Names(w));
+        Assert.Equal((int)FolderShow.All, App.Settings.Value.FolderShowFlags);
+        w.Close();
+    }
 }
