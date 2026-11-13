@@ -35,7 +35,7 @@ public sealed class CompareConvenienceTests : IDisposable
         for (var i = 0; i < rounds; i++)
         {
             Dispatcher.UIThread.RunJobs();
-            await Task.Delay(25);
+            await Task.Delay(15);
         }
         Dispatcher.UIThread.RunJobs();
     }
@@ -65,6 +65,7 @@ public sealed class CompareConvenienceTests : IDisposable
     {
         var left = Write("l.txt", Lines(0, 40) + "LEFT\n" + Lines(41, 80));
         var right = Write("r.txt", Lines(0, 40) + "RIGHT\n" + Lines(41, 80));
+        App.Settings.Update(s => s with { CompareViewFilter = Domain.Settings.CompareViewFilter.All }); // 기본은 Show All
         var all = CompareWindow.Open(null, left, right);
         await Settle();
         Assert.Empty(Folds(Editors(all).Right)); // 기본은 Show All

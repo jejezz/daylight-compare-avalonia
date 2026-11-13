@@ -161,7 +161,9 @@ public sealed class CompareWindow : Window
 
         _left.Editor.TextArea.TextView.ScrollOffsetChanged += (_, _) => SyncScroll(_left, _right);
         _right.Editor.TextArea.TextView.ScrollOffsetChanged += (_, _) => SyncScroll(_right, _left);
-        _overview.RowRequested += row => ScrollToRow(row, center: true);
+        // 개요 막대가 이 창의 (하나뿐인) 세로 스크롤 막대다: 손잡이를 끌면 양쪽 편집기가 함께 스크롤되고 캐럿은 움직이지 않는다.
+        _overview.ScrollRequested += top => ScrollToRow((int)Math.Floor(top), center: false, moveCaret: false);
+        _overview.WheelRequested += lines => ScrollTo(_right, null, Math.Max(0, _right.Editor.VerticalOffset + lines * _right.Editor.TextArea.TextView.DefaultLineHeight));
         var settings = App.Settings.Value;
         _filter = settings.CompareViewFilter;
         _contextLines = Math.Clamp(settings.CompareContextLines, 0, AppSettings.MaxContextLines);
@@ -539,7 +541,7 @@ public sealed class CompareWindow : Window
         e.ShowLineNumbers = false;
         e.WordWrap = false; // 줄바꿈하면 좌우 행이 어긋난다
         e.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
-        e.VerticalScrollBarVisibility = ScrollBarVisibility.Auto; // 양쪽 모두 보인다 (함께 움직인다)
+        e.VerticalScrollBarVisibility = ScrollBarVisibility.Hidden; // 세로 스크롤 막대는 오른쪽 개요 막대 하나뿐 (휠·키보드는 그대로 된다)
         e.Options.EnableHyperlinks = false;
         e.Options.EnableEmailHyperlinks = false;
         e.Options.HighlightCurrentLine = false; // 현재 줄 강조가 차이 색과 섞여 색이 달라 보인다
