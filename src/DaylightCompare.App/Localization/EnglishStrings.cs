@@ -218,6 +218,12 @@ public sealed class EnglishStrings : IAppStrings
     public string SettingsLanguage => "Language";
     public string LanguageSystemShort => "System";
     public string AboutTooltip => "About";
+    public string MacMenuAbout(string app) => $"About {app}";
+    public string MacMenuSettings => "Settings…";
+    public string MacMenuHide(string app) => $"Hide {app}";
+    public string MacMenuHideOthers => "Hide Others";
+    public string MacMenuShowAll => "Show All";
+    public string MacMenuQuit(string app) => $"Quit {app}";
     public string AboutTagline => "A desktop app that compares and merges folders, text, binaries and images side by side";
     public string AboutDescription => "Line up two sides wherever they live (local, SFTP, FTP, WebDAV or an archive), find what differs, and let compare policies filter out differences that don't matter.";
     public string AboutVersion(string version, int build) => $"Version {version} (build {build})";

@@ -182,6 +182,18 @@ public sealed class JsonSettingsRepositoryTests : IDisposable
         Assert.Equal("DaylightCompare", Path.GetFileName(Path.GetDirectoryName(file)));
     }
 
+    [Fact]
+    public void DCMP_DATA_DIR가_있으면_OS와_상관없이_그_폴더를_쓴다()
+    {
+        var before = Environment.GetEnvironmentVariable(JsonSettingsRepository.DataDirOverride);
+        try
+        {
+            Environment.SetEnvironmentVariable(JsonSettingsRepository.DataDirOverride, "/tmp/dcmp-x");
+            Assert.Equal(Path.Combine("/tmp/dcmp-x", "DaylightCompare", "settings.json"), JsonSettingsRepository.DefaultFile("DaylightCompare"));
+        }
+        finally { Environment.SetEnvironmentVariable(JsonSettingsRepository.DataDirOverride, before); }
+    }
+
 }
 
 /// <summary>최근 비교 목록과 마지막 고른 폴더가 설정 파일에 저장되고 (AOT 소스 생성기로) 그대로 읽힌다.</summary>

@@ -52,12 +52,20 @@ public sealed class JsonSettingsRepository(string file) : ISettingsRepository
         }
     }
 
+    /// <summary>
+    /// 이 환경 변수가 있으면 OS와 상관없이 그 폴더를 사용자 데이터 위치로 쓴다 (시험용).
+    /// macOS는 <c>APPDATA</c>·<c>XDG_CONFIG_HOME</c>을 보지 않으므로, 이것이 없으면 시험이 실제 사용자 설정·백업을 건드린다.
+    /// </summary>
+    public const string DataDirOverride = "DCMP_DATA_DIR";
+
     /// <summary>OS별 사용자 설정 위치 아래의 <c>&lt;이름&gt;/settings.json</c>.</summary>
     public static string DefaultFile(string appFileName)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         string baseDir;
-        if (OperatingSystem.IsWindows())
+        if (Environment.GetEnvironmentVariable(DataDirOverride) is { Length: > 0 } custom)
+            baseDir = custom;
+        else if (OperatingSystem.IsWindows())
             baseDir = Environment.GetEnvironmentVariable("APPDATA") is { Length: > 0 } a ? a : Path.Combine(home, "AppData", "Roaming");
         else if (OperatingSystem.IsMacOS())
             baseDir = Path.Combine(home, "Library", "Application Support");
