@@ -38,6 +38,8 @@ public sealed class EnglishStrings : IAppStrings
     public string DropTooMany => "Drop up to two items at a time (three files for a merge — in a later version)";
     public string DropNoCounterpart(string name) => $"The folder has no file named {name}";
     public string CommonClose => "Close";
+    public string FolderAllHidden => "The display filter is hiding every item";
+    public string FolderFilterKeepOne => "At least one display toggle must stay on";
     public string CompareCopySelectionToRight => "Copy Selection to Right";
     public string CompareCopySelectionToLeft => "Copy Selection to Left";
     public string CompareMergeSelectFirst => "Select the lines to merge first — click a line number or drag over text; the matching place on the other side is framed";

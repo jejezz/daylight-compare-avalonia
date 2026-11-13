@@ -52,6 +52,8 @@ public interface IAppStrings
     string DropTooMany { get; }
     string DropNoCounterpart(string name);
     string CommonClose { get; }
+    string FolderAllHidden { get; }
+    string FolderFilterKeepOne { get; }
     string CompareCopySelectionToRight { get; }
     string CompareCopySelectionToLeft { get; }
     string CompareMergeSelectFirst { get; }
