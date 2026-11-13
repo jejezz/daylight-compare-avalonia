@@ -8,6 +8,7 @@ using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using DaylightCompare.App.Dialogs;
 using DaylightCompare.App.Icons;
 using DaylightCompare.App.Views;
@@ -106,6 +107,14 @@ public sealed class FolderCompareWindow : Window
         _list.DoubleTapped += (_, e) => { if (e.Source is not DuoIcon) OpenSelected(); };
         _list.AddHandler(PointerPressedEvent, (_, e) =>
         {
+            // 오른쪽 단추: 눌린 줄이 선택에 들어 있지 않으면 그 줄만 고른다 (탐색기와 같다).
+            if (e.GetCurrentPoint(_list).Properties.IsRightButtonPressed
+                && (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>()?.DataContext is FolderRow hit
+                && !Selected.Contains(hit))
+            {
+                _list.UnselectAll();
+                _list.SelectedItem = hit;
+            }
             var x = e.GetPosition(_list).X;
             _activeLeft = x < _list.Bounds.Width / 2;
         }, RoutingStrategies.Tunnel);
@@ -117,6 +126,13 @@ public sealed class FolderCompareWindow : Window
             e.DragEffects = n is 1 or 2 ? DragDropEffects.Copy : DragDropEffects.None;
         });
         _list.AddHandler(DragDrop.DropEvent, OnListDrop);
+        var rowMenu = new ContextMenu();
+        rowMenu.Opening += (_, e) =>
+        {
+            if (!Selected.Any()) { e.Cancel = true; return; }
+            RebuildRowMenu(rowMenu);
+        };
+        _list.ContextMenu = rowMenu;
         foreach (var box in new[] { _filterBox, _excludeBox })
             box.KeyDown += (_, e) =>
             {
@@ -237,7 +253,7 @@ public sealed class FolderCompareWindow : Window
             Child = new StackPanel
             {
                 Orientation = Orientation.Horizontal, Spacing = 8,
-                Children = { new DuoIcon { Icon = "search", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, _filterBox, _excludeBox, importButton, exportButton },
+                Children = { new DuoIcon { Icon = "search", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, FilterLabel("include"), _filterBox, FilterLabel("exclude"), _excludeBox, importButton, exportButton },
             },
         };
         filterBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
@@ -263,6 +279,8 @@ public sealed class FolderCompareWindow : Window
         Grid.SetRowSpan(_dialogs, 4);
         return grid;
     }
+
+    static TextBlock FilterLabel(string text) => new() { Text = text, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.75 };
 
     static void Place(Grid grid, Control c, int row)
     {
@@ -589,6 +607,54 @@ public sealed class FolderCompareWindow : Window
             Item(s.ComparePrevLine, "Ctrl+P", () => GoDifference(next: false))));
         flyout.Items.Add(Group(s.CompareMenuView, [.. ViewFilterItems()]));
         return flyout;
+    }
+
+    // --- 줄의 오른쪽 단추 메뉴 ---
+
+    void RebuildRowMenu(ContextMenu menu)
+    {
+        var s = Strings.Current;
+        MenuItem Item(string header, Action run)
+        {
+            var item = new MenuItem { Header = header };
+            item.Click += (_, _) => run();
+            return item;
+        }
+        menu.Items.Clear();
+        menu.Items.Add(Item(s.FolderCompareNow, () => _ = CompareNowAsync()));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item(s.FolderFilterExcludeItem, () => AddToFilter(_excludeBox)));
+        menu.Items.Add(Item(s.FolderFilterIncludeItem, () => AddToFilter(_filterBox)));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item(s.CompareCopyToRight, () => _ = CopyAsync(toRight: true)));
+        menu.Items.Add(Item(s.CompareCopyToLeft, () => _ = CopyAsync(toRight: false)));
+    }
+
+    /// <summary>지금 비교: 파일 짝은 파일 비교 창으로, 폴더 짝은 그 폴더를 루트로 삼아 이 창에서 다시 비교한다.</summary>
+    async Task CompareNowAsync()
+    {
+        if (Selected.FirstOrDefault() is not { } row) return;
+        var node = row.Node;
+        if (node.Left is null || node.Right is null) { Notice(Strings.Current.FolderCompareNeedBoth); return; }
+        if (!node.IsDirectory) { CompareWindow.Open(this, node.Left.Path, node.Right.Path, recordHistory: false); return; }
+        await ResolveOnce();
+        _leftRoot = node.Left.Path;
+        _rightRoot = node.Right.Path;
+        _expanded.Clear();
+        UpdateTitle();
+        RecordHistory();
+        await StartCompareAsync();
+    }
+
+    /// <summary>고른 줄의 이름을 필터 칸에 더하고 바로 적용한다 (폴더는 <c>이름\</c>, 파일은 이름 그대로 — BC 문법).</summary>
+    void AddToFilter(TextBox box)
+    {
+        var masks = Selected.Select(r => r.Node).Where(n => n.Name.Length > 0)
+            .Select(n => n.IsDirectory ? n.Name + "\\" : n.Name).Distinct();
+        var existing = (box.Text ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        foreach (var m in masks) if (!existing.Contains(m, StringComparer.OrdinalIgnoreCase)) existing.Add(m);
+        box.Text = string.Join(';', existing);
+        ApplyFilter();
     }
 
     // --- 선택·이동·펼치기 ---

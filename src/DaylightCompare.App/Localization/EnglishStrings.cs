@@ -77,6 +77,10 @@ public sealed class EnglishStrings : IAppStrings
     public string FolderViewFilterTooltip => "Display Filter";
     public string FolderMenuActions => "Actions";
     public string FolderOpen => "Open";
+    public string FolderCompareNow => "Compare Now";
+    public string FolderFilterExcludeItem => "Filter: Exclude";
+    public string FolderFilterIncludeItem => "Filter: Include";
+    public string FolderCompareNeedBoth => "Only items present on both sides can be compared";
     public string FolderDelete => "Delete";
     public string FolderDeleteLeft => "Delete from Left";
     public string FolderDeleteRight => "Delete from Right";
