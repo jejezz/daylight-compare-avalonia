@@ -361,6 +361,19 @@
             <Setter Property="ClipToBounds" Value="True" />
         </Style>
 
+        <!-- 보조 동작 단추 (UI_UX.md "창 크롬과 대화상자 단추"): 배경 없음, 강조색 글자, 알약 모양 눌림 효과. 채움은 주 동작(accent)만 갖는다. -->
+        <Style Selector="Button.text">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource AppPrimary}" />
+        </Style>
+        <Style Selector="Button.text:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppStroke}" />
+            <Setter Property="Foreground" Value="{DynamicResource AppPrimary}" />
+        </Style>
+        <Style Selector="Button.text:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AppStrokeStrong}" />
+        </Style>
+
         <!-- 영구 삭제 확인 버튼: 위험색 -->
         <Style Selector="Button.accent.danger">
             <Setter Property="Background" Value="{DynamicResource AppDanger}" />

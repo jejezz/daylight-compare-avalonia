@@ -361,6 +361,17 @@ Beyond Compare 방식으로 (BC_COMPAT.md §2). 3단계처럼 나눈다: **4a** 
     규칙 기준(바이트 같으면 같음, 텍스트면 Compare Policy로 중요하지 않은 차이 무시, 32MB 넘으면 바이트) 또는 해시(SHA-256·CRC32). 취소, 폴더 상태는 아래에서 위로
     (다른 것이 하나라도 보이면 바로 다름)
   - 시험: 필터 문법, 짝짓기·빠른 검사, 로컬 두 폴더·압축 대 폴더·**로컬 대 SFTP**(40개 파일, 줄바꿈만 다른 것은 같음)
+- [x] 4b. 폴더 비교 창 (2026-11-13): `Compare/FolderCompareWindow`
+  - 좌우 나무를 **같은 줄에 나란히**(가상화 `ListBox`, 줄 높이 26, 이름·크기·수정한 날짜), 없는 쪽은 회색 칸. BC 색: 같음 = 보통, 다름·더 새것 = 빨강(더 오래된 쪽은 흐리게),
+    한쪽에만 = 보라, 아직 모름 = 회색. 같지 않은 폴더는 펴고 같은 폴더는 접은 채 시작, ▸/▾·←/→·더블클릭으로 접고 펴기. 읽는 대로 보이고(0.15초마다 줄 목록을 다시 만든다) 선택·스크롤은 지킨다
+  - **보기 필터를 BC처럼**(`FolderShow` 여섯 토글 + BC 이름 열두 개: Show All/Differences/Same/No Orphans/Differences but No Orphans/Orphans/Left·Right Newer/…/Left·Right Orphans) 드롭다운 + 토글 메뉴,
+    Always Show Folders. 설정(`folder_show`, `folder_always_show_folders`)에 남는다. 필터 막대는 BC 문법(4a)이고 Enter로 다시 비교
+  - **BC 명령·키**: Copy to Right / Left `Ctrl+R` / `Ctrl+L`(확인 뒤 덮어쓰기, 양쪽에 있는 폴더는 안의 같지 않은 파일만), Delete(휴지통 — 눌러 둔 쪽에서), Open `Enter`/더블클릭(파일 짝 → 텍스트 비교 창),
+    Next / Previous Difference `Ctrl+N` / `Ctrl+P`, Select All `Ctrl+A`, Select Newer / Orphans(왼쪽·오른쪽·양쪽), Invert Selection, Expand / Collapse All, Refresh `F5`, Swap `Ctrl+U`, 폴더 바꾸기. "모든 명령" 메뉴(BC 묶음)
+  - 진입: 홈 창 [폴더…] 단추, 폴더 둘을 끌어다 놓기, 명령줄에 폴더 둘(`DaylightCompare 왼 오`), 압축 파일도 폴더처럼. `/qc`는 폴더 둘이면 폴더 비교로(모두 같으면 2, 다른 것이 있으면 13)
+  - **창 안 모달 시작** (UI_UX.md 정책 A): `Dialogs/DialogHost`(스크림 + 가운데 상자, 주 동작 `accent` 하나 + 보조 `text`, 되돌릴 수 없으면 `accent danger`, `Esc`) + `Button.text` 스타일. 폴더 비교 창의 복사·삭제 확인이 처음 쓴다.
+    기존 `MessageDialog` 등의 이전은 UI_UX.md §7의 별도 작업
+  - 아직: 원격(SFTP·FTP·WebDAV)과 압축 파일 안으로의 복사·삭제(연결 화면이 생길 때 — 엔진은 이미 된다), 이동·이름 바꾸기·새 폴더, 파일 짝 끌어다 놓기, 복사 뒤 바뀐 줄만 다시 비교(지금은 전체 다시 비교)
 - [ ] **원격 해시**: SFTP 쪽은 SSH `exec`로 `sha256sum`(없으면 `shasum -a 256`, 둘 다 없으면 내려받아 비교)을 서버에서 돌려 해시만 받는다. 서버 두 대끼리도
 - [ ] **Daylight 패밀리 연동**: Commander의 폴더 비교에 [자세히 비교] → `DaylightCompare <왼쪽> <오른쪽>` 호출 (Commander 저장소 쪽 작은 작업, 코드 의존 없음)
 - [ ] 뷰: 좌우 트리(가상화), 상태 아이콘·색, 같은 것/고아/다른 것 거르기, 폴더 접고 펴기, 선택 복사·삭제(작업 큐), 파일 더블클릭 → 형식별 뷰어 탭

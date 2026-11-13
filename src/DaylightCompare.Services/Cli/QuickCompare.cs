@@ -11,7 +11,8 @@ namespace DaylightCompare.Services.Cli;
 /// <item>규칙 기준(기본): 바이트가 같으면 1, 둘 다 텍스트이고 Compare Policy로 글이 같으면(인코딩·BOM·줄바꿈만 다름) 2,
 /// 중요하지 않은 차이만 있으면 12(<paramref name="ignoreUnimportant"/>면 2), 중요한 차이가 있으면 13. 텍스트가 아니면 바이트로 1 / 11.</item>
 /// <item>size: 크기만, crc·binary: 바이트로 — 같으면 1, 다르면 11.</item>
-/// <item>읽지 못하거나 폴더면(폴더 비교는 4단계) 100.</item>
+/// <item>폴더 둘이면 폴더 비교(<see cref="FolderComparer"/>)로 — 모두 같으면 2, 다른 것이 하나라도 있으면(한쪽에만 있는 것 포함) 13. 압축 파일은 이전처럼 바이트로 본다.</item>
+/// <item>읽지 못하거나 폴더와 파일을 섞었으면 100.</item>
 /// </list>
 /// </summary>
 public static class QuickCompare
@@ -21,6 +22,7 @@ public static class QuickCompare
     {
         try
         {
+            if (Directory.Exists(left) && Directory.Exists(right)) return await FoldersAsync(left, right, policy, ct);
             if (Directory.Exists(left) || Directory.Exists(right)) return ExitCode.Error;
             if (kind == QuickCompareKind.Size && !ArchivePaths.IsInArchive(left) && !ArchivePaths.IsInArchive(right))
             {
@@ -44,6 +46,19 @@ public static class QuickCompare
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             return ExitCode.Error;
+        }
+    }
+
+    static async Task<ExitCode> FoldersAsync(string left, string right, ComparePolicy policy, CancellationToken ct)
+    {
+        var comparer = new Folder.FolderComparer(LocalFileSystem.Instance, left, LocalFileSystem.Instance, right, policy, PolicyStore.NamesIgnoreCase);
+        await comparer.RunAsync(ct);
+        lock (comparer.Gate)
+        {
+            var all = comparer.Root.Descendants().ToList();
+            if (comparer.Root.State == Domain.Folder.FolderState.Error) return ExitCode.Error;
+            return all.All(n => n.State == Domain.Folder.FolderState.Same || n.IsDirectory && n.State != Domain.Folder.FolderState.Error && n.State != Domain.Folder.FolderState.Different)
+                ? ExitCode.RulesSame : ExitCode.RulesDifferent;
         }
     }
 

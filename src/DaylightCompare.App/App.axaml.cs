@@ -55,7 +55,7 @@ public partial class App : Application
             var desktop = standalone;
             // --wait인데 본체가 없다: 비교 창 하나만 띄우고, 닫으면 결과를 종료 코드로 남기고 끝난다 (업데이트 확인도 하지 않는다).
             var request = Program.Request;
-            var window = Compare.CompareWindow.Open(null, request.Paths[0], request.Paths.ElementAtOrDefault(1), OptionsOf(request));
+            var window = OpenCompare(null, request);
             desktop.MainWindow = window;
             window.Closed += async (_, _) => desktop.Shutdown(await ResultOfAsync(window));
             desktop.Exit += (_, _) => Settings.Dispose();
@@ -100,7 +100,7 @@ public partial class App : Application
             BringToFront(desktop.Windows.OfType<HomeWindow>().FirstOrDefault() ?? ShowHome(desktop));
             return 0;
         }
-        var window = Compare.CompareWindow.Open(near, request.Paths[0], request.Paths.ElementAtOrDefault(1), OptionsOf(request));
+        var window = OpenCompare(near, request);
         BringToFront(window);
         if (!request.Wait) return 0;
         var closed = new TaskCompletionSource();
@@ -113,7 +113,15 @@ public partial class App : Application
     /// 닫은 비교 창의 종료 코드. BC처럼 창으로 비교하면 결과와 상관없이 0(성공)이다 — 결과가 필요하면 <c>/qc</c>.
     /// (git difftool은 종료 코드를 보지 않는다. <c>trustExitCode</c>를 켜도 멈추지 않는다.)
     /// </summary>
-    static Task<int> ResultOfAsync(Compare.CompareWindow window) => Task.FromResult((int)ExitCode.Success);
+    static Task<int> ResultOfAsync(Window window) => Task.FromResult((int)ExitCode.Success);
+
+    /// <summary>경로 둘이 모두 폴더(또는 압축 파일)이면 폴더 비교 창, 아니면 텍스트 비교 창 (BC처럼 종류는 경로가 정한다).</summary>
+    static Window OpenCompare(Window? near, CliRequest request)
+    {
+        if (request.Paths.Count == 2 && Compare.FolderCompareWindow.CanOpen(request.Paths[0]) && Compare.FolderCompareWindow.CanOpen(request.Paths[1]))
+            return Compare.FolderCompareWindow.Open(near, request.Paths[0], request.Paths[1]);
+        return Compare.CompareWindow.Open(near, request.Paths[0], request.Paths.ElementAtOrDefault(1), OptionsOf(request));
+    }
 
     static Compare.CompareOptions OptionsOf(CliRequest r) =>
         new(r.LeftTitle, r.RightTitle, r.LeftReadOnly, r.RightReadOnly, r.IgnoreUnimportant ? true : null);

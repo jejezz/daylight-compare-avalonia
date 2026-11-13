@@ -107,3 +107,40 @@ public sealed class InstanceChannelTests
         Assert.Null(await InstanceChannel.SendAsync(UniqueName(), ["x"], TimeSpan.FromMilliseconds(200)));
     }
 }
+
+public sealed class QuickCompareFolderTests : IDisposable
+{
+    readonly string _dir = Directory.CreateTempSubdirectory("dcmp-qcf").FullName;
+    public void Dispose() => Directory.Delete(_dir, recursive: true);
+
+    string Put(string side, string rel, string text)
+    {
+        var path = Path.Combine(_dir, side, rel);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, text);
+        return path;
+    }
+
+    [Fact]
+    public async Task 폴더_둘은_모두_같으면_2_다른_것이_있으면_13()
+    {
+        Put("l", "a.txt", "x\n"); Put("r", "a.txt", "x\r\n"); // 줄바꿈만 다름 → 규칙으로 같음
+        Put("l", "s/b.txt", "y\n"); Put("r", "s/b.txt", "y\n");
+        var l = Path.Combine(_dir, "l");
+        var r = Path.Combine(_dir, "r");
+        Assert.Equal(ExitCode.RulesSame, await QuickCompare.RunAsync(l, r, ComparePolicy.Builtin));
+
+        Put("r", "only.txt", "z");
+        Assert.Equal(ExitCode.RulesDifferent, await QuickCompare.RunAsync(l, r, ComparePolicy.Builtin)); // 한쪽에만 있는 것
+        File.Delete(Path.Combine(r, "only.txt"));
+        File.WriteAllText(Path.Combine(r, "s", "b.txt"), "changed\n");
+        Assert.Equal(ExitCode.RulesDifferent, await QuickCompare.RunAsync(l, r, ComparePolicy.Builtin));
+    }
+
+    [Fact]
+    public async Task 폴더와_파일을_섞으면_오류다()
+    {
+        var file = Put("l", "a.txt", "x");
+        Assert.Equal(ExitCode.Error, await QuickCompare.RunAsync(Path.Combine(_dir, "l"), file, ComparePolicy.Builtin));
+    }
+}

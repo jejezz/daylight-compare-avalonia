@@ -45,6 +45,8 @@ public partial class HomeWindow : Window
 
         PickLeft.Click += async (_, _) => await PickAsync(left: true);
         PickRight.Click += async (_, _) => await PickAsync(left: false);
+        PickLeftFolder.Click += async (_, _) => await PickFolderAsync(left: true);
+        PickRightFolder.Click += async (_, _) => await PickFolderAsync(left: false);
         CompareButton.Click += (_, _) => OpenCompare();
         PasteCompareButton.Click += (_, _) => CompareWindow.Open(this, _left, _right);
         AddHandler(DragDrop.DragOverEvent, (_, e) =>
@@ -84,10 +86,31 @@ public partial class HomeWindow : Window
         if (_left is not null && _right is not null) OpenCompare();
     }
 
+    async Task PickFolderAsync(bool left)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = left ? Strings.Current.FolderChooseLeftTitle : Strings.Current.FolderChooseRightTitle,
+            AllowMultiple = false,
+        });
+        if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } path) return;
+        if (left) _left = path; else _right = path;
+        RefreshPicks();
+        if (_left is not null && _right is not null) OpenCompare();
+    }
+
+    /// <summary>둘 다 폴더(또는 압축 파일)이면 폴더 비교, 둘 다 파일이면 텍스트 비교 (BC처럼 종류는 고른 것이 정한다).</summary>
     void OpenCompare()
     {
         if (_left is null || _right is null) return;
-        CompareWindow.Open(this, _left, _right);
+        var leftContainer = FolderCompareWindow.CanOpen(_left);
+        if (leftContainer != FolderCompareWindow.CanOpen(_right))
+        {
+            _ = MessageDialog.ShowAsync(this, AppIdentity.DisplayName, Strings.Current.FolderFileVsFolderLater, [Strings.Current.CommonClose], 0, 0);
+            return;
+        }
+        if (leftContainer) FolderCompareWindow.Open(this, _left, _right);
+        else CompareWindow.Open(this, _left, _right);
         _left = _right = null; // 홈 창은 다음 비교를 위해 비운다
         RefreshPicks();
     }
@@ -100,7 +123,7 @@ public partial class HomeWindow : Window
         DropHint.IsVisible = false;
         var x = e.GetPosition(this).X;
         var target = x < Bounds.Width * 0.45 ? DropTarget.Left : x > Bounds.Width * 0.55 ? DropTarget.Right : DropTarget.Window;
-        static DroppedItem? Item(string? p) => p is null ? null : new DroppedItem(p, DroppedKind.File);
+        static DroppedItem? Item(string? p) => p is null ? null : DropClassifier.Classify([p]).FirstOrDefault();
         var plan = DropPlanner.Plan(ItemsOf(e), target, Item(_left), Item(_right));
         await CompareWindow.ApplyDropAsync(this, plan, (l, r) =>
         {
@@ -108,7 +131,7 @@ public partial class HomeWindow : Window
             RefreshPicks();
             if (l is not null && r is not null) OpenCompare();
             return Task.CompletedTask;
-        });
+        }, allowPendingFolders: true);
     }
 
     /// <summary>공통 단축키 (ui-ux.md §7). 비교 전용 단축키는 비교 창이 생기는 3단계에서 더한다.</summary>
