@@ -188,4 +188,24 @@ public sealed class FolderCompareWindowTests : IDisposable
         Assert.Equal((int)FolderShow.All, App.Settings.Value.FolderShowFlags);
         w.Close();
     }
+
+    [AvaloniaFact]
+    public async Task 주소_창에_경로를_쓰고_Enter를_누르면_그_폴더로_다시_비교한다()
+    {
+        MakeTrees();
+        ResetSettings();
+        var other = Path.Combine(_dir, "other");
+        Put(other, "only-in-other.txt", "z");
+        var w = FolderCompareWindow.Open(null, L, R);
+        await Settle();
+        Assert.DoesNotContain("only-in-other.txt", Names(w));
+        var box = w.GetVisualDescendants().OfType<TextBox>().First(t => t.Text == L);
+        box.Focus();
+        box.Text = other;
+        w.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        await Settle();
+        Assert.Equal(other, w.LeftRoot);
+        Assert.Contains("only-in-other.txt", Names(w));
+        w.Close();
+    }
 }

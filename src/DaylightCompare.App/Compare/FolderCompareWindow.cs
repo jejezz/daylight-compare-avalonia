@@ -724,6 +724,8 @@ public sealed class FolderCompareWindow : Window
     void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (_dialogs.IsOpen || _filterBox.IsFocused) return;
+        // 주소 창에 쓰는 중이면 Enter·Delete·Ctrl+A 등은 글 상자의 것이다 (터널로 먼저 받아 가로채지 않는다).
+        if (TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox) return;
         var primary = Mods.Primary(e.KeyModifiers);
         var handled = true;
         switch (e.Key)
