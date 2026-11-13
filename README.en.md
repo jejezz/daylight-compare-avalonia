@@ -106,7 +106,8 @@ They are skipped when the packages or Python are missing; point `DC_TEST_PYTHON`
 ## App icon
 
 `tool/icon/draw_glyph.py` draws the glyph (`assets/icon/source_glyph.svg` and `.png`), and
-`python3 tool/icon/avalonia_icons.py <cat image path>` writes the platform files. The cat artwork (paid Icons8 asset) is not in the repository.
+`python3 tool/icon/avalonia_icons.py <cat image path>` writes the platform files, including the macOS icon
+(`installer/macos/AppIcon.icns`, via `tool/icon/make_icns.py`; rerun that alone when only the 1024px master changed). The cat artwork (paid Icons8 asset) is not in the repository.
 
 ## Project layout
 

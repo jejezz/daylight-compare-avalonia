@@ -51,16 +51,11 @@ sed -e "s|@FILE_NAME@|$FILE_NAME|g" \
     "$ROOT/installer/macos/Info.plist" > "$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist"
 
-# AppIcon.icns from the 1024px master.
-ICONSET="$STAGE/AppIcon.iconset"
-mkdir -p "$ICONSET"
-MASTER="$ROOT/installer/macos/app_icon_1024.png"
-for size in 16 32 128 256 512; do
-  sips -z "$size" "$size" "$MASTER" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
-  sips -z "$((size * 2))" "$((size * 2))" "$MASTER" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
-done
-iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
-rm -rf "$ICONSET"
+# AppIcon.icns (CFBundleIconFile) is committed: tool/icon/avalonia_icons.py -> make_icns.py builds it from
+# installer/macos/app_icon_1024.png.
+ICNS="$ROOT/installer/macos/AppIcon.icns"
+test -f "$ICNS" || { echo "error: $ICNS not found — run python3 tool/icon/make_icns.py" >&2; exit 1; }
+cp "$ICNS" "$APP/Contents/Resources/AppIcon.icns"
 
 # Sign every Mach-O (libraries first, then the executable, then the bundle). Hardened runtime and a secure
 # timestamp are only meaningful for a real identity (notarization needs both).

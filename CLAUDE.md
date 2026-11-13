@@ -36,7 +36,8 @@ Beyond Compare와 같은 역할(폴더·텍스트·바이너리·이미지 비�
   Inno Setup `AppId` GUID는 `installer/windows/app.iss` (변경 금지). 첫 정식 릴리스 전 버전은 `0.1.0-rc.N`.
 - 화면 문구는 `IAppStrings`(ko/en, `Localization/`), XAML은 `{DynamicResource Str.*}`, 코드는 `Strings.Current`로 읽는다
   (새 문구는 인터페이스 → 한국어 → 영어 순, XAML에서 쓰면 `Strings.PublishResources`에도 더한다).
-- 앱 아이콘: `tool/icon/draw_glyph.py`(글리프) → `tool/icon/avalonia_icons.py <고양이 경로>`(ico·png). 판 색 `hue 205` 고정(`assets/icon/cat.json`).
+- 앱 아이콘: `tool/icon/draw_glyph.py`(글리프) → `tool/icon/avalonia_icons.py <고양이 경로>`(ico·png·macOS `installer/macos/AppIcon.icns`). 판 색 `hue 205` 고정(`assets/icon/cat.json`).
+  `.icns`는 `tool/icon/make_icns.py`가 `installer/macos/app_icon_1024.png`에서 만들어 커밋해 두고, `scripts/package-macos.sh`가 앱 번들 `Contents/Resources`에 복사한다(`Info.plist`의 `CFBundleIconFile`=`AppIcon`). 마스터만 바뀌었으면 `make_icns.py`만 다시 돌린다.
 - 화면은 `tests/DaylightCompare.App.Tests`(Avalonia Headless + Skia)로 창을 띄우지 않고 그려 본다. `DCMP_SHOTS=<폴더>`를 주면 PNG를 남긴다 — 화면을 바꾸면 그림으로 확인한다.
 - 테스트: `dotnet test DaylightCompare.slnx`. 원격 통합 테스트는 asyncssh·pyftpdlib·wsgidav·cheroot가 있는 파이썬이 있어야 돌고(없으면 건너뜀), 다른 파이썬은 `DC_TEST_PYTHON`으로 준다. 실행: `dotnet run -c Release --project src\DaylightCompare.App`.
 - **브랜치 운영 — 로컬 `staging` (사용자 결정, 2026-11-13).**
