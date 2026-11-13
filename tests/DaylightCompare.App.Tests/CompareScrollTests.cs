@@ -160,4 +160,28 @@ public sealed class CompareScrollTests : IDisposable
             frame!.Save(Path.Combine(TestApp.Shots, "compare-scrollbars.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
         w.Close();
     }
+
+    [AvaloniaFact]
+    public async Task 개요_막대는_넓고_차이_종류별로_선명하게_보인다()
+    {
+        const string NL = "\n";
+        // 바뀜 · 왼쪽에만 · 오른쪽에만 이 파일 곳곳에 있다.
+        var left = new List<string>();
+        var right = new List<string>();
+        for (var i = 0; i < 300; i++)
+        {
+            if (i == 40) { left.Add("changed-L"); right.Add("changed-R"); continue; }
+            if (i == 120) { left.Add("only-left-1"); left.Add("only-left-2"); }
+            if (i == 200) { right.Add("only-right-1"); right.Add("only-right-2"); right.Add("only-right-3"); }
+            left.Add($"line {i}");
+            right.Add($"line {i}");
+        }
+        var w = CompareWindow.Open(null, Write("l6.txt", string.Join(NL, left) + NL), Write("r6.txt", string.Join(NL, right) + NL));
+        await Settle();
+        var bar = Overview(w);
+        Assert.True(bar.Bounds.Width >= 20, $"개요 막대가 좁다: {bar.Bounds.Width}");
+        using (var frame = w.CaptureRenderedFrame())
+            frame!.Save(Path.Combine(TestApp.Shots, "overview-wide.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
+        w.Close();
+    }
 }

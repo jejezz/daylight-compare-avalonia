@@ -38,6 +38,14 @@ public sealed class EnglishStrings : IAppStrings
     public string DropTooMany => "Drop up to two items at a time (three files for a merge — in a later version)";
     public string DropNoCounterpart(string name) => $"The folder has no file named {name}";
     public string CommonClose => "Close";
+    public string CompareCopySelectionToRight => "Copy Selection to Right";
+    public string CompareCopySelectionToLeft => "Copy Selection to Left";
+    public string CompareMergeSelectFirst => "Select the lines to merge first — click a line number or drag over text; the matching place on the other side is framed";
+    public string CompareMergeWholeFile => "The whole file can't be copied here. Select only some lines (copying whole files is done in folder compare)";
+    public string CompareMergeReselect => "Your edits were applied first. Select the lines to merge again";
+    public string CompareMergeWrongSide(bool toRight) => toRight ? "What you selected on the right can only be copied to the left" : "What you selected on the left can only be copied to the right";
+    public string CompareMergeCopied(int lines, bool toRight) => lines == 0 ? $"Removed the selected lines from the {(toRight ? "right" : "left")} (undo: Ctrl+Z)" : $"Copied {lines} line(s) to the {(toRight ? "right" : "left")} (undo: Ctrl+Z)";
+    public string CompareMergeLines(int lines) => lines == 0 ? "apply removal" : lines == 1 ? "1 line" : $"{lines} lines";
     public string HomeRecentTitle => "Recent Comparisons";
     public string HomeRecentClear => "Clear All";
     public string HomeRecentRemove => "Remove from List";
@@ -116,7 +124,6 @@ public sealed class EnglishStrings : IAppStrings
     public string CompareSaveFileAs => "Save File As";
     public string CompareUndo => "Undo";
     public string CompareRedo => "Redo";
-    public string CompareCopyToOther => "Copy to Other Side";
     public string CompareCopyLineToRight => "Copy Line to Right";
     public string CompareCopyLineToLeft => "Copy Line to Left";
     public string CompareSelectSection => "Select Section";
@@ -174,7 +181,6 @@ public sealed class EnglishStrings : IAppStrings
     public string CompareChangedOutside => "Another program changed this file. Your edits here are kept for now.";
     public string CompareReloadDiscard => "Reload (Discard My Edits)";
     public string CompareReadOnly => "Read-only (inside an archive)";
-    public string CompareNothingToCopy => "Put the cursor inside a difference to copy it";
     public string SettingsWindowTitle(string appName) => $"{appName} Settings";
     public string SettingsSectionAppearance => "Appearance";
     public string SettingsMode => "Mode";

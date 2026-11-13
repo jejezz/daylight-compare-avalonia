@@ -52,6 +52,14 @@ public interface IAppStrings
     string DropTooMany { get; }
     string DropNoCounterpart(string name);
     string CommonClose { get; }
+    string CompareCopySelectionToRight { get; }
+    string CompareCopySelectionToLeft { get; }
+    string CompareMergeSelectFirst { get; }
+    string CompareMergeWholeFile { get; }
+    string CompareMergeReselect { get; }
+    string CompareMergeWrongSide(bool toRight);
+    string CompareMergeCopied(int lines, bool toRight);
+    string CompareMergeLines(int lines);
     string HomeRecentTitle { get; }
     string HomeRecentClear { get; }
     string HomeRecentRemove { get; }
@@ -130,7 +138,6 @@ public interface IAppStrings
     string CompareSaveFileAs { get; }
     string CompareUndo { get; }
     string CompareRedo { get; }
-    string CompareCopyToOther { get; }
     string CompareCopyLineToRight { get; }
     string CompareCopyLineToLeft { get; }
     string CompareSelectSection { get; }
@@ -188,7 +195,6 @@ public interface IAppStrings
     string CompareChangedOutside { get; }
     string CompareReloadDiscard { get; }
     string CompareReadOnly { get; }
-    string CompareNothingToCopy { get; }
 
     string SettingsWindowTitle(string appName);
     string SettingsSectionAppearance { get; }

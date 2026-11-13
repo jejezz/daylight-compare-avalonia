@@ -19,6 +19,14 @@ sealed class DiffViewState
     /// <summary>고치는 중(다시 비교 전): 행 정보가 잠시 맞지 않으므로 줄 안 강조는 쉰다.</summary>
     public bool Editing { get; set; }
 
+    /// <summary>
+    /// 사용자가 병합하려고 고른 행 범위(화면 행, 0부터)와, 이 편집기가 그 고른 쪽(원본)인가. 양쪽 편집기가 같은 범위를 틀로 감싸 보인다 —
+    /// 원본 쪽은 실선, 합쳐질 대상 쪽은 점선.
+    /// </summary>
+    public (int First, int Last)? MergeRows { get; set; }
+
+    public bool MergeIsSource { get; set; }
+
     /// <summary>바뀐 행의 줄 안 차이 (보이는 줄만 계산해서 기억).</summary>
     public Dictionary<int, IntralineDiff> Intraline { get; } = [];
 
@@ -47,6 +55,29 @@ sealed class DiffViewState
         if (Row(row) is not { Left: { } l, Right: { } r } ar || ar.Kind is not (DiffBlockKind.Changed or DiffBlockKind.Unimportant)) return null;
         if (!Intraline.TryGetValue(row, out var intra)) Intraline[row] = intra = Diff!.Diff.Intraline(l, r);
         return intra;
+    }
+}
+
+/// <summary>
+/// 병합하려고 고른 행들을 감싸는 틀 (<see cref="DiffViewState.MergeRows"/>). 고른 쪽은 실선, 합쳐질 쪽은 점선 + 옅은 바탕 —
+/// 가운데 → / ← 버튼을 누르면 이 틀 안의 줄만 옮겨진다는 것을 양쪽에서 같은 자리로 보인다.
+/// </summary>
+sealed class MergeFrameRenderer(DiffViewState state) : IBackgroundRenderer
+{
+    public KnownLayer Layer => KnownLayer.Selection;
+
+    public void Draw(TextView textView, DrawingContext dc)
+    {
+        if (state.MergeRows is not { } m || textView.Document is not { LineCount: > 0 } doc || !textView.VisualLinesValid) return;
+        var first = Math.Clamp(m.First, 0, doc.LineCount - 1) + 1;
+        var last = Math.Clamp(m.Last, 0, doc.LineCount - 1) + 1;
+        var top = textView.GetVisualTopByDocumentLine(first) - textView.VerticalOffset;
+        var bottom = textView.GetVisualTopByDocumentLine(last) + textView.DefaultLineHeight - textView.VerticalOffset;
+        if (DiffViewState.Brush("AppPrimary") is not ISolidColorBrush primary) return;
+        var rect = new Rect(1, top + 0.5, Math.Max(0, textView.Bounds.Width - 2), Math.Max(2, bottom - top - 1));
+        var fill = new SolidColorBrush(primary.Color, state.MergeIsSource ? 0.06 : 0.10);
+        var pen = new Pen(primary, 2, state.MergeIsSource ? null : new DashStyle([4, 3], 0));
+        dc.DrawRectangle(fill, pen, rect, 3, 3);
     }
 }
 
@@ -141,6 +172,8 @@ sealed class RowNumberMargin(DiffViewState state, bool left) : AbstractMargin
 
     public override void Render(DrawingContext dc)
     {
+        // 여백 전체를 (보이지 않게) 칠한다 — Avalonia는 그리기 연산이 있는 곳만 클릭을 받으므로, 안 그리면 번호도 기호도 없는 줄(채움 줄)은 눌러도 닿지 않는다.
+        dc.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
         var textView = TextView;
         if (textView is null || !textView.VisualLinesValid) return;
         var numberBrush = DiffViewState.Brush("AppTextMid") ?? Brushes.Gray;
@@ -197,7 +230,7 @@ sealed class OverviewBar : Control
 
     public OverviewBar()
     {
-        Width = 16;
+        Width = 22; // 차이 위치가 눈에 띄게 넉넉한 너비
         Cursor = new Cursor(StandardCursorType.Arrow);
     }
 
@@ -210,31 +243,46 @@ sealed class OverviewBar : Control
         return new Rect(0.5, top / total * Bounds.Height, Math.Max(0, Bounds.Width - 1), Math.Max(10, rows / total * Bounds.Height));
     }
 
+    /// <summary>자원 이름의 색을 불투명하게 (지도의 차이 표시는 반투명 줄 바탕과 달리 선명해야 한다).</summary>
+    static IBrush? Solid(string key) => DiffViewState.Brush(key) is ISolidColorBrush b ? new SolidColorBrush(Color.FromRgb(b.Color.R, b.Color.G, b.Color.B)) : null;
+
     public override void Render(DrawingContext dc)
     {
         var h = Bounds.Height;
+        var w = Bounds.Width;
         dc.FillRectangle(DiffViewState.Brush("AppSurfaceHi") ?? Brushes.Transparent, new Rect(Bounds.Size));
+        if (DiffViewState.Brush("AppStrokeStrong") is { } edge) dc.FillRectangle(edge, new Rect(0, 0, 1, h)); // 편집기와의 경계
         if (State?.Diff is not { } diff || diff.Rows.Count == 0) return;
         double total = diff.Rows.Count;
-        foreach (var range in diff.Ranges)
-        {
-            var key = range.Kind switch
-            {
-                DiffBlockKind.Changed => "AppDiffChangedStrong",
-                DiffBlockKind.LeftOnly => "AppDiffLeftOnlyStrong",
-                DiffBlockKind.RightOnly => "AppDiffRightOnlyStrong",
-                DiffBlockKind.Unimportant when State.ShowUnimportant => "AppDiffMarker",
-                _ => null,
-            };
-            if (key is null || DiffViewState.Brush(key) is not { } brush) continue;
-            var y = range.StartRow / total * h;
-            dc.FillRectangle(brush, new Rect(3, y, Bounds.Width - 6, Math.Max(2, range.RowCount / total * h)));
-        }
-        // 손잡이: 반투명 채움 + 테두리 — 차이 표시가 비쳐 보이면서도 스크롤 막대의 손잡이로 읽힌다.
+
+        // 1) 손잡이(보이는 범위)를 먼저 깔고, 2) 그 위에 차이 표시를 올린다 — 손잡이 안에서도 차이가 가려지지 않고 선명하다.
         var thumb = Thumb();
         var mid = DiffViewState.Brush("AppTextMid") ?? Brushes.Gray;
-        var fill = mid is ISolidColorBrush solid ? new SolidColorBrush(solid.Color, 0.22) : null;
-        dc.DrawRectangle(fill, new Pen(mid, 1), thumb, 3, 3);
+        dc.DrawRectangle(mid is ISolidColorBrush solid ? new SolidColorBrush(solid.Color, 0.28) : null, null, thumb, 3, 3);
+
+        // 차이 표시: 중요한 차이는 진한 빨강, 중요하지 않은 차이는 파랑 — 모두 불투명하고 최소 5px 높이.
+        // 바뀜은 막대 전체 너비, 왼쪽에만 있는 것은 왼쪽 절반, 오른쪽에만 있는 것은 오른쪽 절반 (어느 쪽에 있는지 지도에서도 보인다).
+        var important = Solid("AppDiffChangedStrong");
+        var minor = Solid("AppDiffUnimportantText");
+        const double inset = 3;
+        var inner = w - inset * 2;
+        foreach (var range in diff.Ranges)
+        {
+            var (brush, x, width) = range.Kind switch
+            {
+                DiffBlockKind.Changed => (important, inset, inner),
+                DiffBlockKind.LeftOnly => (important, inset, inner / 2 - 0.5),
+                DiffBlockKind.RightOnly => (important, inset + inner / 2 + 0.5, inner / 2 - 0.5),
+                DiffBlockKind.Unimportant when State.ShowUnimportant => (minor, inset, inner),
+                _ => ((IBrush?)null, 0d, 0d),
+            };
+            if (brush is null) continue;
+            var y = range.StartRow / total * h;
+            dc.FillRectangle(brush, new Rect(x, y, width, Math.Max(5, range.RowCount / total * h)));
+        }
+
+        // 손잡이 테두리는 맨 위에 — 보이는 범위가 어디인지 분명하게.
+        dc.DrawRectangle(null, new Pen(mid, 1.5), thumb.Deflate(0.75), 3, 3);
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)

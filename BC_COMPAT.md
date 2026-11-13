@@ -17,9 +17,9 @@ Copy to Right / Left = `Ctrl+R` / `Ctrl+L` 하나뿐이다. 아래 "BC 키"의 �
 |---|---|---|---|
 | Next / Previous Difference **Section** (Search) | `Ctrl+N` / `Ctrl+P` ❓ | 같음 (+ `F8`, `Alt+↓↑`) | ✅ |
 | Next / Previous Difference (줄 단위) | `Shift+Ctrl+N` / `Shift+Ctrl+P` ❓ | 같음 | ✅ |
-| Copy to Right / Copy to Left (Edit) | `Ctrl+R` / `Ctrl+L` ❓ (폴더 비교는 도움말에 명시) | 같음 (`Ctrl+→/←`는 편집기의 단어 이동으로 돌려줌) | ✅ |
-| Copy Line to Right / Left | `Shift+Ctrl+R` / `Shift+Ctrl+L` ❓ | 같음 | ✅ |
-| Copy to Other Side | — | 모든 명령 메뉴 | ✅ |
+| Copy to Right / Copy to Left (Edit) | `Ctrl+R` / `Ctrl+L` ❓ (폴더 비교는 도움말에 명시) | 키는 같다. **뜻은 다르다(사용자 결정)**: BC는 캐럿이 있는 차이 구간 전체를 복사하지만, 우리는 **사용자가 고른 줄만**(줄 번호·끌어 고르기 → 양쪽 틀 → 가운데 →/← 단추). 고르지 않으면 아무것도 안 한다, 파일 전체를 고르면 거절. 파일 전체 복사는 폴더 비교(Copy to Right/Left)의 일. `Ctrl+→/←`는 편집기의 단어 이동 | ✅ |
+| Copy Line to Right / Left | `Shift+Ctrl+R` / `Shift+Ctrl+L` ❓ | 같음 (캐럿이 있는 줄 하나 — 고른 범위와 같은 길로) | ✅ |
+| Copy to Other Side | — | 만들지 않는다 — 방향은 고른 쪽이 정한다(왼쪽에서 고르면 →, 오른쪽에서 고르면 ←) | — |
 | Reload Files (저장할지 묻는다) | `F5` ❓ | 같음 | ✅ |
 | Recompare Files (고친 것 유지) | `Ctrl+F5` ❓ | 같음 (손을 멈추면 자동으로도) | ✅ |
 | Swap Sides (Session) | ❓ (키 미확인) | `Ctrl+U` | ❓ 사용자 확인 |

@@ -97,6 +97,41 @@ public sealed class CompareWindow : Window
     readonly DiffViewState _leftState = new();
     readonly DiffViewState _rightState = new();
     readonly OverviewBar _overview = new();
+
+    // --- 고른 부분만 합치기: 고른 행을 양쪽에서 틀로 감싸고, 두 편집기 사이 가운데 영역의 → / ← 로 그 행만 복사한다 ---
+    // 파일 전체를 옮기는 일은 파일 비교에서 하지 않는다 (폴더 비교의 일). 무엇을 합칠지·되돌릴지는 모두 사용자가 정한다.
+    readonly Border _mergeGutter = new() { BorderThickness = new Thickness(1, 0, 1, 0) };
+    readonly Grid _mergeLayer = new() { ClipToBounds = true };
+    readonly Button _copyRightButton = MergeButton(toRight: true);
+    readonly Button _copyLeftButton = MergeButton(toRight: false);
+    Button? _toolCopyRight, _toolCopyLeft;
+    (Side Source, int First, int Last)? _merge;
+    bool _selectionGuard;
+    int _gutterAnchor = -1;
+
+    /// <summary>
+    /// 가운데 띠의 복사 단추 (원형). 화살표는 글자(→)가 아니라 도형으로 그린다 — 글자는 글꼴의 기준선 때문에 원 안에서 가운데가 어긋나고 크기도 맞추기 어렵다.
+    /// 화살표 도형은 14×14 칸의 정가운데에 놓이고(가로 2~12, 세로 3~11), 선 색은 단추의 글자색(<c>OnPrimary</c>)을 따른다.
+    /// </summary>
+    static Button MergeButton(bool toRight)
+    {
+        var arrow = new Avalonia.Controls.Shapes.Path
+        {
+            Data = Geometry.Parse(toRight ? "M2,7 L12,7 M8,3 L12,7 L8,11" : "M12,7 L2,7 M6,3 L2,7 L6,11"),
+            Width = 14, Height = 14, StrokeThickness = 2, StrokeLineCap = PenLineCap.Round, StrokeJoin = PenLineJoin.Round,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsHitTestVisible = false,
+        };
+        var button = new Button
+        {
+            Name = toRight ? "CopyRightButton" : "CopyLeftButton",
+            Classes = { "accent" }, Content = arrow, Width = 26, Height = 26, MinWidth = 0, MinHeight = 0, Padding = new Thickness(0), CornerRadius = new CornerRadius(13),
+            HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
+            IsVisible = false, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top,
+        };
+        // accent 스타일은 단추 자신이 아니라 안의 내용 표시기의 글자색을 바꾸므로, 주색 위의 글자색 자원을 직접 따른다 (테마·색 구성이 바뀌어도 맞는다).
+        arrow.Bind(Avalonia.Controls.Shapes.Shape.StrokeProperty, arrow.GetResourceObservable("AppOnPrimary"));
+        return button;
+    }
     readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center };
     /// <summary>BC View > Ignore Unimportant Differences (켜면 중요하지 않은 차이를 차이로 보이지 않는다).</summary>
     readonly ToggleButton _ignoreUnimportant = new() { Classes = { "tool" } };
@@ -249,6 +284,10 @@ public sealed class CompareWindow : Window
         commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
         Border Separator() => new() { Width = 1, Margin = new Thickness(4, 8), [!Border.BackgroundProperty] = this.GetResourceObservable("AppStrokeStrong").ToBinding() };
         // 툴바는 BC 텍스트 비교의 묶음 순서를 따른다: 보기 필터 · 중요하지 않은 차이 무시 | 복사 · 저장 | 이전·다음 구간 | 좌우 바꾸기 · 다시 읽기 | 찾기 · 모든 명령.
+        // 복사 단추는 사용자가 고른 부분이 있을 때만 켜진다 (UpdateMergeUi) — 파일 전체를 복사하는 단추는 없다.
+        var toolCopyLeft = _toolCopyLeft = Tool("back", Tip(s.CompareCopySelectionToLeft, "Ctrl+L"), () => _ = CopySelectionAsync(toRight: false));
+        var toolCopyRight = _toolCopyRight = Tool("forward", Tip(s.CompareCopySelectionToRight, "Ctrl+R"), () => _ = CopySelectionAsync(toRight: true));
+        toolCopyLeft.IsEnabled = toolCopyRight.IsEnabled = false;
         var tools = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -259,8 +298,8 @@ public sealed class CompareWindow : Window
                 _viewFilter,
                 _ignoreUnimportant,
                 Separator(),
-                Tool("back", Tip(s.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyBlockAsync(toRight: false)),
-                Tool("forward", Tip(s.CompareCopyToRight, "Ctrl+R"), () => _ = CopyBlockAsync(toRight: true)),
+                toolCopyLeft,
+                toolCopyRight,
                 _save,
                 Separator(),
                 Tool("up", Tip(s.ComparePrevSection, "Ctrl+P"), () => GoDiff(next: false)),
@@ -293,7 +332,7 @@ public sealed class CompareWindow : Window
         var grid = new Grid
         {
             RowDefinitions = new RowDefinitions("44,Auto,Auto,Auto,*"),
-            ColumnDefinitions = new ColumnDefinitions("*,1,*,14"),
+            ColumnDefinitions = new ColumnDefinitions("*,32,*,22"),
         };
         Place(grid, appBar, 0, 0, 4);
         Place(grid, BuildFindBar(), 1, 0, 4);
@@ -308,9 +347,15 @@ public sealed class CompareWindow : Window
             side.OverlayText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
             Place(grid, body, 4, col, 1);
         }
-        var divider = new Border();
-        divider.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppStrokeStrong"));
-        Place(grid, divider, 2, 1, 1, rowSpan: 3);
+        // 두 편집기 사이의 가운데 영역: 고른 행 옆에 → / ← 가 뜬다 (BC 병합 도구의 가운데 띠처럼).
+        _mergeGutter.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
+        _mergeGutter.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
+        Place(grid, _mergeGutter, 2, 1, 1, rowSpan: 3);
+        _mergeLayer.Children.Add(_copyRightButton);
+        _mergeLayer.Children.Add(_copyLeftButton);
+        _copyRightButton.Click += (_, _) => _ = CopySelectionAsync(toRight: true);
+        _copyLeftButton.Click += (_, _) => _ = CopySelectionAsync(toRight: false);
+        Place(grid, _mergeLayer, 4, 1, 1);
         Place(grid, _overview, 4, 3, 1);
         _overview.State = _leftState;
 
@@ -465,9 +510,8 @@ public sealed class CompareWindow : Window
             Item(s.CompareUndo, "Ctrl+Z", () => _ = UndoAsync(redo: false)),
             Item(s.CompareRedo, "Ctrl+Y", () => _ = UndoAsync(redo: true)),
             new Separator(),
-            Item(s.CompareCopyToRight, "Ctrl+R", () => _ = CopyBlockAsync(toRight: true)),
-            Item(s.CompareCopyToLeft, "Ctrl+L", () => _ = CopyBlockAsync(toRight: false)),
-            Item(s.CompareCopyToOther, null, () => _ = CopyBlockAsync(toRight: focused.Left)),
+            Item(s.CompareCopySelectionToRight, "Ctrl+R", () => _ = CopySelectionAsync(toRight: true)),
+            Item(s.CompareCopySelectionToLeft, "Ctrl+L", () => _ = CopySelectionAsync(toRight: false)),
             Item(s.CompareCopyLineToRight, "Ctrl+Shift+R", () => _ = CopyLineAsync(toRight: true)),
             Item(s.CompareCopyLineToLeft, "Ctrl+Shift+L", () => _ = CopyLineAsync(toRight: false)),
             new Separator(),
@@ -567,6 +611,14 @@ public sealed class CompareWindow : Window
             _findSide = side;
             UpdateFindWhere();
         };
+        e.TextArea.TextView.BackgroundRenderers.Add(new MergeFrameRenderer(state));
+        e.TextArea.SelectionChanged += (_, _) => OnSelectionChanged(side);
+        // 글 자리를 누르면 이전에 줄 번호로 고른 범위는 풀린다 (끌어서 새로 고르면 그것이 새 범위가 된다).
+        e.TextArea.AddHandler(PointerPressedEvent, (_, args) => OnTextAreaPressed(side, args), RoutingStrategies.Tunnel);
+        side.Margin.Cursor = new Cursor(StandardCursorType.Hand); // 줄 번호 자리는 눌러서 줄을 고른다
+        side.Margin.PointerPressed += (_, args) => OnGutterPressed(side, args);
+        side.Margin.PointerMoved += (_, args) => OnGutterMoved(side, args);
+        side.Margin.PointerReleased += (_, args) => { _gutterAnchor = -1; args.Pointer.Capture(null); };
         e.TextArea.Caret.PositionChanged += (_, _) =>
         {
             if (_syncing || _applying) return;
@@ -680,6 +732,8 @@ public sealed class CompareWindow : Window
             UpdateSideChrome(side);
         }
         _applying = false;
+        _merge = null; // 글이 다시 만들어지면 행 번호가 달라지므로 고른 범위를 풀고, 틀과 단추를 지운다
+        UpdateMergeUi();
         ApplyFolds(redraw: false);
         UpdateTitle();
         UpdateStatus();
@@ -746,6 +800,7 @@ public sealed class CompareWindow : Window
             _editBatchOpen = true;
         }
         _leftState.Editing = _rightState.Editing = true;
+        ClearMerge();
         _save.IsEnabled = true;
         _recompareTimer.Stop();
         _recompareTimer.Start();
@@ -799,24 +854,199 @@ public sealed class CompareWindow : Window
         await SetRealAsync(l, r);
     }
 
-    /// <summary>캐럿이 있는 차이 구간을 반대쪽으로 복사한다 (ROADMAP 3단계 블록 복사).</summary>
-    async Task CopyBlockAsync(bool toRight)
+    // --- 고른 부분만 합치기 ---
+
+    /// <summary>고른 행 범위에서 지금 합칠 수 있는 방향과 그 이유 (null이면 합칠 수 있다).</summary>
+    string? MergeBlockedReason(bool toRight)
     {
-        await CommitEditsAsync();
-        if (_leftState.Diff is not { } d) return;
-        var target = toRight ? _right : _left;
-        if (!target.CanEdit) return;
-        var row = (_left.Editor.TextArea.IsFocused ? _left : _right).Editor.TextArea.Caret.Line - 1;
-        if (d.RangeAt(row) is not { } range)
+        var s = Strings.Current;
+        if (_merge is not { } m || _leftState.Diff is not { } d) return s.CompareMergeSelectFirst;
+        if ((m.Source == _left) != toRight) return s.CompareMergeWrongSide(toRight);
+        if (!(toRight ? _right : _left).CanEdit) return s.CompareReadOnly;
+        if (DiffEdits.CoversWholeSource(d, m.First, m.Last, toRight)) return s.CompareMergeWholeFile;
+        return null;
+    }
+
+    /// <summary>
+    /// 사용자가 고른 행(<see cref="_merge"/>)<b>만</b> 반대쪽으로 복사한다. 고르지 않은 줄은 한 줄도 건드리지 않고,
+    /// 고른 범위가 파일 전체면 거절한다 (파일 전체를 옮기는 일은 폴더 비교의 일). 되돌리기는 Ctrl+Z.
+    /// </summary>
+    async Task CopySelectionAsync(bool toRight)
+    {
+        var s = Strings.Current;
+        if (_editBatchOpen)
         {
-            Notice(Strings.Current.CompareNothingToCopy);
+            // 고치던 글이 있으면 먼저 반영한다 (행 번호가 달라질 수 있으니 합칠 줄은 다시 고르게 한다).
+            await CommitEditsAsync();
+            Notice(s.CompareMergeReselect);
             return;
         }
+        if (MergeBlockedReason(toRight) is { } reason) { Notice(reason); return; }
+        var m = _merge!.Value;
+        var d = _leftState.Diff!;
+        var lines = DiffEdits.SourceLineCount(d, m.First, m.Last, toRight);
         _undo.Push((_left.Real, _right.Real));
         _redo.Clear();
-        var (l, r) = DiffEdits.CopyBlock(d.Diff, range.Block, toRight);
+        var (l, r) = DiffEdits.CopyRows(d, m.First, m.Last, toRight);
+        ClearMerge();
         await SetRealAsync(l, r);
-        Dispatcher.UIThread.Post(() => ScrollToRow(range.StartRow, center: false), DispatcherPriority.Background);
+        Notice(s.CompareMergeCopied(lines, toRight));
+    }
+
+    /// <summary>BC Copy Line to Right / Left (Shift+Ctrl+R / L): 원본 쪽 캐럿이 있는 줄 하나만 — 고른 범위와 같은 길로 간다.</summary>
+    async Task CopyLineAsync(bool toRight)
+    {
+        var source = toRight ? _left : _right;
+        var row = source.Editor.TextArea.Caret.Line - 1;
+        _merge = (source, row, row);
+        UpdateMergeUi();
+        await CopySelectionAsync(toRight);
+    }
+
+    void OnSelectionChanged(Side side)
+    {
+        if (_applying || _selectionGuard) return;
+        var editor = side.Editor;
+        if (editor.SelectionLength == 0)
+        {
+            if (_merge?.Source == side && _gutterAnchor < 0 && _gutterHeld != side) ClearMerge();
+            return;
+        }
+        var doc = editor.Document;
+        var start = editor.SelectionStart;
+        var end = start + editor.SelectionLength;
+        var first = doc.GetLineByOffset(Math.Min(start, doc.TextLength)).LineNumber - 1;
+        var lastLine = doc.GetLineByOffset(Math.Min(end, doc.TextLength));
+        var last = lastLine.LineNumber - 1;
+        if (end == lastLine.Offset && last > first) last--; // 다음 줄 맨 앞에서 끝나면 그 줄은 고른 것이 아니다
+        // 새로 고르면 반대쪽의 선택은 풀어서 어느 쪽이 원본인지 헷갈리지 않게 한다.
+        var other = side.Left ? _right : _left;
+        _selectionGuard = true;
+        other.Editor.TextArea.ClearSelection();
+        _selectionGuard = false;
+        SetMerge(side, first, last);
+    }
+
+    Side? _gutterHeld;
+
+    void SetMerge(Side source, int first, int last)
+    {
+        _merge = (source, Math.Min(first, last), Math.Max(first, last));
+        UpdateMergeUi();
+    }
+
+    void ClearMerge()
+    {
+        if (_merge is null) return;
+        _merge = null;
+        UpdateMergeUi();
+    }
+
+    /// <summary>
+    /// 글 자리를 누르면 이전에 줄 번호로 고른 범위는 풀린다. 단, 맞은편에는 줄이 있는데 이쪽에는 없는 행(채움 줄)을 누르면 그 행을 고른 것으로 본다 —
+    /// 글이 없어서 끌어 고를 수 없는 "없는 줄"을 맞은편의 줄(예: 빈 줄)에 합쳐 그 줄을 없애려면 이렇게 고를 수 있어야 한다.
+    /// </summary>
+    void OnTextAreaPressed(Side side, PointerPressedEventArgs args)
+    {
+        if (_selectionGuard) return;
+        ClearMerge();
+        if (!args.GetCurrentPoint(side.Editor.TextArea).Properties.IsLeftButtonPressed || _leftState.Diff is not { } d) return;
+        var tv = side.Editor.TextArea.TextView;
+        var y = args.GetPosition(tv).Y + tv.VerticalOffset;
+        if (tv.GetDocumentLineByVisualTop(Math.Max(0, y))?.LineNumber - 1 is not { } row || row < 0 || row >= d.Rows.Count) return;
+        var r = d.Rows[row];
+        if ((side.Left ? r.Left : r.Right) is not null || (side.Left ? r.Right : r.Left) is null) return; // 이쪽에 줄이 있거나, 맞은편에도 없으면 해당 없음
+        // 누름을 편집기가 처리한 뒤에 고른다 (누르면서 선택이 바뀌어 방금 고른 것이 풀리지 않게).
+        Dispatcher.UIThread.Post(() => SetMerge(side, row, row), DispatcherPriority.Input);
+    }
+
+    /// <summary>줄 번호 여백을 누르면 그 줄을 고른다 (Shift로 이어서 넓히고, 끌면 여러 줄). 빈 줄·채움 줄도 고를 수 있다.</summary>
+    void OnGutterPressed(Side side, PointerPressedEventArgs args)
+    {
+        if (!args.GetCurrentPoint(side.Margin).Properties.IsLeftButtonPressed || GutterLine(side, args) is not { } line) return;
+        var anchor = args.KeyModifiers.HasFlag(KeyModifiers.Shift) && _merge is { } m && m.Source == side ? m.First : line;
+        _gutterAnchor = anchor;
+        _gutterHeld = side;
+        args.Pointer.Capture(side.Margin);
+        SelectGutterLines(side, anchor, line);
+        args.Handled = true;
+    }
+
+    void OnGutterMoved(Side side, PointerEventArgs args)
+    {
+        if (_gutterAnchor < 0 || _gutterHeld != side || !args.GetCurrentPoint(side.Margin).Properties.IsLeftButtonPressed) return;
+        if (GutterLine(side, args) is { } line) SelectGutterLines(side, _gutterAnchor, line);
+    }
+
+    /// <summary>여백 안 위치의 화면 행 (0부터).</summary>
+    int? GutterLine(Side side, PointerEventArgs args)
+    {
+        var tv = side.Editor.TextArea.TextView;
+        var y = args.GetPosition(side.Margin).Y + tv.VerticalOffset;
+        return tv.GetDocumentLineByVisualTop(Math.Max(0, y))?.LineNumber - 1;
+    }
+
+    void SelectGutterLines(Side side, int firstRow, int lastRow)
+    {
+        var (a, b) = (Math.Min(firstRow, lastRow), Math.Max(firstRow, lastRow));
+        var doc = side.Editor.Document;
+        _selectionGuard = true;
+        try
+        {
+            var other = side.Left ? _right : _left;
+            other.Editor.TextArea.ClearSelection();
+            var from = doc.GetLineByNumber(Math.Min(a + 1, doc.LineCount));
+            var to = doc.GetLineByNumber(Math.Min(b + 1, doc.LineCount));
+            side.Editor.Select(from.Offset, to.EndOffset - from.Offset); // 빈 줄만이면 길이 0 — 화면에는 틀이 고른 범위를 보인다
+        }
+        finally { _selectionGuard = false; }
+        SetMerge(side, a, b);
+    }
+
+    /// <summary>고른 범위가 바뀔 때: 양쪽의 틀, 가운데 → / ← 단추의 자리·사용 가능 여부, 도구 모음 단추를 맞춘다.</summary>
+    void UpdateMergeUi()
+    {
+        var m = _merge;
+        foreach (var (side, state) in new[] { (_left, _leftState), (_right, _rightState) })
+        {
+            state.MergeRows = m is { } x ? (x.First, x.Last) : null;
+            state.MergeIsSource = m?.Source == side;
+        }
+        var s = Strings.Current;
+        string Tip(bool toRight)
+        {
+            var key = toRight ? "Ctrl+R" : "Ctrl+L";
+            var name = toRight ? s.CompareCopySelectionToRight : s.CompareCopySelectionToLeft;
+            if (MergeBlockedReason(toRight) is { } reason && m is not null && (m.Value.Source == _left) == toRight) return reason;
+            return m is { } v && (v.Source == _left) == toRight && _leftState.Diff is { } d
+                ? $"{name} — {s.CompareMergeLines(DiffEdits.SourceLineCount(d, v.First, v.Last, toRight))} ({key})"
+                : $"{name} ({key})";
+        }
+        foreach (var (button, toRight) in new[] { (_copyRightButton, true), (_copyLeftButton, false) })
+        {
+            var mine = m is { } v && (v.Source == _left) == toRight;
+            button.IsVisible = mine;
+            button.IsEnabled = mine && MergeBlockedReason(toRight) is null;
+            ToolTip.SetTip(button, Tip(toRight));
+        }
+        if (_toolCopyRight is not null) _toolCopyRight.IsEnabled = m is { } a && a.Source == _left && MergeBlockedReason(true) is null;
+        if (_toolCopyLeft is not null) _toolCopyLeft.IsEnabled = m is { } b && b.Source == _right && MergeBlockedReason(false) is null;
+        PositionMergeButtons();
+        Redraw();
+    }
+
+    /// <summary>→ / ← 단추를 고른 첫 행 옆에 둔다. 고른 곳이 화면 밖이면 맨 위·맨 아래에 붙여 늘 누를 수 있게 한다.</summary>
+    void PositionMergeButtons()
+    {
+        if (_merge is not { } m) return;
+        var tv = _right.Editor.TextArea.TextView;
+        var doc = _right.Editor.Document;
+        if (doc.LineCount == 0 || tv.Bounds.Height <= 0) return;
+        var line = Math.Clamp(m.First, 0, doc.LineCount - 1) + 1;
+        var y = tv.GetVisualTopByDocumentLine(line) - tv.VerticalOffset;
+        var top = Math.Clamp(y, 2, Math.Max(2, tv.Bounds.Height - 30));
+        var button = m.Source == _left ? _copyRightButton : _copyLeftButton;
+        button.Margin = new Thickness(0, top, 0, 0);
     }
 
     // --- 저장 (ROADMAP §6-1 ② 손실 확인, ③ 자동 백업) ---
@@ -1099,6 +1329,7 @@ public sealed class CompareWindow : Window
         ScrollTo(to, from.Editor.HorizontalOffset, from.Editor.VerticalOffset);
         _syncing = false;
         UpdateViewport();
+        PositionMergeButtons();
     }
 
     void UpdateViewport()
@@ -1325,19 +1556,6 @@ public sealed class CompareWindow : Window
         var include = IncludeUnimportant(d);
         if ((next ? d.NextDifferenceRow(row, include) : d.PreviousDifferenceRow(row, include)) is { } target)
             ScrollToRow(target, center: true);
-    }
-
-    /// <summary>BC Copy Line to Right / Left (Shift+Ctrl+R / L): 캐럿이 있는 행 하나만.</summary>
-    async Task CopyLineAsync(bool toRight)
-    {
-        await CommitEditsAsync();
-        if (_leftState.Diff is not { } d || !(toRight ? _right : _left).CanEdit) return;
-        var row = CurrentRow();
-        if (row < 0 || row >= d.Rows.Count || d.Rows[row].Kind == DiffBlockKind.Equal) { Notice(Strings.Current.CompareNothingToCopy); return; }
-        _undo.Push((_left.Real, _right.Real));
-        _redo.Clear();
-        var (l, r) = DiffEdits.CopyRow(d, row, toRight);
-        await SetRealAsync(l, r);
     }
 
     /// <summary>BC Recompare Files (Ctrl+F5): 고친 것을 그대로 두고 지금 다시 비교한다 (Reload Files와 달리 디스크를 읽지 않는다).</summary>
@@ -1594,8 +1812,8 @@ public sealed class CompareWindow : Window
             case Key.F8: GoDiff(next: !shift); break;
             case Key.Down when alt: GoDiff(next: true); break;
             case Key.Up when alt: GoDiff(next: false); break;
-            case Key.R when primary: _ = shift ? CopyLineAsync(toRight: true) : CopyBlockAsync(toRight: true); break;
-            case Key.L when primary: _ = shift ? CopyLineAsync(toRight: false) : CopyBlockAsync(toRight: false); break;
+            case Key.R when primary: _ = shift ? CopyLineAsync(toRight: true) : CopySelectionAsync(toRight: true); break;
+            case Key.L when primary: _ = shift ? CopyLineAsync(toRight: false) : CopySelectionAsync(toRight: false); break;
             case Key.D when primary && !shift: SelectSection(); break;
             case Key.F when primary: OpenFind(); break;
             case Key.H when primary: OpenFind(replace: true); break;
@@ -1603,6 +1821,7 @@ public sealed class CompareWindow : Window
             case Key.G when primary: _ = GoToLineAsync(); break;
             case Key.I when primary && !shift: _ = ShowInfoAsync(); break;
             case Key.Escape when _findBar.IsVisible: CloseFind(); break;
+            case Key.Escape when _merge is not null: ClearMerge(); break;
             case Key.V when primary && shift: _ = PasteAsync(FocusedSide()); break;
             case Key.S when primary: _ = shift ? SaveAllAsync() : SaveFocusedAsync(); break;
             case Key.F12: _ = SaveAsAsync(FocusedSide()); break;
