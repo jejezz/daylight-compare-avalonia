@@ -48,8 +48,8 @@ public sealed class FolderCompareWindow : Window
     readonly ListBox _list = new() { SelectionMode = SelectionMode.Multiple, Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
     readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     readonly TextBox _filterBox = new() { MinWidth = 320, VerticalAlignment = VerticalAlignment.Center };
-    readonly TextBlock _leftPath = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.PathSegmentEllipsis };
-    readonly TextBlock _rightPath = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.PathSegmentEllipsis };
+    readonly TextBox _leftPath = new() { VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBox _rightPath = new() { VerticalAlignment = VerticalAlignment.Center };
     readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(10, 4) };
     readonly DialogHost _dialogs = new();
 
@@ -243,9 +243,15 @@ public sealed class FolderCompareWindow : Window
     Control PathHeader(bool left)
     {
         var s = Strings.Current;
-        var pick = UiScale.Enable(new Button { Content = s.HomeChooseFolder, Padding = new Thickness(12, 4) });
+        var pick = UiScale.Enable(new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "folder-open" } });
+        ToolTip.SetTip(pick, left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle);
         pick.Click += async (_, _) => await ChooseAsync(left);
         var text = left ? _leftPath : _rightPath;
+        text.KeyDown += async (_, e) =>
+        {
+            if (e.Key == Key.Enter) { e.Handled = true; await ApplyTypedPathAsync(left, text); }
+            else if (e.Key == Key.Escape) { e.Handled = true; text.Text = left ? _leftRoot : _rightRoot; }
+        };
         var icon = new DuoIcon { Icon = "folder", ColorKey = "AppIconFolder", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8, Margin = new Thickness(12, 6), Children = { icon, text, pick } };
         Grid.SetColumn(text, 1);
@@ -653,6 +659,21 @@ public sealed class FolderCompareWindow : Window
         });
         if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } path) return;
         PickLocations.Remember(path, isFolder: true);
+        await ApplyRootAsync(left, path);
+    }
+
+    /// <summary>주소 창에 직접 쓴 경로를 적용한다. 폴더(또는 압축 파일)가 아니면 원래 경로로 되돌린다.</summary>
+    async Task ApplyTypedPathAsync(bool left, TextBox box)
+    {
+        var path = (box.Text ?? "").Trim().Trim('"');
+        var current = left ? _leftRoot : _rightRoot;
+        if (path.Length == 0 || path == current || !await Task.Run(() => CanOpen(path))) { box.Text = current; return; }
+        PickLocations.Remember(path, isFolder: true);
+        await ApplyRootAsync(left, path);
+    }
+
+    async Task ApplyRootAsync(bool left, string path)
+    {
         await ResolveOnce();
         var (fs, root) = await Task.Run(() => Resolve(path));
         if (left) (_leftFs, _leftRoot) = (fs, root); else (_rightFs, _rightRoot) = (fs, root);
