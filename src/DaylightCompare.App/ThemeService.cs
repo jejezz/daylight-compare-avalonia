@@ -101,6 +101,10 @@ static class ThemeService
         Brush(app, "AppDiffUnimportant", d.UnimportantLine);
         Brush(app, "AppDiffFiller", d.Filler);
         Brush(app, "AppDiffMarker", d.Marker);
+        // 폴더 비교의 글자 색 — BC와 같은 뜻 (같음 = 보통 글자색, 다름·더 새것 = 빨강, 한쪽에만 = 보라, 아직 모름 = 흐리게). BC_COMPAT.md §2
+        Brush(app, "AppFolderDifferent", dark ? 0xFFFF7478u : 0xFFD1262Du);
+        Brush(app, "AppFolderOrphan", dark ? 0xFFC9A2FFu : 0xFF7A3FD0u);
+        Brush(app, "AppFolderPending", dark ? 0xFF8E98A8u : 0xFF8A93A3u);
         Brush(app, "AppFolder", dark ? 0xFFF2BC4Eu : 0xFFE3A12Bu);
         Brush(app, "AppIconFolder", dark ? 0xFFF2BC4Eu : 0xFFE3A12Bu);
         Brush(app, "AppIconArchive", dark ? 0xFFF0A940u : 0xFFD98A1Fu);

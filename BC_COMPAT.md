@@ -49,6 +49,9 @@ Never align differences), Format(형식·인코딩), Replacements가 우리 정�
 
 ## 2. 폴더 비교 (4단계 — 처음부터 BC 방식으로)
 
+- **상태 (4b)**: ✅ Copy to Right / Left(`Ctrl+R`/`Ctrl+L`) · Delete · Open · Next/Previous Difference(`Ctrl+N`/`Ctrl+P`) · Select All · Select Newer/Orphans(왼쪽·오른쪽·양쪽) · Invert Selection ·
+  Expand/Collapse All · Refresh(`F5`) · Swap Sides · 보기 필터 열두 가지와 여섯 토글 · Always Show Folders · 필터 막대 · 색.
+  ➕ 아직: Copy to Other Side, Move to …, Rename, New Folder, Compare Contents/Quick Compare, Compare To/Align With, Find Filename, Back/Forward/Up One Level, Synchronize, Suppress Filters, Columns, Legend, Select Newer의 "고른 것만" 등.
 - 명령: Copy to Right / Left `Ctrl+R` / `Ctrl+L` (도움말 명시), Copy to Other Side, Move to …, Delete, Rename `F2`❓, New Folder `Insert`❓,
   Compare Contents(CRC · Binary · Rules-based), Quick Compare, Compare To `F7`❓, Align With `F6`❓, Expand / Collapse All,
   Select Newer / Orphans(Left·Right·Both), Invert Selection, Refresh `F5`❓ / Full Refresh `Ctrl+F5`❓, Refresh Selection `Shift+F5`❓,

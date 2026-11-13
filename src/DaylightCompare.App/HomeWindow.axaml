@@ -35,11 +35,17 @@
                     <TextBlock Grid.Row="0" Text="{DynamicResource Str.HomeLeft}" VerticalAlignment="Center" FontWeight="Bold"/>
                     <TextBlock Grid.Row="0" Grid.Column="1" x:Name="LeftPath" VerticalAlignment="Center" TextTrimming="PathSegmentEllipsis"
                                Foreground="{DynamicResource AppTextMid}"/>
-                    <Button Grid.Row="0" Grid.Column="2" x:Name="PickLeft" Content="{DynamicResource Str.CompareOpen}"/>
+                    <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="PickLeftFolder" Content="{DynamicResource Str.HomeChooseFolder}"/>
+                        <Button x:Name="PickLeft" Content="{DynamicResource Str.CompareOpen}"/>
+                    </StackPanel>
                     <TextBlock Grid.Row="2" Text="{DynamicResource Str.HomeRight}" VerticalAlignment="Center" FontWeight="Bold"/>
                     <TextBlock Grid.Row="2" Grid.Column="1" x:Name="RightPath" VerticalAlignment="Center" TextTrimming="PathSegmentEllipsis"
                                Foreground="{DynamicResource AppTextMid}"/>
-                    <Button Grid.Row="2" Grid.Column="2" x:Name="PickRight" Content="{DynamicResource Str.CompareOpen}"/>
+                    <StackPanel Grid.Row="2" Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="PickRightFolder" Content="{DynamicResource Str.HomeChooseFolder}"/>
+                        <Button x:Name="PickRight" Content="{DynamicResource Str.CompareOpen}"/>
+                    </StackPanel>
                     <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                         <!-- 파일 없이 글을 붙여 넣어 비교 (클립보드 비교, ROADMAP §6-1) -->
                         <Button x:Name="PasteCompareButton" Content="{DynamicResource Str.HomePasteCompare}"/>

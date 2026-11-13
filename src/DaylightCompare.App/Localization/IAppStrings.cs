@@ -50,9 +50,59 @@ public interface IAppStrings
     string HomeCompare { get; }
     string HomeNotChosen { get; }
     string DropTooMany { get; }
-    string DropFolderLater { get; }
     string DropNoCounterpart(string name);
     string CommonClose { get; }
+    string FolderLoading { get; }
+    string FolderColName { get; }
+    string FolderColSize { get; }
+    string FolderColModified { get; }
+    string FolderFilterPlaceholder { get; }
+    string FolderFilterTooltip { get; }
+    string FolderViewFilterTooltip { get; }
+    string FolderMenuActions { get; }
+    string FolderOpen { get; }
+    string FolderDelete { get; }
+    string FolderDeleteLeft { get; }
+    string FolderDeleteRight { get; }
+    string FolderExpandAll { get; }
+    string FolderCollapseAll { get; }
+    string FolderSelectAll { get; }
+    string FolderInvertSelection { get; }
+    string FolderSelectNewer { get; }
+    string FolderSelectOrphans { get; }
+    string FolderSideLeft { get; }
+    string FolderSideRight { get; }
+    string FolderSideBoth { get; }
+    string FolderRefresh { get; }
+    string FolderAlwaysShowFolders { get; }
+    string FolderToggles { get; }
+    string FolderToggleSame { get; }
+    string FolderToggleDifferent { get; }
+    string FolderToggleLeftNewer { get; }
+    string FolderToggleRightNewer { get; }
+    string FolderToggleLeftOrphan { get; }
+    string FolderToggleRightOrphan { get; }
+    string FolderCustomFilter { get; }
+    string FolderNothingSelected { get; }
+    string FolderArchiveReadOnly { get; }
+    string FolderCopyAction { get; }
+    string FolderDeleteAction { get; }
+    string FolderDeletePermanent { get; }
+    string FolderChooseLeftTitle { get; }
+    string FolderChooseRightTitle { get; }
+    string HomeChooseFolder { get; }
+    string FolderFileVsFolderLater { get; }
+    string FolderWindowTitle(string left, string right);
+    string FolderStatus(int same, int different, int leftOnly, int rightOnly);
+    string FolderStatusPending(int pending);
+    string FolderShowName(string id);
+    string FolderCopyTitle(bool toRight);
+    string FolderCopyBody(int count, int overwrites, string target);
+    string FolderDeleteTitle(string side);
+    string FolderDeleteBody(int count, bool toTrash);
+    string FolderCopied(int count);
+    string FolderDeleted(int count);
+    string FolderOperationFailed(int count, string first);
     string CompareIgnoreUnimportant { get; }
     string CompareViewFilterTooltip { get; }
     string CompareCommandsTooltip { get; }

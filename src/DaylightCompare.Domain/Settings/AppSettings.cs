@@ -90,6 +90,14 @@ public sealed record AppSettings
 
     public const int DefaultContextLines = 3, MaxContextLines = 20;
 
+    /// <summary>폴더 비교의 보기 필터 토글 (<c>FolderShow</c> 비트, BC View > Show …). 기본은 모두 보기(63).</summary>
+    [JsonPropertyName("folder_show")]
+    public int FolderShowFlags { get; init; } = 63;
+
+    /// <summary>BC View > Always Show Folders: 보일 파일이 없는 폴더도 보인다.</summary>
+    [JsonPropertyName("folder_always_show_folders")]
+    public bool FolderAlwaysShowFolders { get; init; }
+
     public AppSettings WithTextScale(double scale) => this with { TextScale = TextScales.Snap(scale) };
 
     /// <summary>서버를 저장한다. 같은 서버(스킴·호스트·포트·계정)가 이미 있으면 그 자리를 바꾸고, 없으면 맨 끝에 더한다.</summary>

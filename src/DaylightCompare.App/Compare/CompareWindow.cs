@@ -1492,14 +1492,17 @@ public sealed class CompareWindow : Window
     /// 놓기 결과를 처리한다 (홈 창과 함께 쓴다): 파일 비교는 <paramref name="apply"/>로 양쪽을 정하고, 아직 없는 기능(폴더 비교·병합)과
     /// 거절은 안내 대화상자로 알린다. 파일 + 폴더면 폴더 안의 같은 이름 파일을 찾는다.
     /// </summary>
-    internal static async Task ApplyDropAsync(Window owner, DropPlan plan, Func<string?, string?, Task> apply)
+    internal static async Task ApplyDropAsync(Window owner, DropPlan plan, Func<string?, string?, Task> apply, bool allowPendingFolders = false)
     {
         var s = Strings.Current;
         async Task Tell(string message) => await MessageDialog.ShowAsync(owner, AppIdentity.DisplayName, message, [s.CommonClose], 0, 0);
         switch (plan)
         {
-            case DropPlan.Pending p when p.Left is not { IsContainer: true } && p.Right is not { IsContainer: true }:
+            case DropPlan.Pending p when allowPendingFolders || p.Left is not { IsContainer: true } && p.Right is not { IsContainer: true }:
                 await apply(p.Left?.Path, p.Right?.Path);
+                break;
+            case DropPlan.Compare { Mode: CompareMode.Folders } c:
+                FolderCompareWindow.Open(owner, c.Left.Path, c.Right.Path);
                 break;
             case DropPlan.Compare { Mode: CompareMode.Files } c:
                 await apply(c.Left.Path, c.Right.Path);
@@ -1521,8 +1524,8 @@ public sealed class CompareWindow : Window
             case DropPlan.Rejected or DropPlan.Merge:
                 await Tell(s.DropTooMany);
                 break;
-            default: // 폴더 비교 (4단계)
-                await Tell(s.DropFolderLater);
+            default: // 파일과 폴더의 짝은 아직 지원하지 않는다
+                await Tell(s.FolderFileVsFolderLater);
                 break;
         }
     }
