@@ -188,4 +188,48 @@ public sealed class FolderCompareWindowTests : IDisposable
         Assert.Equal((int)FolderShow.All, App.Settings.Value.FolderShowFlags);
         w.Close();
     }
+
+    [AvaloniaFact]
+    public async Task 주소_창에_경로를_쓰고_Enter를_누르면_그_폴더로_다시_비교한다()
+    {
+        MakeTrees();
+        ResetSettings();
+        var other = Path.Combine(_dir, "other");
+        Put(other, "only-in-other.txt", "z");
+        var w = FolderCompareWindow.Open(null, L, R);
+        await Settle();
+        Assert.DoesNotContain("only-in-other.txt", Names(w));
+        var box = w.GetVisualDescendants().OfType<TextBox>().First(t => t.Text == L);
+        box.Focus();
+        box.Text = other;
+        w.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        await Settle();
+        Assert.Equal(other, w.LeftRoot);
+        Assert.Contains("only-in-other.txt", Names(w));
+        w.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task 포함_칸과_제외_칸을_따로_적용한다()
+    {
+        MakeTrees();
+        ResetSettings();
+        var w = FolderCompareWindow.Open(null, L, R);
+        await Settle();
+        var boxes = w.GetVisualDescendants().OfType<TextBox>().Where(t => t.PlaceholderText is { Length: > 0 }).ToList();
+        var include = boxes.First(t => t.PlaceholderText!.StartsWith("포함"));
+        var exclude = boxes.First(t => t.PlaceholderText!.StartsWith("제외"));
+
+        include.Focus();
+        include.Text = "*.txt";
+        exclude.Text = "only*;changed.txt";
+        w.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        await Settle();
+        var names = Names(w);
+        Assert.Contains("same.txt", names);
+        Assert.DoesNotContain("onlyLeft.txt", names);
+        Assert.DoesNotContain("onlyRight.txt", names);
+        Assert.DoesNotContain("changed.txt", names);
+        w.Close();
+    }
 }

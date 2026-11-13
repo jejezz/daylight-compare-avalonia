@@ -57,8 +57,14 @@ public sealed class KoreanStrings : IAppStrings
     public string FolderColName => "이름";
     public string FolderColSize => "크기";
     public string FolderColModified => "수정한 날짜";
-    public string FolderFilterPlaceholder => "필터 (예: *.cs;-bin\\;-*.obj)";
-    public string FolderFilterTooltip => "이름 필터 — Beyond Compare와 같은 문법 (Enter로 적용)";
+    public string FolderFilterPlaceholder => "포함 (예: *.cs;*.h)";
+    public string FolderFilterTooltip => "포함 필터 — 이 이름만 보인다. 비우면 모두. Beyond Compare와 같은 문법 (Enter로 적용)";
+    public string FolderFilterExcludePlaceholder => "제외 (예: bin\\;*.obj)";
+    public string FolderFilterExcludeTooltip => "제외 필터 — 이 이름은 뺀다. 폴더는 끝에 \\ (Enter로 적용)";
+    public string FolderFilterImport => "필터 가져오기…";
+    public string FolderFilterExport => "필터 내보내기…";
+    public string FolderFilterFileType => "Daylight Compare 필터";
+    public string FolderFilterImportFailed => "필터 파일을 읽을 수 없습니다";
     public string FolderViewFilterTooltip => "보기 필터";
     public string FolderMenuActions => "동작";
     public string FolderOpen => "열기";

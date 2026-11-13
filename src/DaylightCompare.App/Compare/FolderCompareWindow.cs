@@ -47,9 +47,10 @@ public sealed class FolderCompareWindow : Window
 
     readonly ListBox _list = new() { SelectionMode = SelectionMode.Multiple, Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
     readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-    readonly TextBox _filterBox = new() { MinWidth = 320, VerticalAlignment = VerticalAlignment.Center };
-    readonly TextBlock _leftPath = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.PathSegmentEllipsis };
-    readonly TextBlock _rightPath = new() { VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.PathSegmentEllipsis };
+    readonly TextBox _filterBox = new() { MinWidth = 240, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBox _excludeBox = new() { MinWidth = 240, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBox _leftPath = new() { VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBox _rightPath = new() { VerticalAlignment = VerticalAlignment.Center };
     readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center, Padding = new Thickness(10, 4) };
     readonly DialogHost _dialogs = new();
 
@@ -107,11 +108,12 @@ public sealed class FolderCompareWindow : Window
             var x = e.GetPosition(_list).X;
             _activeLeft = x < _list.Bounds.Width / 2;
         }, RoutingStrategies.Tunnel);
-        _filterBox.KeyDown += (_, e) =>
-        {
-            if (e.Key == Key.Enter) { ApplyFilter(); e.Handled = true; }
-            else if (e.Key == Key.Escape) { _list.Focus(); e.Handled = true; }
-        };
+        foreach (var box in new[] { _filterBox, _excludeBox })
+            box.KeyDown += (_, e) =>
+            {
+                if (e.Key == Key.Enter) { ApplyFilter(); e.Handled = true; }
+                else if (e.Key == Key.Escape) { _list.Focus(); e.Handled = true; }
+            };
         _timer.Tick += (_, _) => { if (_dirty) { _dirty = false; Rebuild(); } };
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         Strings.Changed += OnLanguageChanged;
@@ -137,6 +139,7 @@ public sealed class FolderCompareWindow : Window
         UpdateTitle();
         UpdateViewFilterButton();
         _filterBox.PlaceholderText = Strings.Current.FolderFilterPlaceholder;
+        _excludeBox.PlaceholderText = Strings.Current.FolderFilterExcludePlaceholder;
         Rebuild();
     });
 
@@ -171,7 +174,7 @@ public sealed class FolderCompareWindow : Window
         commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
         ToolTip.SetTip(_viewFilter, s.FolderViewFilterTooltip);
 
-        // 툴바: 보기 필터 | 복사 | 이전·다음 차이 | 좌우 바꾸기 · 새로 고침 · 모든 명령 | 설정 · 정보 — BC 폴더 비교의 묶음 순서.
+        // 툴바: 보기 필터 | 복사 | 이전·다음 차이 | 모두 펴기·접기 | 좌우 바꾸기 · 새로 고침 · 모든 명령 | 설정 · 정보 — BC 폴더 비교의 묶음 순서.
         var tools = new StackPanel
         {
             Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center,
@@ -184,6 +187,9 @@ public sealed class FolderCompareWindow : Window
                 Separator(),
                 Tool("up", Tip(s.ComparePrevLine, "Ctrl+P"), () => GoDifference(next: false)),
                 Tool("down", Tip(s.CompareNextLine, "Ctrl+N"), () => GoDifference(next: true)),
+                Separator(),
+                Tool("expand-all", s.FolderExpandAll, () => ExpandAll(true)),
+                Tool("collapse-all", s.FolderCollapseAll, () => ExpandAll(false)),
                 Separator(),
                 Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync()),
                 Tool("refresh", Tip(s.FolderRefresh, "F5"), () => _ = StartCompareAsync()),
@@ -205,10 +211,18 @@ public sealed class FolderCompareWindow : Window
         // 필터 막대 (BC Filters toolbar edit): 이름 필터를 BC 문법으로 적는다.
         _filterBox.PlaceholderText = s.FolderFilterPlaceholder;
         ToolTip.SetTip(_filterBox, s.FolderFilterTooltip);
+        _excludeBox.PlaceholderText = s.FolderFilterExcludePlaceholder;
+        ToolTip.SetTip(_excludeBox, s.FolderFilterExcludeTooltip);
+        var importButton = Tool("import", s.FolderFilterImport, () => _ = ImportFilterAsync());
+        var exportButton = Tool("export", s.FolderFilterExport, () => _ = ExportFilterAsync());
         var filterBar = new Border
         {
             Padding = new Thickness(12, 6), BorderThickness = new Thickness(0, 0, 0, 1),
-            Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new DuoIcon { Icon = "search", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, _filterBox } },
+            Child = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Spacing = 8,
+                Children = { new DuoIcon { Icon = "search", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center }, _filterBox, _excludeBox, importButton, exportButton },
+            },
         };
         filterBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
         filterBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
@@ -243,13 +257,44 @@ public sealed class FolderCompareWindow : Window
     Control PathHeader(bool left)
     {
         var s = Strings.Current;
-        var pick = UiScale.Enable(new Button { Content = s.HomeChooseFolder, Padding = new Thickness(12, 4) });
+        var pick = UiScale.Enable(new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "folder-open" } });
+        ToolTip.SetTip(pick, left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle);
         pick.Click += async (_, _) => await ChooseAsync(left);
         var text = left ? _leftPath : _rightPath;
+        text.KeyDown += async (_, e) =>
+        {
+            if (e.Key == Key.Enter) { e.Handled = true; await ApplyTypedPathAsync(left, text); }
+            else if (e.Key == Key.Escape) { e.Handled = true; text.Text = left ? _leftRoot : _rightRoot; }
+        };
         var icon = new DuoIcon { Icon = "folder", ColorKey = "AppIconFolder", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
         var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8, Margin = new Thickness(12, 6), Children = { icon, text, pick } };
         Grid.SetColumn(text, 1);
         Grid.SetColumn(pick, 2);
+        // 폴더(또는 압축 파일)를 주소 창에 끌어다 놓으면 그 폴더를 연다. 드래그 이벤트는 올라오기(bubble)만 있고
+        // 글 상자가 먼저 처리해 버리므로, 글 상자와 바깥 줄 모두에 "처리된 것도 받기"로 건다.
+        static string? DroppedPath(DragEventArgs e) => e.DataTransfer.TryGetFiles()?.FirstOrDefault()?.TryGetLocalPath();
+        void OnOver(object? _, DragEventArgs e)
+        {
+            e.DragEffects = DroppedPath(e) is null ? DragDropEffects.None : DragDropEffects.Copy;
+            e.Handled = true;
+        }
+        DragEventArgs? lastDrop = null; // 글 상자에서 올라온 같은 이벤트를 바깥 줄이 또 받지 않게
+        async void OnDropped(object? _, DragEventArgs e)
+        {
+            e.Handled = true;
+            if (ReferenceEquals(lastDrop, e)) return;
+            lastDrop = e;
+            if (DroppedPath(e) is not { } path) return;
+            if (!await Task.Run(() => CanOpen(path))) return;
+            PickLocations.Remember(path, isFolder: true);
+            await ApplyRootAsync(left, path);
+        }
+        foreach (Control c in new Control[] { grid, text })
+        {
+            DragDrop.SetAllowDrop(c, true);
+            c.AddHandler(DragDrop.DragOverEvent, OnOver, RoutingStrategies.Bubble, handledEventsToo: true);
+            c.AddHandler(DragDrop.DropEvent, OnDropped, RoutingStrategies.Bubble, handledEventsToo: true);
+        }
         if (!left) Grid.SetColumn(grid, 2);
         return grid;
     }
@@ -295,10 +340,12 @@ public sealed class FolderCompareWindow : Window
             return host;
         }
         var brush = ColorFor(node, left);
-        var chevron = new DuoIcon { Icon = row.IsExpanded ? "caret-down" : "caret-right", Width = 12, Height = 12, VerticalAlignment = VerticalAlignment.Center, IsVisible = row.IsFolder };
-        chevron.PointerPressed += (_, e) => { e.Handled = true; Toggle(node); };
+        var chevron = new DuoIcon { Icon = row.IsExpanded ? "caret-down" : "caret-right", Width = 16, Height = 16, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsVisible = row.IsFolder };
+        // 누르는 자리는 줄 높이 전체 × 24px (투명 배경이라 빈 곳도 눌린다) — 아이콘 크기보다 훨씬 넓게
+        var chevronHit = new Border { Width = 24, Height = RowHeight, Background = Brushes.Transparent, Child = chevron };
+        if (row.IsFolder) chevronHit.PointerPressed += (_, e) => { e.Handled = true; Toggle(node); };
         var icon = new DuoIcon { Icon = row.IsFolder ? (row.IsExpanded ? "folder-open" : "folder") : "file", ColorKey = row.IsFolder ? "AppIconFolder" : null, Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
-        var lead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(row.Depth * 16 + 6, 0, 0, 0), Children = { new Border { Width = 12, Child = chevron }, icon } };
+        var lead = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 4, Margin = new Thickness(row.Depth * 16, 0, 0, 0), Children = { chevronHit, icon } };
         var name = new TextBlock { Text = node.Name, Foreground = brush, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
         ToolTip.SetTip(name, node.Error is { } err ? $"{entry.Path}\n{err}" : entry.Path);
         var size = new TextBlock { Text = row.IsFolder ? "" : BytesFormat.Format(entry.SizeBytes), Foreground = brush, Width = 76, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
@@ -627,9 +674,47 @@ public sealed class FolderCompareWindow : Window
 
     void ApplyFilter()
     {
-        _filter = new FileMask(_filterBox.Text ?? "");
+        _filter = CurrentFilter.ToMask();
         _ = StartCompareAsync();
         _list.Focus();
+    }
+
+    FilterSpec CurrentFilter => new(_filterBox.Text ?? "", _excludeBox.Text ?? "");
+
+    /// <summary>필터(포함·제외)를 평문 파일(.dcfilter)로 저장한다.</summary>
+    async Task ExportFilterAsync()
+    {
+        var s = Strings.Current;
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = s.FolderFilterExport,
+            SuggestedFileName = "filter",
+            DefaultExtension = "dcfilter",
+            FileTypeChoices = [new FilePickerFileType(s.FolderFilterFileType) { Patterns = ["*.dcfilter"] }],
+        });
+        if (file?.TryGetLocalPath() is not { } path) return;
+        var text = CurrentFilter.Format();
+        try { await Task.Run(() => File.WriteAllText(path, text)); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Notice(e.Message); }
+    }
+
+    /// <summary>파일에서 필터를 읽어 두 칸에 채우고 바로 적용한다.</summary>
+    async Task ImportFilterAsync()
+    {
+        var s = Strings.Current;
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = s.FolderFilterImport,
+            AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType(s.FolderFilterFileType) { Patterns = ["*.dcfilter"] }, FilePickerFileTypes.All],
+        });
+        if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path) return;
+        FilterSpec? spec;
+        try { spec = await Task.Run(() => FilterSpec.Parse(File.ReadAllText(path))); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Notice(e.Message); return; }
+        if (spec is null) { Notice(s.FolderFilterImportFailed); return; }
+        (_filterBox.Text, _excludeBox.Text) = (spec.Include, spec.Exclude);
+        ApplyFilter();
     }
 
     async Task SwapAsync()
@@ -645,14 +730,40 @@ public sealed class FolderCompareWindow : Window
     async Task ChooseAsync(bool left)
     {
         var s = Strings.Current;
+        var start = await CurrentFolderAsync(left ? _leftRoot : _rightRoot) ?? await PickLocations.StartAsync(StorageProvider);
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle,
             AllowMultiple = false,
-            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
+            SuggestedStartLocation = start,
         });
         if (folders.Count == 0 || folders[0].TryGetLocalPath() is not { } path) return;
         PickLocations.Remember(path, isFolder: true);
+        await ApplyRootAsync(left, path);
+    }
+
+    /// <summary>고르기 창이 현재 주소창의 폴더에서 시작하게 한다 (압축 파일이면 그것이 든 폴더). 없으면 null.</summary>
+    async Task<IStorageFolder?> CurrentFolderAsync(string root)
+    {
+        var path = Original(root);
+        var dir = await Task.Run(() => Directory.Exists(path) ? path : Path.GetDirectoryName(path) is { Length: > 0 } d && Directory.Exists(d) ? d : null);
+        if (dir is null) return null;
+        try { return await StorageProvider.TryGetFolderFromPathAsync(dir); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
+    }
+
+    /// <summary>주소 창에 직접 쓴 경로를 적용한다. 폴더(또는 압축 파일)가 아니면 원래 경로로 되돌린다.</summary>
+    async Task ApplyTypedPathAsync(bool left, TextBox box)
+    {
+        var path = (box.Text ?? "").Trim().Trim('"');
+        var current = left ? _leftRoot : _rightRoot;
+        if (path.Length == 0 || path == current || !await Task.Run(() => CanOpen(path))) { box.Text = current; return; }
+        PickLocations.Remember(path, isFolder: true);
+        await ApplyRootAsync(left, path);
+    }
+
+    async Task ApplyRootAsync(bool left, string path)
+    {
         await ResolveOnce();
         var (fs, root) = await Task.Run(() => Resolve(path));
         if (left) (_leftFs, _leftRoot) = (fs, root); else (_rightFs, _rightRoot) = (fs, root);
@@ -666,7 +777,9 @@ public sealed class FolderCompareWindow : Window
 
     void OnKeyDown(object? sender, KeyEventArgs e)
     {
-        if (_dialogs.IsOpen || _filterBox.IsFocused) return;
+        if (_dialogs.IsOpen || _filterBox.IsFocused || _excludeBox.IsFocused) return;
+        // 주소 창에 쓰는 중이면 Enter·Delete·Ctrl+A 등은 글 상자의 것이다 (터널로 먼저 받아 가로채지 않는다).
+        if (TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox) return;
         var primary = Mods.Primary(e.KeyModifiers);
         var handled = true;
         switch (e.Key)
