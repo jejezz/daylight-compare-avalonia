@@ -264,6 +264,7 @@ public sealed class FolderCompareWindow : Window
         header.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
         _list.Bind(ListBox.BackgroundProperty, this.GetResourceObservable("AppEditorBg")); // 목록 바탕 — 위의 틀 띠와 한 단 다르게
         _list.Bind(ListBox.FontSizeProperty, this.GetResourceObservable("FsBody"));
+        _list.Bind(ListBox.FontFamilyProperty, this.GetResourceObservable("AppEditorFont")); // 파일 비교와 같은 편집기 글꼴 (고정폭)
 
         var grid = new Grid { RowDefinitions = new RowDefinitions("44,Auto,Auto,*") };
         Place(grid, appBar, 0);
