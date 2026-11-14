@@ -300,6 +300,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
 
     public Control View => this;
     public bool IsFolder => false;
+    public string TabIcon => "file";
     public event Action? TitleChanged;
     public string WindowTitle { get; private set; } = "";
     public string TabTitle { get; private set; } = "";
@@ -354,6 +355,15 @@ public sealed partial class CompareView : UserControl, ICompareTab
             side.TextMate?.Dispose();
             side.Watcher?.Dispose();
         }
+    }
+
+    /// <summary>같은 자리의 탭을 바이너리 비교로 바꾼다 (두 쪽이 모두 파일이고 비교 창 안에 있을 때). 바꿨으면 true.</summary>
+    bool SwitchToBinary()
+    {
+        if (_left.Path is null || _right.Path is null || TopLevel.GetTopLevel(this) is not CompareHost host) return false;
+        _version++; // 이 보기의 읽기를 끝낸다
+        host.ReplaceTab(this, BinaryCompareView.Create(_left.Path, _right.Path, null, recordHistory: !_skipHistory));
+        return true;
     }
 
     /// <summary>두 쪽이 모두 파일이면 최근 비교 목록에 기록한다 (붙여 넣은 글은 경로가 없어 건너뛴다).</summary>
@@ -798,11 +808,21 @@ public sealed partial class CompareView : UserControl, ICompareTab
         var version = ++_version;
         var watch = System.Diagnostics.Stopwatch.StartNew();
         _status.Text = Strings.Current.CompareLoading;
+        // 정책이 이 파일을 바이너리로 보라고 하면(*.bin 등) 읽기 전에 바이너리 비교로 바꾼다.
+        if (_left.Path is { } nameL && _right.Path is not null)
+        {
+            var policy = await App.Policy.LoadAsync();
+            var viewKind = policy.Resolve(System.IO.Path.GetFileName(nameL.Replace(ArchivePaths.Separator, "/")), namesIgnoreCase: PolicyStore.NamesIgnoreCase, formatId: _formatId).View;
+            if (viewKind == DaylightCompare.Domain.Policy.ViewKind.Binary && SwitchToBinary()) return;
+            if (version != _version) return;
+        }
         // 파일이 없는 칸은 지금 글(붙여 넣거나 쓴 것)을 그대로 쓴다.
         var sources = await Task.WhenAll(
             _left.Path is { } lp ? CompareSources.LoadAsync(lp, _left.ForcedEncoding) : Task.FromResult(ScratchSource(_left.Real)),
             _right.Path is { } rp ? CompareSources.LoadAsync(rp, _right.ForcedEncoding) : Task.FromResult(ScratchSource(_right.Real)));
         if (version != _version) return;
+        // NUL이 있어 글이 아니거나 텍스트로 열기에는 너무 큰 파일: 바이너리(16진수) 비교로 바꾼다 (BC도 이런 파일은 Hex 비교로 연다).
+        if (sources.Any(x => x is CompareSource.Binary or CompareSource.TooLarge) && SwitchToBinary()) return;
         foreach (var (side, source) in new[] { (_left, sources[0]), (_right, sources[1]) })
         {
             side.Source = source;

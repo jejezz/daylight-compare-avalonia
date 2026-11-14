@@ -53,6 +53,16 @@ public sealed class EnglishStrings : IAppStrings
     public string SessionMissing(string path) => $"A path was not found: {path}";
     public string HomeSessionsTitle => "Saved Sessions";
     public string HomeRestoreWindows(int count) => $"Restore previously open windows ({count})";
+    public string BinaryAlignFixed => "Fixed position";
+    public string BinaryAlignInsertions => "Detect insertions";
+    public string BinaryAlignTooltip => "How bytes are lined up: fixed position (same offsets) · detect insertions (re-sync after inserted or removed bytes)";
+    public string BinaryGoTo => "Go to Offset";
+    public string BinaryGoToPrompt => "Byte offset to go to (0x1A2B is hexadecimal; relative to the left file)";
+    public string BinaryComparing => "Comparing…";
+    public string BinaryEmptyFile => "The file is empty";
+    public string BinaryDifferences(int count, long bytes) => $"{count:N0} difference(s) · {bytes:N0} different bytes";
+    public string BinaryLengthDiffers(long left, long right) => $"The sizes differ ({left:N0} ↔ {right:N0} bytes)";
+    public string BinaryOpen => "Open as Binary Compare";
     public string TabClose => "Close Tab";
     public string TabCloseOthers => "Close Other Tabs";
     public string TabDetach => "Move to New Window";

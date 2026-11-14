@@ -10,6 +10,7 @@ public sealed record SessionTab
 {
     public const string Folder = "folder";
     public const string File = "file";
+    public const string Binary = "binary";
 
     [JsonPropertyName("kind")]
     public string Kind { get; init; } = File;
@@ -51,6 +52,10 @@ public sealed record SessionTab
     /// <summary>고정한 파일 형식 id (null이면 이름으로 찾는다, 빈 글이면 형식 없음).</summary>
     [JsonPropertyName("format_id")]
     public string? FormatId { get; init; }
+
+    /// <summary>바이너리 비교의 정렬: <c>fixed</c> · <c>insertions</c> (비었으면 정책을 따른다).</summary>
+    [JsonPropertyName("align")]
+    public string Align { get; init; } = "";
 
     public bool IsFolder => Kind == Folder;
 

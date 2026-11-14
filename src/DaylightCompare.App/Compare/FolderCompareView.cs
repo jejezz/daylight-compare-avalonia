@@ -162,6 +162,7 @@ public sealed class FolderCompareView : UserControl, ICompareTab
 
     public Control View => this;
     public bool IsFolder => true;
+    public string TabIcon => "folder";
     public event Action? TitleChanged;
     public string WindowTitle { get; private set; } = "";
     public string TabTitle => WindowTitle;
