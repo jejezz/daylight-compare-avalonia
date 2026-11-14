@@ -67,6 +67,16 @@ public interface IAppStrings
     string SessionMissing(string path);
     string HomeSessionsTitle { get; }
     string HomeRestoreWindows(int count);
+    string BinaryAlignFixed { get; }
+    string BinaryAlignInsertions { get; }
+    string BinaryAlignTooltip { get; }
+    string BinaryGoTo { get; }
+    string BinaryGoToPrompt { get; }
+    string BinaryComparing { get; }
+    string BinaryEmptyFile { get; }
+    string BinaryDifferences(int count, long bytes);
+    string BinaryLengthDiffers(long left, long right);
+    string BinaryOpen { get; }
     string TabClose { get; }
     string TabCloseOthers { get; }
     string TabDetach { get; }

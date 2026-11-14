@@ -116,7 +116,9 @@ public sealed class CompareHost : Window
         var host = new CompareHost { SessionName = name };
         foreach (var tab in session.Tabs)
         {
-            host.Add(tab.IsFolder
+            host.Add(tab.Kind == SessionTab.Binary
+                ? BinaryCompareView.Create(tab.Left.Length > 0 ? tab.Left : null, tab.Right.Length > 0 ? tab.Right : null, tab)
+                : tab.IsFolder
                 ? FolderCompareView.Create(tab.Left, tab.Right, tab)
                 : CompareView.Create(tab.Left.Length > 0 ? tab.Left : null, tab.Right.Length > 0 ? tab.Right : null, CompareOptions.None, recordHistory: true, restore: tab));
         }
@@ -172,28 +174,31 @@ public sealed class CompareHost : Window
     public string? RightRoot => ActiveFolder?.RightRoot;
 
     /// <summary>파일 짝을 이 창의 새 탭으로 연다. 같은 짝이 이미 열려 있으면 그 탭으로 간다.</summary>
-    public CompareView OpenFileTab(string? left, string? right, CompareOptions? options = null, bool recordHistory = false)
+    public ICompareTab OpenFileTab(string? left, string? right, CompareOptions? options = null, bool recordHistory = false)
     {
         if (options is null && left is not null && right is not null)
             foreach (var t in _tabs)
-                if (t.Content is CompareView v && string.Equals(v.LeftPath, left, StringComparison.OrdinalIgnoreCase) && string.Equals(v.RightPath, right, StringComparison.OrdinalIgnoreCase))
+            {
+                var (l, r) = t.Content switch { CompareView v => (v.LeftPath, v.RightPath), BinaryCompareView b => (b.LeftPath, b.RightPath), _ => ((string?)null, (string?)null) };
+                if (string.Equals(l, left, StringComparison.OrdinalIgnoreCase) && string.Equals(r, right, StringComparison.OrdinalIgnoreCase))
                 {
                     Select(t);
-                    return v;
+                    return t.Content;
                 }
+            }
         var view = CompareView.Create(left, right, options ?? CompareOptions.None, recordHistory);
         Add(view);
         return view;
     }
 
     /// <summary>탭을 더하고 고른다.</summary>
-    public void Add(ICompareTab content)
+    public void Add(ICompareTab content, int? index = null)
     {
         var tab = new Tab(content);
         tab.Text.Text = content.TabTitle;
         var icon = new DuoIcon
         {
-            Icon = content.IsFolder ? "folder" : "file", ColorKey = content.IsFolder ? "AppIconFolder" : null,
+            Icon = content.TabIcon, ColorKey = content.IsFolder ? "AppIconFolder" : null,
             Width = 16, Height = 16, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
         };
         tab.CloseButton.Content = new DuoIcon { Icon = "close", Width = 12, Height = 12 };
@@ -222,8 +227,8 @@ public sealed class CompareHost : Window
 
         content.View.IsVisible = false;
         _body.Children.Add(content.View);
-        _tabs.Add(tab);
-        _strip.Children.Add(tab.Header);
+        if (index is { } at && at >= 0 && at <= _tabs.Count) { _tabs.Insert(at, tab); _strip.Children.Insert(at, tab.Header); }
+        else { _tabs.Add(tab); _strip.Children.Add(tab.Header); }
         Select(tab);
     }
 
@@ -294,6 +299,21 @@ public sealed class CompareHost : Window
         if (!_opened || !_startedTabs.Add(tab.Content)) return;
         if (now) tab.Content.Start();
         else Dispatcher.UIThread.Post(tab.Content.Start, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// 탭 하나를 다른 보기로 바꾼다 (같은 자리, 보던 탭이었으면 새 탭을 본다). 텍스트로 열었더니 바이너리 파일이어서 바이너리 비교로 바꿀 때 쓴다.
+    /// 바꿔진 탭은 묻지 않고 정리한다 — 아직 고친 것이 없는 탭이어야 한다.
+    /// </summary>
+    public void ReplaceTab(ICompareTab old, ICompareTab replacement)
+    {
+        var index = _tabs.FindIndex(t => t.Content == old);
+        if (index < 0) return;
+        var oldTab = _tabs[index];
+        var previous = _active; // Add가 새 탭을 고르므로 보던 탭을 적어 둔다
+        Add(replacement, index + 1);
+        if (previous is not null && previous != oldTab) Select(previous); // 보던 탭이 바꿔지는 것이 아니면 보던 탭으로 돌아간다
+        Remove(oldTab, dispose: true);
     }
 
     // --- 닫기 ---
