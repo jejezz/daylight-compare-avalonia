@@ -44,6 +44,7 @@ public interface IAppStrings
     string CompareFormatMenuTooltip { get; }
     string CompareFormatPlain { get; }
     string CompareFormatAuto(string name);
+    string CompareHeaderInfo(DateTime modifiedLocal, long length);
     string CompareShowBytes { get; }
     string CompareSectionPosition(int index, int count);
     string CompareSectionCount(int count);
