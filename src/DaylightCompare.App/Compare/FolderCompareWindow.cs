@@ -432,11 +432,7 @@ public sealed class FolderCompareWindow : Window
         var node = row.Node;
         var entry = left ? node.Left : node.Right;
         var host = new Border();
-        if (entry is null)
-        {
-            host.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppDiffFiller")); // 이쪽에는 없다 (비교 창의 채움 줄과 같은 모양)
-            return host;
-        }
+        if (entry is null) return host; // 이쪽에는 없다 — BC처럼 채움 없이 빈 줄로 둔다
         var brush = ColorFor(node, left);
         var chevron = new DuoIcon { Icon = row.IsExpanded ? "caret-down" : "caret-right", Width = 16, Height = 16, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsVisible = row.IsFolder };
         // 누르는 자리는 줄 높이 전체 × 24px (투명 배경이라 빈 곳도 눌린다) — 아이콘 크기보다 훨씬 넓게
