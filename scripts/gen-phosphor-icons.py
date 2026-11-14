@@ -35,6 +35,8 @@ ICONS = {
     "forward": ("arrow-right", "duotone"),
     "up": ("arrow-up", "duotone"),
     "parent-folder": ("arrow-elbow-left-up", "duotone"),
+    "nav-back": ("arrow-circle-left", "duotone"),
+    "nav-forward": ("arrow-circle-right", "duotone"),
     "down": ("arrow-down", "duotone"),
     "refresh": ("arrows-clockwise", "duotone"),
     "heart": ("heart", "duotone"),

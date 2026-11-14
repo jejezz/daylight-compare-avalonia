@@ -35,6 +35,10 @@ public sealed class FolderCompareWindow : Window
     static readonly FileOperations Ops = new();
 
     string _leftRoot, _rightRoot;
+    Button _navBack = null!, _navForward = null!;
+    readonly List<(string Left, string Right)> _nav = [];
+    int _navPos = -1;
+    bool _navigating;
     IFileSystem _leftFs, _rightFs;
     FolderComparer? _comparer;
     CancellationTokenSource? _cts;
@@ -173,6 +177,7 @@ public sealed class FolderCompareWindow : Window
     /// <summary>최근 비교 목록에 기록한다. 압축 파일은 안쪽 경로(<c>a.zip!/</c>)가 아니라 압축 파일 경로로.</summary>
     void RecordHistory()
     {
+        PushNav();
         if (BothChosen) App.RecordHistory(Original(_leftRoot), Original(_rightRoot), folders: true);
     }
 
@@ -202,6 +207,9 @@ public sealed class FolderCompareWindow : Window
             b.Click += (_, _) => click();
             return b;
         }
+        _navBack = Tool("nav-back", s.FolderNavBack, () => _ = NavigateAsync(-1));
+        _navForward = Tool("nav-forward", s.FolderNavForward, () => _ = NavigateAsync(+1));
+        UpdateNavButtons();
         Border Separator() => new() { Width = 1, Margin = new Thickness(4, 8), [!Border.BackgroundProperty] = this.GetResourceObservable("AppStrokeStrong").ToBinding() };
         var commands = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } };
         ToolTip.SetTip(commands, s.CompareCommandsTooltip);
@@ -214,6 +222,8 @@ public sealed class FolderCompareWindow : Window
             Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center,
             Children =
             {
+                _navBack, _navForward,
+                Separator(),
                 _viewFilter,
                 Separator(),
                 Tool("back", Tip(s.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyAsync(toRight: false)),
@@ -696,6 +706,8 @@ public sealed class FolderCompareWindow : Window
         }
         var flyout = new MenuFlyout();
         flyout.Items.Add(Group(s.CompareMenuSession,
+            Item(s.FolderNavBack, null, () => _ = NavigateAsync(-1)),
+            Item(s.FolderNavForward, null, () => _ = NavigateAsync(+1)),
             Group(s.FolderUpLevel,
                 Item(s.FolderSideLeft, null, () => _ = GoUpAsync(left: true)),
                 Item(s.FolderSideRight, null, () => _ = GoUpAsync(left: false))),
@@ -756,11 +768,16 @@ public sealed class FolderCompareWindow : Window
     {
         if (Selected.FirstOrDefault() is not { } row) return;
         var node = row.Node;
-        if (node.Left is null || node.Right is null) { Notice(Strings.Current.FolderCompareNeedBoth); return; }
-        if (!node.IsDirectory) { CompareWindow.Open(this, node.Left.Path, node.Right.Path, recordHistory: false); return; }
+        if (!node.IsDirectory)
+        {
+            if (node.Left is null || node.Right is null) { Notice(Strings.Current.FolderCompareNeedBoth); return; }
+            CompareWindow.Open(this, node.Left.Path, node.Right.Path, recordHistory: false);
+            return;
+        }
+        // 폴더: 양쪽에 있으면 양쪽을, 한쪽에만 있으면 있는 쪽만 그 폴더로 바꾼다 (다른 쪽은 그대로).
         await ResolveOnce();
-        _leftRoot = node.Left.Path;
-        _rightRoot = node.Right.Path;
+        if (node.Left is { } l) _leftRoot = l.Path;
+        if (node.Right is { } r) _rightRoot = r.Path;
         _expanded.Clear();
         UpdateTitle();
         RecordHistory();
@@ -798,14 +815,27 @@ public sealed class FolderCompareWindow : Window
     {
         var open = _rows.FirstOrDefault(r => ReferenceEquals(r.Node, folder))?.IsExpanded ?? false;
         _expanded[folder.RelativePath] = !open;
+        // 한쪽에만 있는 폴더는 펼칠 때 비로소 읽는다 (읽는 동안 줄은 펼친 채 비어 있다가 채워진다).
+        if (!open && folder.IsUnloaded && _comparer is { } c)
+        {
+            _status.Text = Strings.Current.FolderLoading;
+            _ = LoadAndRebuildAsync(c, folder);
+        }
         Rebuild();
+    }
+
+    async Task LoadAndRebuildAsync(FolderComparer comparer, FolderNode folder)
+    {
+        try { await comparer.LoadAsync(folder, _cts?.Token ?? default); }
+        catch (OperationCanceledException) { return; }
+        if (ReferenceEquals(comparer, _comparer)) _dirty = true;
     }
 
     void ExpandAll(bool open)
     {
         if (_comparer is not { } c) return;
         lock (c.Gate)
-            foreach (var f in c.Root.Descendants().Where(n => n.IsDirectory)) _expanded[f.RelativePath] = open;
+            foreach (var f in c.Root.Descendants().Where(n => n.IsDirectory && !n.IsUnloaded)) _expanded[f.RelativePath] = open;
         Rebuild();
     }
 
@@ -941,6 +971,43 @@ public sealed class FolderCompareWindow : Window
         (_leftFs, _rightFs) = (_rightFs, _leftFs);
         UpdateTitle();
         RecordHistory();
+        await StartCompareAsync();
+    }
+
+    // --- 이전·다음 위치 (루트 쌍의 이동 기록) ---
+
+    void PushNav()
+    {
+        if (_navigating) return;
+        var current = (_leftRoot, _rightRoot);
+        if (_navPos >= 0 && _nav[_navPos] == current) { UpdateNavButtons(); return; }
+        if (_navPos < _nav.Count - 1) _nav.RemoveRange(_navPos + 1, _nav.Count - _navPos - 1);
+        _nav.Add(current);
+        _navPos = _nav.Count - 1;
+        UpdateNavButtons();
+    }
+
+    void UpdateNavButtons()
+    {
+        _navBack.IsEnabled = _navPos > 0;
+        _navForward.IsEnabled = _navPos >= 0 && _navPos < _nav.Count - 1;
+    }
+
+    /// <summary>이동 기록에서 한 칸 뒤(-1)·앞(+1)의 양쪽 루트로 되돌아가 다시 비교한다.</summary>
+    async Task NavigateAsync(int step)
+    {
+        var to = _navPos + step;
+        if (to < 0 || to >= _nav.Count) return;
+        await ResolveOnce();
+        _navPos = to;
+        var (l, r) = _nav[to];
+        // 압축 파일 안의 경로면 압축 파일을 여는 일이 있으니 백그라운드에서 (UI 스레드에서 디스크를 만지지 않는다).
+        var (lfs, rfs) = await Task.Run(() => (FsFor(l), FsFor(r)));
+        (_leftFs, _leftRoot, _rightFs, _rightRoot) = (lfs, l, rfs, r);
+        _expanded.Clear();
+        _navigating = true;
+        try { UpdateTitle(); UpdateNavButtons(); }
+        finally { _navigating = false; }
         await StartCompareAsync();
     }
 
