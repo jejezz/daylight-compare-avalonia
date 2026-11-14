@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using DaylightCompare.Domain.Policy;
 using DaylightCompare.Services;
 
 namespace DaylightCompare.App.Compare;
@@ -91,5 +92,56 @@ public sealed partial class CompareView
             }
             else yield return (kind, kind is TextEncodingKind.Utf16Le or TextEncodingKind.Utf16Be);
         }
+    }
+
+    // --- 파일 형식 (BC 머리글의 "Everything Else" 드롭다운) ---
+
+    string? _highlightExtension;
+
+    string HighlightKey(Side side) => $"{_formatId}|{side.Path}";
+
+    /// <summary>고른 형식(자동이면 찾아낸 형식)의 마스크에서 강조 문법의 확장자를 정한다 — 문법이 정해지지 않으면 강조하지 않는다.</summary>
+    string? HighlightExtensionOf(ComparePolicy policy, EffectivePolicy effective) =>
+        _formatId is null ? null : effective.Format is { } f ? EditorLanguages.ExtensionForPatterns(f.Masks.Patterns) : null;
+
+    void UpdateFormatButton()
+    {
+        var s = Strings.Current;
+        _formatButton.Content = _formatId switch
+        {
+            null => _detectedFormat is { } d ? s.CompareFormatAuto(d) : s.CompareFormatAuto(s.CompareFormatPlain),
+            "" => s.CompareFormatPlain,
+            var id => id,
+        };
+    }
+
+    /// <summary>드롭다운을 연다: 자동 · 텍스트로 비교할 수 있는 정책의 형식들 · 일반 텍스트. 정책은 열 때마다 다시 읽는다(손으로 고친 것이 바로 보인다).</summary>
+    async Task ShowFormatMenuAsync()
+    {
+        var policy = await App.Policy.LoadAsync();
+        var s = Strings.Current;
+        var flyout = new MenuFlyout();
+        MenuItem Choice(string header, string? id, string? tip = null)
+        {
+            var item = new MenuItem { Header = header, ToggleType = MenuItemToggleType.Radio, IsChecked = _formatId == id, GroupName = "compare-format" };
+            if (tip is not null) ToolTip.SetTip(item, tip);
+            item.Click += async (_, _) => await SetFormatAsync(id);
+            return item;
+        }
+        flyout.Items.Add(Choice(s.CompareFormatAuto(_detectedFormat ?? s.CompareFormatPlain), null));
+        flyout.Items.Add(new Separator());
+        foreach (var f in policy.Formats.Where(f => f.View is null or ViewKind.Text))
+            flyout.Items.Add(Choice(f.Id, f.Id, string.Join(", ", f.Masks.Patterns.Take(10))));
+        flyout.Items.Add(Choice(s.CompareFormatPlain, ""));
+        flyout.ShowAt(_formatButton);
+    }
+
+    async Task SetFormatAsync(string? id)
+    {
+        if (_formatId == id) return;
+        _formatId = id;
+        UpdateFormatButton();
+        await RecompareAsync(++_version, CaretReal());
+        UpdateFormatButton();
     }
 }

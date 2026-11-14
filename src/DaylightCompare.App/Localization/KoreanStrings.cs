@@ -33,6 +33,9 @@ public sealed class KoreanStrings : IAppStrings
     public string CompareFormatTooltip => "인코딩 다시 열기 · 저장할 줄 끝·인코딩 고르기";
     public string CompareFormatLineBreak => "저장할 줄 끝";
     public string CompareFormatSaveEncoding => "저장할 인코딩";
+    public string CompareFormatMenuTooltip => "파일 형식 (비교 규칙·문법 강조)";
+    public string CompareFormatPlain => "일반 텍스트";
+    public string CompareFormatAuto(string name) => $"{name} (자동)";
     public string CompareShowBytes => "줄의 바이트 보기";
     public string CompareBytesNoLine => "짝이 되는 줄이 없다";
     public string TabClose => "탭 닫기";
