@@ -1,0 +1,181 @@
+{
+ "name": "Tokyo Night (enkia palette, MIT)",
+ "type": "dark",
+ "colors": {
+  "editor.background": "#1A1B26",
+  "editor.foreground": "#A9B1D6",
+  "editor.selectionBackground": "#515C7E4D",
+  "editor.lineHighlightBackground": "#1E202E",
+  "editorLineNumber.foreground": "#363B54"
+ },
+ "tokenColors": [
+  {
+   "scope": [
+    "comment",
+    "punctuation.definition.comment"
+   ],
+   "settings": {
+    "foreground": "#565F89",
+    "fontStyle": "italic"
+   }
+  },
+  {
+   "scope": [
+    "string",
+    "string.quoted",
+    "punctuation.definition.string"
+   ],
+   "settings": {
+    "foreground": "#9ECE6A"
+   }
+  },
+  {
+   "scope": [
+    "constant.numeric"
+   ],
+   "settings": {
+    "foreground": "#FF9E64"
+   }
+  },
+  {
+   "scope": [
+    "constant.language",
+    "constant.character",
+    "constant.other",
+    "support.constant"
+   ],
+   "settings": {
+    "foreground": "#FF9E64"
+   }
+  },
+  {
+   "scope": [
+    "keyword",
+    "keyword.control",
+    "storage",
+    "storage.modifier",
+    "keyword.other"
+   ],
+   "settings": {
+    "foreground": "#BB9AF7"
+   }
+  },
+  {
+   "scope": [
+    "storage.type",
+    "support.type",
+    "entity.name.type",
+    "entity.name.class",
+    "entity.other.inherited-class"
+   ],
+   "settings": {
+    "foreground": "#2AC3DE"
+   }
+  },
+  {
+   "scope": [
+    "keyword.operator",
+    "punctuation.separator",
+    "punctuation.terminator"
+   ],
+   "settings": {
+    "foreground": "#89DDFF"
+   }
+  },
+  {
+   "scope": [
+    "entity.name.function",
+    "support.function",
+    "meta.function-call",
+    "entity.name.method"
+   ],
+   "settings": {
+    "foreground": "#7AA2F7"
+   }
+  },
+  {
+   "scope": [
+    "variable",
+    "variable.other",
+    "variable.parameter",
+    "meta.definition.variable"
+   ],
+   "settings": {
+    "foreground": "#C0CAF5"
+   }
+  },
+  {
+   "scope": [
+    "entity.name.tag",
+    "meta.tag",
+    "punctuation.definition.tag"
+   ],
+   "settings": {
+    "foreground": "#F7768E"
+   }
+  },
+  {
+   "scope": [
+    "entity.other.attribute-name"
+   ],
+   "settings": {
+    "foreground": "#BB9AF7"
+   }
+  },
+  {
+   "scope": [
+    "meta.preprocessor",
+    "entity.name.function.preprocessor",
+    "keyword.control.directive"
+   ],
+   "settings": {
+    "foreground": "#7DCFFF"
+   }
+  },
+  {
+   "scope": [
+    "markup.heading",
+    "entity.name.section"
+   ],
+   "settings": {
+    "foreground": "#BB9AF7",
+    "fontStyle": "bold"
+   }
+  },
+  {
+   "scope": [
+    "markup.inserted"
+   ],
+   "settings": {
+    "foreground": "#9ECE6A"
+   }
+  },
+  {
+   "scope": [
+    "markup.deleted",
+    "invalid"
+   ],
+   "settings": {
+    "foreground": "#F7768E"
+   }
+  },
+  {
+   "scope": [
+    "markup.italic"
+   ],
+   "settings": {
+    "foreground": "#9ECE6A",
+    "fontStyle": "italic"
+   }
+  },
+  {
+   "scope": [
+    "markup.bold"
+   ],
+   "settings": {
+    "foreground": "#2AC3DE",
+    "fontStyle": "bold"
+   }
+  }
+ ]
+}

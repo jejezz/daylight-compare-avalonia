@@ -221,7 +221,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
         _left.Path = left;
         _right.Path = right;
 
-        foreach (var side in new[] { _left, _right }) SetupEditor(side);
+        foreach (var side in new[] { _left, _right }) { SetupEditor(side); ApplySchemeColors(side); }
         Content = BuildLayout();
         UpdateTitle(raise: false);
 
@@ -272,9 +272,21 @@ public sealed partial class CompareView : UserControl, ICompareTab
     void OnThemeApplied() => Dispatcher.UIThread.Post(() =>
     {
         foreach (var side in new[] { _left, _right })
+        {
+            ApplySchemeColors(side);
             if (side.HasText) InstallHighlighting(side, side.Real.Length);
+        }
         Redraw();
     });
+
+    /// <summary>구성표가 정한 선택 영역 색을 편집기에 준다 (구성표가 없으면 기본 색으로 되돌린다).</summary>
+    void ApplySchemeColors(Side side)
+    {
+        var area = side.Editor.TextArea;
+        if (ThemeService.EditorScheme is { } scheme && EditorSchemes.ColorsOf(scheme)?.Selection is { } selection)
+            area.SelectionBrush = new SolidColorBrush(Color.FromUInt32(selection));
+        else area.ClearValue(AvaloniaEdit.Editing.TextArea.SelectionBrushProperty);
+    }
 
     // --- 탭 호스트가 부르는 부분 (ICompareTab) ---
 
@@ -899,7 +911,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
         {
             var options = new RegistryOptions(ThemeService.EditorScheme?.Theme ?? (ThemeService.IsDark(Application.Current!) ? ThemeName.DarkPlus : ThemeName.LightPlus));
             if (options.GetLanguageByExtension(ext) is not { } language) return;
-            side.TextMate = side.Editor.InstallTextMate(options);
+            side.TextMate = side.Editor.InstallTextMate(EditorSchemes.Wrap(options, ThemeService.EditorScheme));
             side.TextMate.SetGrammar(options.GetScopeByLanguageId(language.Id));
             side.Editor.Background = Brushes.Transparent;
             // 차이 강조가 강조(TextMate) 색 위에 오도록 줄 안 강조를 맨 뒤로 옮긴다.

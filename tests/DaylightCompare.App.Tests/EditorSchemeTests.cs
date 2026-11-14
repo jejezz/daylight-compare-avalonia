@@ -110,6 +110,17 @@ public sealed class EditorSchemeTests : IDisposable
         }
         Assert.True(EditorSchemes.ColorsOf(EditorSchemes.Find("dracula")!)!.Dark);
         Assert.False(EditorSchemes.ColorsOf(EditorSchemes.Find("solarized-light")!)!.Dark);
+
+        // 내장 테마 파일(Assets/Themes)에서 읽은 구성표: 바탕색과 밝기, 알파가 있는 선택 영역 색.
+        Assert.Equal(0xFF2E3440u, EditorSchemes.ColorsOf(EditorSchemes.Find("nord")!)!.Background);
+        Assert.Equal(0xFF1A1B26u, EditorSchemes.ColorsOf(EditorSchemes.Find("tokyo-night")!)!.Background);
+        Assert.Equal(0xFF282828u, EditorSchemes.ColorsOf(EditorSchemes.Find("gruvbox-dark")!)!.Background);
+        var gh = EditorSchemes.ColorsOf(EditorSchemes.Find("github-light")!)!;
+        Assert.Equal(0xFFFFFFFFu, gh.Background);
+        Assert.False(gh.Dark);
+        Assert.Equal(0x250366D6u, gh.Selection); // #0366D625 → 알파 0x25
+        Assert.Equal(0xFF336699u, EditorSchemes.ParseArgb("#336699"));
+        Assert.Equal(0x80336699u, EditorSchemes.ParseArgb("#33669980"));
         Assert.Null(EditorSchemes.Find("없는-구성표"));
     }
 
@@ -136,5 +147,34 @@ public sealed class EditorSchemeTests : IDisposable
             frame?.Save(Path.Combine(TestApp.Shots, "settings-editor-scheme.png"), new Avalonia.Media.Imaging.PngBitmapEncoderOptions());
         settings.Close();
         home.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task 새_구성표를_고르면_바탕이_바뀌고_선택_영역_색이_편집기에_들어간다()
+    {
+        var l = Path.Combine(_dir, "a.c");
+        var r = Path.Combine(_dir, "b.c");
+        File.WriteAllLines(l, ["int main() { return 1; } // one"]);
+        File.WriteAllLines(r, ["int main() { return 2; } // two"]);
+        App.Settings.Update(s => s with { Theme = ThemeMode.Dark, EditorScheme = "nord" });
+        var w = CompareView.Open(null, l, r);
+        await Settle();
+        Assert.Equal(0xFF2E3440u, ColorOf("AppEdBg"));
+        var editor = w.GetVisualDescendants().OfType<AvaloniaEdit.TextEditor>().First();
+        Assert.Equal(0xCC434C5Eu, ((ISolidColorBrush)editor.TextArea.SelectionBrush!).Color.ToUInt32());
+        Shot(w, "scheme-nord");
+        foreach (var id in new[] { "tokyo-night", "gruvbox-dark", "github-light" })
+        {
+            App.Settings.Update(s => s with { EditorScheme = id });
+            await Settle();
+            Shot(w, "scheme-" + id);
+        }
+        // 구성표를 없애면 선택 영역 색은 기본으로 돌아간다 (구성표의 색이 남지 않는다).
+        var githubSelection = ((ISolidColorBrush)editor.TextArea.SelectionBrush!).Color.ToUInt32();
+        Assert.Equal(0x250366D6u, githubSelection);
+        App.Settings.Update(s => s with { EditorScheme = null });
+        await Settle();
+        Assert.NotEqual(githubSelection, (editor.TextArea.SelectionBrush as ISolidColorBrush)?.Color.ToUInt32());
+        w.Close();
     }
 }
