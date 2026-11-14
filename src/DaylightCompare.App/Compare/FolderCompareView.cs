@@ -15,6 +15,7 @@ using DaylightCompare.App.Localization;
 using DaylightCompare.App.Views;
 using DaylightCompare.Domain;
 using DaylightCompare.Domain.Folder;
+using DaylightCompare.Domain.Settings;
 using DaylightCompare.Domain.Policy;
 using DaylightCompare.Services;
 using DaylightCompare.Services.Folder;
@@ -79,11 +80,15 @@ public sealed class FolderCompareView : UserControl, ICompareTab
 
     /// <summary>폴더 비교 창을 연다. 한쪽(또는 양쪽)이 비어 있으면 빈 창으로 열고, 그쪽은 주소 창에서 고르거나 끌어다 놓아 채운다.</summary>
     public static CompareHost Open(Window? near, string? left, string? right) =>
-        CompareHost.Open(near, new FolderCompareView(left ?? "", right ?? ""));
+        CompareHost.Open(near, Create(left, right));
+
+    /// <summary>탭에 넣을 폴더 비교 보기를 만든다 (아직 비교하지 않는다 — 탭이 보일 때 <see cref="Start"/>). <paramref name="restore"/>가 있으면 저장한 세션의 필터·보기 설정을 쓴다.</summary>
+    public static FolderCompareView Create(string? left, string? right, SessionTab? restore = null) =>
+        new(left ?? "", right ?? "", restore);
 
     Window Owner => TopLevel.GetTopLevel(this) as Window ?? throw new InvalidOperationException("not attached");
 
-    FolderCompareView(string left, string right)
+    FolderCompareView(string left, string right, SessionTab? restore = null)
     {
         // 경로가 폴더인지 압축 파일인지는 열 때 UI 스레드에서 디스크를 만져 알아내지 않는다 (네트워크 드라이브에서는 이것만으로 앱이 멈출 수 있다).
         // 일단 받은 그대로 두고, 첫 비교를 시작할 때 백그라운드에서 정한다 (ResolveOnce).
@@ -94,6 +99,15 @@ public sealed class FolderCompareView : UserControl, ICompareTab
         _show = (FolderShow)settings.FolderShowFlags & FolderShow.All;
         if (_show == FolderShow.None) _show = FolderShow.All;
         _alwaysFolders = settings.FolderAlwaysShowFolders;
+        if (restore is not null)
+        {
+            // 저장한 세션의 이름 필터와 보기 설정 (설정 파일의 값을 바꾸지 않고 이 비교에만).
+            _show = (FolderShow)restore.Show & FolderShow.All;
+            if (_show == FolderShow.None) _show = FolderShow.All;
+            _alwaysFolders = restore.AlwaysFolders;
+            (_filterBox.Text, _excludeBox.Text) = (restore.Include, restore.Exclude);
+            _filter = CurrentFilter.ToMask();
+        }
 
         // 줄 높이는 우리가 정한다 (ListBoxItem의 기본 안쪽 여백·최소 높이를 없앤다).
         Styles.Add(new Style(x => x.OfType<ListBoxItem>())
@@ -153,6 +167,20 @@ public sealed class FolderCompareView : UserControl, ICompareTab
     public string TabTitle => WindowTitle;
     public string? TabToolTip => string.Join('\n', new[] { _leftRoot, _rightRoot }.Where(p => p.Length > 0));
     public bool IsDirty => false;
+
+    /// <summary>지금의 비교를 세션에 적을 모양으로 (두 폴더 + 이름 필터 + 보기 필터).</summary>
+    public SessionTab Capture() => new()
+    {
+        Kind = SessionTab.Folder,
+        Left = _leftRoot,
+        Right = _rightRoot,
+        Include = _filterBox.Text ?? "",
+        Exclude = _excludeBox.Text ?? "",
+        Show = (int)(_show & FolderShow.All),
+        AlwaysFolders = _alwaysFolders,
+    };
+
+    public void Announce(string text) => Notice(text);
 
     /// <summary>탭이 처음 보일 때 한 번 (창의 <c>Opened</c>를 대신한다).</summary>
     public void Start()
@@ -720,7 +748,9 @@ public sealed class FolderCompareView : UserControl, ICompareTab
                 Item(s.FolderSideLeft, null, () => _ = GoUpAsync(left: true)),
                 Item(s.FolderSideRight, null, () => _ = GoUpAsync(left: false))),
             Item(s.CompareSwap, "Ctrl+U", () => _ = SwapAsync()),
-            Item(s.FolderRefresh, "F5", () => _ = StartCompareAsync())));
+            Item(s.FolderRefresh, "F5", () => _ = StartCompareAsync()),
+            new Separator(),
+            Item(s.SessionSaveMenu, null, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync())));
         flyout.Items.Add(Group(s.FolderMenuActions,
             Item(s.FolderOpen, "Enter", OpenSelected),
             new Separator(),

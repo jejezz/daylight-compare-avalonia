@@ -7,7 +7,9 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using DaylightCompare.App.Icons;
 using DaylightCompare.App.Views;
+using DaylightCompare.App.Dialogs;
 using DaylightCompare.Domain;
+using DaylightCompare.Domain.Settings;
 using DaylightCompare.Services;
 
 namespace DaylightCompare.App.Compare;
@@ -37,6 +39,7 @@ public sealed class CompareHost : Window
     readonly Grid _body = new();
     readonly HashSet<ICompareTab> _startedTabs = [];
     Tab? _active;
+    static readonly List<CompareHost> Hosts = [];
     bool _closeConfirmed;
     bool _opened;
 
@@ -64,8 +67,10 @@ public sealed class CompareHost : Window
         Strings.Changed += OnLanguageChanged;
         ActualThemeVariantChanged += (_, _) => UpdateStrip();
         Closing += OnClosing;
+        Hosts.Add(this);
         Closed += (_, _) =>
         {
+            Hosts.Remove(this);
             Strings.Changed -= OnLanguageChanged;
             foreach (var tab in _tabs.ToList()) tab.Content.Dispose();
         };
@@ -84,6 +89,72 @@ public sealed class CompareHost : Window
         if (near is not null) WindowPlacementHelper.OpenNear(near, host);
         else host.Show();
         return host;
+    }
+
+    // --- 세션 (BC Sessions) ---
+
+    /// <summary>지금 열려 있는 비교 창들 (앱을 끌 때 [이전 창 복원]용으로 적어 둔다).</summary>
+    public static IReadOnlyList<CompareHost> OpenHosts => Hosts;
+
+    /// <summary>이 창이 저장한 세션에서 열렸거나 저장한 적 있으면 그 이름 (다시 저장할 때 이름 칸의 처음 값).</summary>
+    public string? SessionName { get; private set; }
+
+    /// <summary>지금의 탭들(과 보고 있는 탭)을 세션에 적을 모양으로.</summary>
+    public SessionWindow Capture() => new()
+    {
+        Tabs = [.. _tabs.Select(t => t.Content.Capture())],
+        Active = Math.Max(0, _tabs.FindIndex(t => t == _active)),
+    };
+
+    /// <summary>
+    /// 저장한 세션(또는 이전 창)을 비교 창 하나로 다시 연다: 탭마다 같은 비교·필터·보기 설정으로. 보던 탭이 앞에 오고, 나머지 탭은 처음 볼 때 읽는다.
+    /// 탭이 하나도 없으면 null.
+    /// </summary>
+    public static CompareHost? OpenSession(Window? near, SessionWindow session, string? name = null)
+    {
+        if (session.Tabs.Count == 0) return null;
+        var host = new CompareHost { SessionName = name };
+        foreach (var tab in session.Tabs)
+        {
+            host.Add(tab.IsFolder
+                ? FolderCompareView.Create(tab.Left, tab.Right, tab)
+                : CompareView.Create(tab.Left.Length > 0 ? tab.Left : null, tab.Right.Length > 0 ? tab.Right : null, CompareOptions.None, recordHistory: true, restore: tab));
+        }
+        host.Select(host._tabs[Math.Clamp(session.Active, 0, host._tabs.Count - 1)]);
+        if (near is not null) WindowPlacementHelper.OpenNear(near, host);
+        else host.Show();
+        return host;
+    }
+
+    /// <summary>
+    /// [세션 저장…]: 이름을 물어 이 창의 탭들을 저장한다. 같은 이름이 있으면 바꿀지 묻고, 저장하면 이 창의 세션 이름이 된다.
+    /// (BC의 Save Session. 키는 BC의 <c>Shift+Ctrl+S</c>가 우리 [모두 저장]과 겹쳐서 메뉴로만 둔다.)
+    /// </summary>
+    public async Task SaveSessionAsync()
+    {
+        if (_active is null) return;
+        var s = Strings.Current;
+        var suggestion = SessionName ?? _active.Content.TabTitle.TrimStart('●', ' ');
+        var typed = await InputDialog.ShowAsync(this, s.SessionSaveTitle, s.SessionNamePrompt, suggestion, s.CommonSave, s.CommonCancel);
+        var name = SessionList.Clean(typed);
+        if (name.Length == 0) return;
+        if (SessionList.Contains(App.Settings.Value.Sessions, name))
+        {
+            var choice = await MessageDialog.ShowAsync(this, s.SessionSaveTitle, s.SessionOverwriteBody(name), [s.CommonCancel, s.SessionOverwrite], 1, 0);
+            if (choice != 1) return;
+        }
+        SaveSession(name);
+    }
+
+    /// <summary>이 창의 탭들을 <paramref name="name"/>이라는 세션으로 저장한다 (같은 이름이 있으면 바꾼다).</summary>
+    public void SaveSession(string name)
+    {
+        if (_active is null || SessionList.Clean(name).Length == 0) return;
+        name = SessionList.Clean(name);
+        var session = new SavedSession { Name = name, SavedAt = DateTimeOffset.Now, Window = Capture() };
+        App.Settings.Update(x => x with { Sessions = SessionList.Save(x.Sessions, session) });
+        SessionName = name;
+        _active.Content.Announce(Strings.Current.SessionSaved(name));
     }
 
     // --- 탭 ---

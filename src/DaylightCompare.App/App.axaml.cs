@@ -94,6 +94,8 @@ public partial class App : Application
                 // 동기화 작업이 생기면(7단계) 진행 중에는 알리지도, 설치하지도 않게 여기서 막는다.
                 isBusy: () => false);
             Updates?.StartAutomaticCheck();
+            // 앱을 끄기 직전(창들이 닫히기 전)에 열려 있던 비교 창들을 적어 둔다 — 홈 창의 [이전 창 복원]이 다시 연다.
+            desktop.ShutdownRequested += (_, _) => RememberOpenWindows();
             desktop.Exit += (_, _) => Settings.Dispose(); // 종료할 때 마지막 변경까지 저장
         }
 
@@ -172,6 +174,13 @@ public partial class App : Application
         var home = new HomeWindow();
         home.Show();
         return home;
+    }
+
+    /// <summary>열려 있는 비교 창들을 설정에 적는다 (탭이 하나도 없는 창은 뺀다). 열린 비교 창이 없으면 목록을 비운다.</summary>
+    internal static void RememberOpenWindows()
+    {
+        var windows = Compare.CompareHost.OpenHosts.Where(h => h.Tabs.Count > 0).Select(h => h.Capture()).ToList();
+        Settings.Update(s => s with { LastWindows = windows });
     }
 
     static void BringToFront(Window window)

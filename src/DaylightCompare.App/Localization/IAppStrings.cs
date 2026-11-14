@@ -53,6 +53,20 @@ public interface IAppStrings
     string CompareOverwriteMode { get; }
     string CompareLoadTime(double seconds);
     string CompareBytesNoLine { get; }
+    string SessionSaveMenu { get; }
+    string SessionSaveTitle { get; }
+    string SessionNamePrompt { get; }
+    string SessionOverwrite { get; }
+    string SessionOverwriteBody(string name);
+    string SessionSaved(string name);
+    string SessionRenameTitle { get; }
+    string SessionRename { get; }
+    string SessionDelete { get; }
+    string SessionNameTaken { get; }
+    string SessionTabs(int count);
+    string SessionMissing(string path);
+    string HomeSessionsTitle { get; }
+    string HomeRestoreWindows(int count);
     string TabClose { get; }
     string TabCloseOthers { get; }
     string TabDetach { get; }
