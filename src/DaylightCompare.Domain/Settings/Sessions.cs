@@ -11,6 +11,7 @@ public sealed record SessionTab
     public const string Folder = "folder";
     public const string File = "file";
     public const string Binary = "binary";
+    public const string Image = "image";
 
     [JsonPropertyName("kind")]
     public string Kind { get; init; } = File;
@@ -56,6 +57,16 @@ public sealed record SessionTab
     /// <summary>바이너리 비교의 정렬: <c>fixed</c> · <c>insertions</c> (비었으면 정책을 따른다).</summary>
     [JsonPropertyName("align")]
     public string Align { get; init; } = "";
+
+    // --- 그림 비교 (`align`은 `topLeft` · `center` · `fit`, 비었으면 정책을 따른다) ---
+
+    /// <summary>보는 방식: <c>side</c> · <c>difference</c> · <c>overlay</c> · <c>blink</c> (비었으면 나란히).</summary>
+    [JsonPropertyName("image_mode")]
+    public string ImageMode { get; init; } = "";
+
+    /// <summary>허용 오차 0~255 (-1이면 정책을 따른다).</summary>
+    [JsonPropertyName("tolerance")]
+    public int Tolerance { get; init; } = -1;
 
     public bool IsFolder => Kind == Folder;
 

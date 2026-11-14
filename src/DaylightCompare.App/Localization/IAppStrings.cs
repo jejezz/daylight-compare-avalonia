@@ -79,6 +79,31 @@ public interface IAppStrings
     string BinaryOpen { get; }
     string BinaryConverted(string kind, long start, long end, int records, int warnings);
     string BinaryConvertFailed(string error);
+    string ImageModeSideBySide { get; }
+    string ImageModeDifference { get; }
+    string ImageModeOverlay { get; }
+    string ImageModeBlink { get; }
+    string ImageModeTooltip { get; }
+    string ImageAlignTopLeft { get; }
+    string ImageAlignCenter { get; }
+    string ImageAlignFit { get; }
+    string ImageAlignTooltip { get; }
+    string ImageToleranceLabel { get; }
+    string ImageToleranceTooltip { get; }
+    string ImageIgnoreAlpha { get; }
+    string ImageOverlayTooltip { get; }
+    string ImageZoomFit { get; }
+    string ImageZoomActual { get; }
+    string ImageZoomFitTooltip { get; }
+    string ImageZoomActualTooltip { get; }
+    string ImageComparing { get; }
+    string ImageTooLarge { get; }
+    string ImageDecodeFailed(string error);
+    string ImageDifferences(long pixels, double percent);
+    string ImageSizeInfo(int width, int height);
+    string ImageSizesDiffer(int lw, int lh, int rw, int rh);
+    string ImageWithinLimit(double percent, double limit);
+    string ImagePixel(string side, int x, int y, string color);
     string TabClose { get; }
     string TabCloseOthers { get; }
     string TabDetach { get; }

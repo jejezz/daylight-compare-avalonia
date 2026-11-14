@@ -366,6 +366,15 @@ public sealed partial class CompareView : UserControl, ICompareTab
         return true;
     }
 
+    /// <summary>같은 자리의 탭을 그림 비교로 바꾼다 (정책이 이 파일을 그림으로 보라고 할 때 — <c>*.png</c> 등). 바꿨으면 true.</summary>
+    bool SwitchToImage()
+    {
+        if (_left.Path is null || _right.Path is null || TopLevel.GetTopLevel(this) is not CompareHost host) return false;
+        _version++;
+        host.ReplaceTab(this, ImageCompareView.Create(_left.Path, _right.Path, null, recordHistory: !_skipHistory));
+        return true;
+    }
+
     /// <summary>두 쪽이 모두 파일이면 최근 비교 목록에 기록한다 (붙여 넣은 글은 경로가 없어 건너뛴다).</summary>
     void RecordHistory()
     {
@@ -814,6 +823,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
             var policy = await App.Policy.LoadAsync();
             var viewKind = policy.Resolve(System.IO.Path.GetFileName(nameL.Replace(ArchivePaths.Separator, "/")), namesIgnoreCase: PolicyStore.NamesIgnoreCase, formatId: _formatId).View;
             if (viewKind == DaylightCompare.Domain.Policy.ViewKind.Binary && SwitchToBinary()) return;
+            if (viewKind == DaylightCompare.Domain.Policy.ViewKind.Image && SwitchToImage()) return;
             if (version != _version) return;
         }
         // 파일이 없는 칸은 지금 글(붙여 넣거나 쓴 것)을 그대로 쓴다.
