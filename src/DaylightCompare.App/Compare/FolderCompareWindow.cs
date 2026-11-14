@@ -212,8 +212,6 @@ public sealed class FolderCompareWindow : Window
             Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center,
             Children =
             {
-                Tool("parent-folder", s.FolderUpLevel, () => _ = GoUpAsync()),
-                Separator(),
                 _viewFilter,
                 Separator(),
                 Tool("back", Tip(s.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyAsync(toRight: false)),
@@ -297,6 +295,9 @@ public sealed class FolderCompareWindow : Window
         var pick = UiScale.Enable(new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "folder-open" } });
         ToolTip.SetTip(pick, left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle);
         pick.Click += async (_, _) => await ChooseAsync(left);
+        var up = UiScale.Enable(new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "parent-folder" } });
+        ToolTip.SetTip(up, s.FolderUpLevel);
+        up.Click += async (_, _) => await GoUpAsync(left);
         var text = left ? _leftPath : _rightPath;
         text.PlaceholderText = left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle;
         text.KeyDown += async (_, e) =>
@@ -305,9 +306,10 @@ public sealed class FolderCompareWindow : Window
             else if (e.Key == Key.Escape) { e.Handled = true; text.Text = left ? _leftRoot : _rightRoot; }
         };
         var icon = new DuoIcon { Icon = "folder", ColorKey = "AppIconFolder", Width = 16, Height = 16, VerticalAlignment = VerticalAlignment.Center };
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto"), ColumnSpacing = 8, Margin = new Thickness(12, 6), Children = { icon, text, pick } };
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto,Auto"), ColumnSpacing = 8, Margin = new Thickness(12, 6), Children = { icon, text, pick, up } };
         Grid.SetColumn(text, 1);
         Grid.SetColumn(pick, 2);
+        Grid.SetColumn(up, 3);
         // 폴더(또는 압축 파일)를 주소 창에 끌어다 놓으면 그 폴더를 연다. 드래그 이벤트는 올라오기(bubble)만 있고
         // 글 상자가 먼저 처리해 버리므로, 글 상자와 바깥 줄 모두에 "처리된 것도 받기"로 건다.
         static string? DroppedPath(DragEventArgs e) => e.DataTransfer.TryGetFiles()?.FirstOrDefault()?.TryGetLocalPath();
@@ -600,7 +602,9 @@ public sealed class FolderCompareWindow : Window
         }
         var flyout = new MenuFlyout();
         flyout.Items.Add(Group(s.CompareMenuSession,
-            Item(s.FolderUpLevel, null, () => _ = GoUpAsync()),
+            Group(s.FolderUpLevel,
+                Item(s.FolderSideLeft, null, () => _ = GoUpAsync(left: true)),
+                Item(s.FolderSideRight, null, () => _ = GoUpAsync(left: false))),
             Item(s.CompareSwap, "Ctrl+U", () => _ = SwapAsync()),
             Item(s.FolderRefresh, "F5", () => _ = StartCompareAsync())));
         flyout.Items.Add(Group(s.FolderMenuActions,
@@ -846,19 +850,16 @@ public sealed class FolderCompareWindow : Window
         await StartCompareAsync();
     }
 
-    /// <summary>한 칸 위로: 양쪽 루트를 각각 부모 폴더로 (압축 파일 안이면 안쪽 부모, 압축 파일 루트면 그것이 든 폴더). 한쪽이라도 더 못 올라가면 그대로 둔다.</summary>
-    async Task GoUpAsync()
+    /// <summary>한 칸 위로: 그쪽 루트를 부모 폴더로 (압축 파일 안이면 안쪽 부모, 압축 파일 루트면 그것이 든 폴더). 더 못 올라가면 그대로 둔다.</summary>
+    async Task GoUpAsync(bool left)
     {
         await ResolveOnce();
-        var left = ParentOf(_leftRoot);
-        var right = ParentOf(_rightRoot);
-        if ((_leftRoot.Length > 0 && left is null) || (_rightRoot.Length > 0 && right is null))
+        if (ParentOf(left ? _leftRoot : _rightRoot) is not { } parent)
         {
-            Notice(Strings.Current.FolderCannotGoUp);
+            if ((left ? _leftRoot : _rightRoot).Length > 0) Notice(Strings.Current.FolderCannotGoUp);
             return;
         }
-        if (left is not null) (_leftFs, _leftRoot) = (FsFor(left), left);
-        if (right is not null) (_rightFs, _rightRoot) = (FsFor(right), right);
+        if (left) (_leftFs, _leftRoot) = (FsFor(parent), parent); else (_rightFs, _rightRoot) = (FsFor(parent), parent);
         _expanded.Clear();
         UpdateTitle();
         RecordHistory();
