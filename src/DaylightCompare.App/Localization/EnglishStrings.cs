@@ -36,6 +36,7 @@ public sealed class EnglishStrings : IAppStrings
     public string CompareFormatMenuTooltip => "File format (compare rules and syntax highlighting)";
     public string CompareFormatPlain => "Plain Text";
     public string CompareFormatAuto(string name) => $"{name} (auto)";
+    public string CompareHeaderInfo(DateTime modifiedLocal, long length) => $"{modifiedLocal:yyyy-MM-dd HH:mm:ss}   {length:N0} bytes";
     public string CompareShowBytes => "Show Line Bytes";
     public string CompareBytesNoLine => "No matching line";
     public string TabClose => "Close Tab";

@@ -53,6 +53,8 @@ public sealed partial class CompareView : UserControl, ICompareTab
         public RowNumberMargin Margin = null!;
         /// <summary>주소 창: 평소엔 경로(고친 것이 있으면 앞에 ●)를 보이고, 직접 고쳐 Enter를 누르면 그 파일을 연다 (BC의 경로 칸).</summary>
         public readonly TextBox PathText = new() { VerticalAlignment = VerticalAlignment.Center };
+        /// <summary>머리글 둘째 줄: 파일의 수정 시각과 크기 (BC 머리글처럼).</summary>
+        public readonly TextBlock InfoText = new() { VerticalAlignment = VerticalAlignment.Center, Classes = { "small" }, IsVisible = false };
         public readonly TextBlock EncodingText = new() { VerticalAlignment = VerticalAlignment.Center, Classes = { "small" } };
         public readonly Border Overlay = new() { IsHitTestVisible = false, IsVisible = false };
         public readonly TextBlock OverlayText = new() { TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 420 };
@@ -666,7 +668,9 @@ public sealed partial class CompareView : UserControl, ICompareTab
         Grid.SetColumn(open, 4);
         side.EncodingText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
         side.EncodingText.PointerPressed += (_, _) => { if (side.HasText && !side.IsScratch) FormatFlyout(side).ShowAt(side.EncodingText); };
-        var border = new Border { Child = row, BorderThickness = new Thickness(0, 0, 0, 1) };
+        side.InfoText.Margin = new Thickness(12, 0, 12, 6);
+        side.InfoText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
+        var border = new Border { Child = new StackPanel { Children = { row, side.InfoText } }, BorderThickness = new Thickness(0, 0, 0, 1) };
         border.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
         border.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
         return border;
@@ -1291,6 +1295,8 @@ public sealed partial class CompareView : UserControl, ICompareTab
             ? FormatLabel(t.File) + (side.HasText && !side.CanEdit ? " · " + s.CompareReadOnly : "")
             : "";
         ToolTip.SetTip(side.EncodingText, side.HasText && !side.IsScratch ? s.CompareFormatTooltip : null);
+        side.InfoText.Text = side.Text is { } info && !side.IsScratch ? s.CompareHeaderInfo(info.File.Modified.ToLocalTime(), info.File.Length) : "";
+        side.InfoText.IsVisible = side.InfoText.Text.Length > 0;
         side.EncodingText.Cursor = side.HasText && !side.IsScratch ? new Cursor(StandardCursorType.Hand) : Cursor.Default;
 
         (side.Overlay.IsVisible, side.OverlayText.Text) = side.Source switch

@@ -36,6 +36,7 @@ public sealed class KoreanStrings : IAppStrings
     public string CompareFormatMenuTooltip => "파일 형식 (비교 규칙·문법 강조)";
     public string CompareFormatPlain => "일반 텍스트";
     public string CompareFormatAuto(string name) => $"{name} (자동)";
+    public string CompareHeaderInfo(DateTime modifiedLocal, long length) => $"{modifiedLocal:yyyy-MM-dd HH:mm:ss}   {length:N0} 바이트";
     public string CompareShowBytes => "줄의 바이트 보기";
     public string CompareBytesNoLine => "짝이 되는 줄이 없다";
     public string TabClose => "탭 닫기";
