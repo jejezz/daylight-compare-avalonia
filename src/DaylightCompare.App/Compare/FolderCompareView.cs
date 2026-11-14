@@ -273,6 +273,7 @@ public sealed class FolderCompareView : UserControl, ICompareTab
                 Separator(),
                 Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync()),
                 Tool("refresh", Tip(s.FolderRefresh, "F5"), () => _ = StartCompareAsync()),
+                Tool("history", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync()),
                 commands,
                 Separator(),
                 Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(Owner)),

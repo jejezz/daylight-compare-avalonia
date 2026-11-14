@@ -178,4 +178,24 @@ public sealed class SessionTests : IDisposable
         Assert.DoesNotContain("펌웨어 비교", home.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? ""));
         home.Close();
     }
+
+    [AvaloniaFact]
+    public async Task 세션_저장_단추가_툴바에_보인다()
+    {
+        Reset();
+        var l = Write("a/x.txt", "one");
+        var r = Write("b/x.txt", "two");
+        var folder = FolderCompareView.Open(null, Path.Combine(_dir, "a"), Path.Combine(_dir, "b"));
+        await Settle();
+        var file = folder.OpenFileTab(l, r);
+        await Settle();
+        foreach (var view in new Control[] { file, folder.Tabs.OfType<FolderCompareView>().Single() })
+        {
+            var button = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content is DaylightCompare.App.Icons.DuoIcon { Icon: "history" });
+            Assert.True(button.IsEffectivelyEnabled);
+            Assert.True(ToolTip.GetTip(button) is string tip && (tip.StartsWith("세션 저장") || tip.StartsWith("Save Session")));
+        }
+        Shot(folder, "session-toolbar-file");
+        folder.Close();
+    }
 }
