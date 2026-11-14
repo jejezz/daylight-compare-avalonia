@@ -11,6 +11,8 @@ public interface ICompareTab
 {
     Control View { get; }
     bool IsFolder { get; }
+    /// <summary>탭 머리글의 아이콘 이름.</summary>
+    string TabIcon { get; }
     /// <summary>창 제목 (앱 이름 앞부분). 고친 것이 있으면 앞에 ●.</summary>
     string WindowTitle { get; }
     /// <summary>탭 머리글에 보일 짧은 이름.</summary>

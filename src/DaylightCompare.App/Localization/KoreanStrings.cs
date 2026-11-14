@@ -53,6 +53,19 @@ public sealed class KoreanStrings : IAppStrings
     public string SessionMissing(string path) => $"찾을 수 없는 경로가 있습니다: {path}";
     public string HomeSessionsTitle => "저장한 세션";
     public string HomeRestoreWindows(int count) => $"이전에 열려 있던 창 복원 ({count})";
+    public string BinaryAlignFixed => "고정 위치";
+    public string BinaryAlignInsertions => "삽입 감지";
+    public string BinaryAlignTooltip => "맞추는 방식: 고정 위치(같은 위치끼리) · 삽입 감지(바이트가 끼거나 빠져도 뒤를 맞춤)";
+    public string BinaryGoTo => "위치로 이동";
+    public string BinaryGoToPrompt => "이동할 바이트 위치 (0x1A2B처럼 적으면 16진수, 왼쪽 파일 기준)";
+    public string BinaryComparing => "비교하는 중…";
+    public string BinaryEmptyFile => "비어 있는 파일입니다";
+    public string BinaryDifferences(int count, long bytes) => $"차이 {count:N0}곳 · 다른 바이트 {bytes:N0}";
+    public string BinaryLengthDiffers(long left, long right) => $"크기가 다릅니다 ({left:N0} ↔ {right:N0} 바이트)";
+    public string BinaryConverted(string kind, long start, long end, int records, int warnings) =>
+        $"{kind} → 이미지  0x{start:X8}~0x{end - 1:X8}  레코드 {records:N0}개" + (warnings > 0 ? $"  ·  경고 {warnings}건" : "");
+    public string BinaryConvertFailed(string error) => $"펌웨어 파일로 풀지 못해 파일 그대로 보입니다: {error}";
+    public string BinaryOpen => "바이너리 비교로 열기";
     public string TabClose => "탭 닫기";
     public string TabCloseOthers => "다른 탭 닫기";
     public string TabDetach => "새 창으로 분리";

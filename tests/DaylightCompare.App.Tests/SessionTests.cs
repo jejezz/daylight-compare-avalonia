@@ -189,7 +189,7 @@ public sealed class SessionTests : IDisposable
         await Settle();
         var file = folder.OpenFileTab(l, r);
         await Settle();
-        foreach (var view in new Control[] { file, folder.Tabs.OfType<FolderCompareView>().Single() })
+        foreach (var view in new Control[] { file.View, folder.Tabs.OfType<FolderCompareView>().Single() })
         {
             var button = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content is DaylightCompare.App.Icons.DuoIcon { Icon: "bookmark" });
             Assert.True(button.IsEffectivelyEnabled);
