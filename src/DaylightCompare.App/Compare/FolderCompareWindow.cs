@@ -432,7 +432,12 @@ public sealed class FolderCompareWindow : Window
         var node = row.Node;
         var entry = left ? node.Left : node.Right;
         var host = new Border();
-        if (entry is null) return host; // 이쪽에는 없다 — BC처럼 채움 없이 빈 줄로 둔다
+        if (entry is null)
+        {
+            // 이쪽에는 없다 — BC처럼 채움 없이 빈 줄로 둔다 (이어지는 안내선만 지나간다).
+            host.Child = GuideLines(row, present: false);
+            return host;
+        }
         var brush = ColorFor(node, left);
         var chevron = new DuoIcon { Icon = row.IsExpanded ? "caret-down" : "caret-right", Width = 16, Height = 16, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, IsVisible = row.IsFolder };
         // 누르는 자리는 줄 높이 전체 × 24px (투명 배경이라 빈 곳도 눌린다) — 아이콘 크기보다 훨씬 넓게
@@ -448,7 +453,8 @@ public sealed class FolderCompareWindow : Window
         Grid.SetColumn(name, 1);
         Grid.SetColumn(size, 2);
         Grid.SetColumn(modified, 3);
-        host.Child = g;
+        var guides = GuideLines(row, present: true);
+        host.Child = guides is null ? g : new Grid { Children = { guides, g } };
         return host;
     }
 
@@ -516,6 +522,7 @@ public sealed class FolderCompareWindow : Window
         var scroll = _list.Scroll as ScrollViewer;
         var offset = scroll?.Offset ?? default;
         _rows = rows;
+        _guides = ComputeGuides(rows);
         _list.ItemsSource = rows;
         // 항목은 있는데 필터가 전부 숨겼다면 이유와 [모두 보기]를 보인다.
         var anyItems = count.Same + count.Different + count.LeftOrphan + count.RightOrphan + count.Pending > 0;
@@ -528,6 +535,58 @@ public sealed class FolderCompareWindow : Window
                 _list.SelectedItems?.Add(r);
         if (scroll is not null) Dispatcher.UIThread.Post(() => scroll.Offset = offset, DispatcherPriority.Background);
         UpdateStatus(count, c.Completed);
+    }
+
+    // --- 트리 안내선 ---
+
+    /// <summary>줄마다: 위쪽 단계 k(0 ≤ k &lt; 깊이)의 세로선이 이 줄을 지나 이어지는가 (<c>Continues[k]</c>) — 곧 그 단계 아래에 보이는 형제가 더 있는가. 마지막 칸은 이 줄 자신.</summary>
+    Dictionary<FolderRow, bool[]> _guides = new(ReferenceEqualityComparer.Instance);
+
+    static Dictionary<FolderRow, bool[]> ComputeGuides(List<FolderRow> rows)
+    {
+        var result = new Dictionary<FolderRow, bool[]>(ReferenceEqualityComparer.Instance);
+        var maxDepth = rows.Count == 0 ? 0 : rows.Max(r => r.Depth);
+        var seen = new bool[maxDepth + 2]; // seen[L]: 뒤에 같은 가지의 깊이 L 줄이 있다
+        for (var i = rows.Count - 1; i >= 0; i--)
+        {
+            var d = rows[i].Depth;
+            var cont = new bool[d];
+            for (var k = 0; k < d; k++) cont[k] = seen[k + 1];
+            result[rows[i]] = cont;
+            seen[d] = true;
+            for (var l = d + 1; l < seen.Length; l++) seen[l] = false;
+        }
+        return result;
+    }
+
+    /// <summary>줄 뒤에 깔리는 안내선 (BC의 나무 점선): 위 단계의 세로선, 그리고 부모에서 이 줄로 꺾이는 가로선. 가지의 마지막 줄은 세로선이 줄 가운데에서 끝난다.</summary>
+    Control? GuideLines(FolderRow row, bool present)
+    {
+        var d = row.Depth;
+        if (d == 0 || !_guides.TryGetValue(row, out var cont)) return null;
+        // 이쪽에 없는 줄은 부모가 이쪽에 있을 때만 (이어지는 세로선이 끊겨 보이지 않게).
+        var parent = row.Node.Parent;
+        if (!present && (parent is null || parent.Left is null || parent.Right is null)) return null;
+        var canvas = new Canvas { IsHitTestVisible = false };
+        var half = RowHeight / 2;
+        void Line(double x, double y, double w, double h)
+        {
+            var b = new Border { Width = w, Height = h, Opacity = 0.6 };
+            b.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppStrokeStrong"));
+            Canvas.SetLeft(b, x);
+            Canvas.SetTop(b, y);
+            canvas.Children.Add(b);
+        }
+        for (var k = 0; k < d; k++)
+        {
+            var x = k * 16 + 12;
+            if (k < d - 1) { if (cont[k]) Line(x, 0, 1, RowHeight); continue; }
+            // 부모 바로 아래 단계: 이어지면 줄 전체, 마지막이면 가운데까지
+            if (present) Line(x, 0, 1, cont[k] ? RowHeight : half + 1);
+            else if (cont[k]) Line(x, 0, 1, RowHeight);
+        }
+        if (present) Line((d - 1) * 16 + 12, half, row.IsFolder ? 8 : 26, 1); // 가로선: 폴더는 펼침 화살표 앞까지, 파일은 아이콘 앞까지
+        return canvas;
     }
 
     void UpdateStatus((int Same, int Different, int LeftOrphan, int RightOrphan, int Pending) c, bool completed)
