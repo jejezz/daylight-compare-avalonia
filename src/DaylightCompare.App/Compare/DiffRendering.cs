@@ -176,7 +176,7 @@ sealed class RowNumberMargin(DiffViewState state, bool left) : AbstractMargin
         dc.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
         var textView = TextView;
         if (textView is null || !textView.VisualLinesValid) return;
-        var numberBrush = DiffViewState.Brush("AppTextMid") ?? Brushes.Gray;
+        var numberBrush = DiffViewState.Brush("AppEdMid") ?? DiffViewState.Brush("AppTextMid") ?? Brushes.Gray;
         var markerBrush = DiffViewState.Brush("AppDiffMarker") ?? Brushes.Gray;
         var markerX = Bounds.Width - 12;
         foreach (var vl in textView.VisualLines)
