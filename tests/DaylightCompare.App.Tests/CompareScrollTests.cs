@@ -60,7 +60,7 @@ public sealed class CompareScrollTests : IDisposable
     [AvaloniaFact]
     public async Task 세로_스크롤_막대는_개요_막대_하나뿐이다()
     {
-        var w = CompareWindow.Open(null, Write("l.txt", Lines("a", 400)), Write("r.txt", Lines("a", 400) + "extra\n"));
+        var w = CompareView.Open(null, Write("l.txt", Lines("a", 400)), Write("r.txt", Lines("a", 400) + "extra\n"));
         await Settle();
         var (l, r) = Editors(w);
         foreach (var editor in new[] { l, r })
@@ -75,7 +75,7 @@ public sealed class CompareScrollTests : IDisposable
     [AvaloniaFact]
     public async Task 손잡이를_끌면_양쪽이_함께_스크롤하고_캐럿은_그대로다()
     {
-        var w = CompareWindow.Open(null, Write("l2.txt", Lines("a", 300) + "LEFT\n" + Lines("b", 300)), Write("r2.txt", Lines("a", 300) + "RIGHT\n" + Lines("b", 300)));
+        var w = CompareView.Open(null, Write("l2.txt", Lines("a", 300) + "LEFT\n" + Lines("b", 300)), Write("r2.txt", Lines("a", 300) + "RIGHT\n" + Lines("b", 300)));
         await Settle();
         var (l, r) = Editors(w);
         ScrollerOf(r).Offset = new Vector(0, 0);
@@ -101,7 +101,7 @@ public sealed class CompareScrollTests : IDisposable
     [AvaloniaFact]
     public async Task 빈_자리를_누르면_그_자리로_가고_위쪽을_누르면_처음으로_간다()
     {
-        var w = CompareWindow.Open(null, Write("l3.txt", Lines("a", 300) + "LEFT\n" + Lines("b", 300)), Write("r3.txt", Lines("a", 300) + "RIGHT\n" + Lines("b", 300)));
+        var w = CompareView.Open(null, Write("l3.txt", Lines("a", 300) + "LEFT\n" + Lines("b", 300)), Write("r3.txt", Lines("a", 300) + "RIGHT\n" + Lines("b", 300)));
         await Settle();
         var (l, r) = Editors(w);
         ScrollerOf(r).Offset = new Vector(0, 0);
@@ -127,7 +127,7 @@ public sealed class CompareScrollTests : IDisposable
     [AvaloniaFact]
     public async Task 휠은_편집기와_개요_막대_모두에서_양쪽을_함께_스크롤한다()
     {
-        var w = CompareWindow.Open(null, Write("l4.txt", Lines("a", 400)), Write("r4.txt", Lines("a", 400) + "extra\n"));
+        var w = CompareView.Open(null, Write("l4.txt", Lines("a", 400)), Write("r4.txt", Lines("a", 400) + "extra\n"));
         await Settle();
         var (l, r) = Editors(w);
         ScrollerOf(r).Offset = new Vector(0, 0);
@@ -151,7 +151,7 @@ public sealed class CompareScrollTests : IDisposable
     [AvaloniaFact]
     public async Task 다음_차이로_가면_양쪽_편집기가_같은_자리를_보인다()
     {
-        var w = CompareWindow.Open(null, Write("l5.txt", Lines("a", 300) + "LEFT\n" + Lines("b", 100)), Write("r5.txt", Lines("a", 300) + "RIGHT\n" + Lines("b", 100)));
+        var w = CompareView.Open(null, Write("l5.txt", Lines("a", 300) + "LEFT\n" + Lines("b", 100)), Write("r5.txt", Lines("a", 300) + "RIGHT\n" + Lines("b", 100)));
         await Settle();
         var (l, r) = Editors(w);
         Assert.True(r.VerticalOffset > 1000, $"처음 차이로 스크롤되지 않았다: {r.VerticalOffset}"); // 처음 차이(301행)가 보이게
@@ -176,7 +176,7 @@ public sealed class CompareScrollTests : IDisposable
             left.Add($"line {i}");
             right.Add($"line {i}");
         }
-        var w = CompareWindow.Open(null, Write("l6.txt", string.Join(NL, left) + NL), Write("r6.txt", string.Join(NL, right) + NL));
+        var w = CompareView.Open(null, Write("l6.txt", string.Join(NL, left) + NL), Write("r6.txt", string.Join(NL, right) + NL));
         await Settle();
         var bar = Overview(w);
         Assert.True(bar.Bounds.Width >= 20, $"개요 막대가 좁다: {bar.Bounds.Width}");

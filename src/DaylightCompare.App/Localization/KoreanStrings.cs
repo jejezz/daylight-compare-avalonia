@@ -24,6 +24,9 @@ public sealed class KoreanStrings : IAppStrings
     public string FolderDropFoldersOnly => "폴더 비교에는 폴더나 압축 파일만 놓을 수 있어요.";
     public string CompareWindowTitle(string left, string right) => $"{left} ↔ {right}";
     public string CompareSwap => "좌우 바꾸기";
+    public string TabClose => "탭 닫기";
+    public string TabCloseOthers => "다른 탭 닫기";
+    public string TabDetach => "새 창으로 분리";
     public string CompareOpen => "열기…";
     public string CompareOpenLeftTitle => "왼쪽에 열 파일";
     public string CompareOpenRightTitle => "오른쪽에 열 파일";

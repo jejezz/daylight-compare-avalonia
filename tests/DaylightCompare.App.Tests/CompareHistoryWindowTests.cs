@@ -46,20 +46,20 @@ public sealed class CompareHistoryWindowTests : IDisposable
         Reset();
         var l = File_("l.txt", "a\n");
         var r = File_("r.txt", "b\n");
-        var w = CompareWindow.Open(null, l, r);
+        var w = CompareView.Open(null, l, r);
         await Settle();
         var h = App.Settings.Value.CompareHistory;
         Assert.Single(h);
         Assert.Equal((l, r, CompareHistoryEntry.Files), (h[0].Left, h[0].Right, h[0].Kind));
 
         // 같은 쌍을 다시 열어도 하나, 폴더 비교는 따로.
-        CompareWindow.Open(null, l, r).Close();
+        CompareView.Open(null, l, r).Close();
         await Settle();
         Assert.Single(App.Settings.Value.CompareHistory);
 
         Directory.CreateDirectory(Path.Combine(_dir, "a"));
         Directory.CreateDirectory(Path.Combine(_dir, "b"));
-        var f = FolderCompareWindow.Open(null, Path.Combine(_dir, "a"), Path.Combine(_dir, "b"));
+        var f = FolderCompareView.Open(null, Path.Combine(_dir, "a"), Path.Combine(_dir, "b"));
         await Settle();
         Assert.Equal(2, App.Settings.Value.CompareHistory.Count);
         Assert.True(App.Settings.Value.CompareHistory[0].IsFolders); // 가장 최근이 맨 앞
@@ -71,7 +71,7 @@ public sealed class CompareHistoryWindowTests : IDisposable
     public async Task 붙여_넣은_글처럼_경로가_없는_쪽이_있으면_기록하지_않는다()
     {
         Reset();
-        var w = CompareWindow.Open(null, File_("only.txt", "x\n"), null);
+        var w = CompareView.Open(null, File_("only.txt", "x\n"), null);
         await Settle();
         Assert.Empty(App.Settings.Value.CompareHistory);
         w.Close();
@@ -142,21 +142,21 @@ public sealed class CompareHistoryWindowTests : IDisposable
     {
         Reset();
         var one = File_("same.txt", "a" + Environment.NewLine);
-        var file = CompareWindow.Open(null, one, one);
+        var file = CompareView.Open(null, one, one);
         await Settle();
         Assert.Empty(App.Settings.Value.CompareHistory);
         file.Close();
 
         Directory.CreateDirectory(Path.Combine(_dir, "d"));
         var dir = Path.Combine(_dir, "d");
-        var folder = FolderCompareWindow.Open(null, dir, dir + Path.DirectorySeparatorChar); // 끝 구분자만 다른 같은 폴더
+        var folder = FolderCompareView.Open(null, dir, dir + Path.DirectorySeparatorChar); // 끝 구분자만 다른 같은 폴더
         await Settle();
         Assert.Empty(App.Settings.Value.CompareHistory);
         folder.Close();
 
         // 서로 다른 둘은 그대로 기록된다.
         var other = File_("other.txt", "b" + Environment.NewLine);
-        CompareWindow.Open(null, one, other).Close();
+        CompareView.Open(null, one, other).Close();
         await Settle();
         Assert.Single(App.Settings.Value.CompareHistory);
     }

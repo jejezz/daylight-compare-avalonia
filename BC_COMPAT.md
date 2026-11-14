@@ -119,3 +119,15 @@ BC: Windows는 `/스위치`, macOS·Linux는 `-스위치`. 두 번째 실행은 
   Go To(바이트), 보기 Show All / Differences / Same, 현재 바이트 주소, 리틀/빅 엔디언 값, 나란히 / 위아래.
 - 그림: Tolerance Mode, Mismatch Range Mode, Blend Mode, Blend Toggle, Ignore Unimportant Differences, Auto Scale, 회전·뒤집기,
   Reset Difference Offset(화살표로 1픽셀씩 어긋남 조정), Compare Metadata, 전체 화면, 확대·축소·실제 크기·창에 맞춤.
+
+## 탭 (비교 창)
+
+| BC | 우리 | 상태 |
+|---|---|---|
+| 폴더 비교에서 파일 열기 → 같은 창의 새 탭 (같은 짝이면 그 탭으로) | 같음 | ✅ |
+| 탭 닫기 `Ctrl+W` · `Ctrl+F4`, 가운데 클릭, 탭의 X | 같음 | ✅ |
+| 탭 이동 `Ctrl+Tab` / `Ctrl+Shift+Tab` (`Ctrl+PageUp/Down`) | 같음 | ✅ |
+| 고친 탭을 닫으면 저장 여부를 묻는다 | 같음 | ✅ |
+| 탭을 창 밖으로 끌어 분리 | 탭 메뉴 [새 창으로 분리] (끌기는 아직) | ➕ |
+| Home 탭 | 홈은 별도 창 | ➖ |
+

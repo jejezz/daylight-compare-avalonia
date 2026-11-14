@@ -65,7 +65,7 @@ public sealed class HomeWindowTests : IDisposable
     {
         var home = new HomeWindow();
         home.Show();
-        var w = Assert.IsType<FolderCompareWindow>(await home.OpenPathsAsync([Folder("a")]));
+        var w = Assert.IsType<CompareHost>(await home.OpenPathsAsync([Folder("a")]));
         await Settle();
         Assert.Equal(Path.Combine(_dir, "a"), w.LeftRoot);
         Assert.Equal("", w.RightRoot);
@@ -81,7 +81,7 @@ public sealed class HomeWindowTests : IDisposable
         var home = new HomeWindow();
         home.Show();
         var l = File_("l.txt");
-        var w = Assert.IsType<CompareWindow>(await home.OpenPathsAsync([l]));
+        var w = Assert.IsType<CompareHost>(await home.OpenPathsAsync([l]));
         await Settle();
         Assert.Equal(l, w.LeftPath);
         Assert.Null(w.RightPath);
@@ -94,10 +94,10 @@ public sealed class HomeWindowTests : IDisposable
     {
         var home = new HomeWindow();
         home.Show();
-        var f = Assert.IsType<FolderCompareWindow>(await home.OpenPathsAsync([Folder("a"), Folder("b")]));
+        var f = Assert.IsType<CompareHost>(await home.OpenPathsAsync([Folder("a"), Folder("b")]));
         Assert.Equal((Path.Combine(_dir, "a"), Path.Combine(_dir, "b")), (f.LeftRoot, f.RightRoot));
         var (l, r) = (File_("l.txt"), File_("r.txt"));
-        var c = Assert.IsType<CompareWindow>(await home.OpenPathsAsync([l, r]));
+        var c = Assert.IsType<CompareHost>(await home.OpenPathsAsync([l, r]));
         Assert.Equal((l, r), (c.LeftPath, c.RightPath));
         await Settle();
         f.Close();
@@ -108,7 +108,7 @@ public sealed class HomeWindowTests : IDisposable
     [AvaloniaFact]
     public async Task 빈_폴더_비교_창은_고르라고_알리고_한쪽씩_채울_수_있다()
     {
-        var w = FolderCompareWindow.Open(null, null, null);
+        var w = FolderCompareView.Open(null, null, null);
         await Settle();
         Assert.Equal(("", ""), (w.LeftRoot, w.RightRoot));
         Shot(w, "folder-empty");

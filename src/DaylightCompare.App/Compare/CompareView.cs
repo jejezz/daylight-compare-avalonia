@@ -34,7 +34,7 @@ namespace DaylightCompare.App.Compare;
 /// 다시 비교할 때 문서를 통째로 바꾸므로 편집기 자체의 실행 취소 대신 <b>실제 글 한 쌍</b>을 쌓는 실행 취소를 쓴다(Ctrl+Z / Ctrl+Y).
 /// </para>
 /// </summary>
-public sealed class CompareWindow : Window
+public sealed class CompareView : UserControl, ICompareTab
 {
     /// <summary>강조(TextMate)를 켜는 크기 상한 — 큰 생성 파일에서 화면이 느려지지 않게.</summary>
     const int HighlightMaxChars = 2 * 1024 * 1024;
@@ -60,7 +60,7 @@ public sealed class CompareWindow : Window
         public readonly TextBlock BannerText = new() { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         public readonly StackPanel BannerActions = new() { Orientation = Orientation.Horizontal, Spacing = 8 };
         public TextMate.Installation? TextMate;
-        /// <summary>편집기 안의 스크롤 뷰어 (프로그램에서 스크롤할 때 이것의 오프셋을 바꾼다 — <see cref="CompareWindow.ScrollTo"/>).</summary>
+        /// <summary>편집기 안의 스크롤 뷰어 (프로그램에서 스크롤할 때 이것의 오프셋을 바꾼다 — <see cref="CompareView.ScrollTo"/>).</summary>
         public ScrollViewer? Scroller;
         public string? HighlightedPath;
         /// <summary>주소 창을 고치는 중 (그동안은 표시용 글로 덮어쓰지 않는다).</summary>
@@ -162,7 +162,6 @@ public sealed class CompareWindow : Window
     bool _syncing;
     bool _applying;
     bool _editBatchOpen;
-    bool _closeConfirmed;
     string? _notice;
     int _version;
 
@@ -173,30 +172,29 @@ public sealed class CompareWindow : Window
     /// <summary>폴더 비교에서 연 파일 비교는 처음 쌍(과 그 좌우 바꾸기)을 최근 비교에 기록하지 않는다. 다른 파일을 고르면 풀린다.</summary>
     bool _skipHistory;
 
-    public static CompareWindow Open(Window? near, string? left, string? right, CompareOptions? options = null, bool recordHistory = true)
-    {
-        var w = new CompareWindow(left, right, options ?? CompareOptions.None) { _skipHistory = !recordHistory };
-        if (near is not null) WindowPlacementHelper.OpenNear(near, w);
-        else w.Show();
-        return w;
-    }
+    /// <summary>새 비교 창(탭 호스트)을 열고 그 첫 탭으로 파일 비교를 둔다.</summary>
+    public static CompareHost Open(Window? near, string? left, string? right, CompareOptions? options = null, bool recordHistory = true) =>
+        CompareHost.Open(near, Create(left, right, options ?? CompareOptions.None, recordHistory));
 
-    CompareWindow(string? left, string? right, CompareOptions options)
+    /// <summary>탭에 넣을 파일 비교 보기를 만든다 (아직 읽지 않는다 — 탭이 보일 때 <see cref="Start"/>).</summary>
+    public static CompareView Create(string? left, string? right, CompareOptions options, bool recordHistory) =>
+        new(left, right, options) { _skipHistory = !recordHistory };
+
+    /// <summary>탭 호스트 창 (대화상자 주인·클립보드·파일 선택기).</summary>
+    Window Owner => TopLevel.GetTopLevel(this) as Window ?? throw new InvalidOperationException("not attached");
+
+    CompareView(string? left, string? right, CompareOptions options)
     {
         _left.Title = options.LeftTitle;
         _right.Title = options.RightTitle;
         _left.ReadOnly = options.LeftReadOnly;
         _right.ReadOnly = options.RightReadOnly;
-        Width = 1280;
-        Height = 780;
-        MinWidth = 900;
-        MinHeight = 520;
         _left.Path = left;
         _right.Path = right;
 
         foreach (var side in new[] { _left, _right }) SetupEditor(side);
         Content = BuildLayout();
-        UpdateTitle();
+        UpdateTitle(raise: false);
 
         _left.Editor.TextArea.TextView.ScrollOffsetChanged += (_, _) => SyncScroll(_left, _right);
         _right.Editor.TextArea.TextView.ScrollOffsetChanged += (_, _) => SyncScroll(_right, _left);
@@ -230,24 +228,52 @@ public sealed class CompareWindow : Window
         AddHandler(DragDrop.DragOverEvent, OnDragOver);
         AddHandler(DragDrop.DragLeaveEvent, (_, _) => _dropHint.IsVisible = false);
         AddHandler(DragDrop.DropEvent, OnDrop);
-        AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         Strings.Changed += OnLanguageChanged;
-        Closing += OnClosing;
-        Closed += (_, _) =>
+    }
+
+    // --- 탭 호스트가 부르는 부분 (ICompareTab) ---
+
+    public Control View => this;
+    public bool IsFolder => false;
+    public event Action? TitleChanged;
+    public string WindowTitle { get; private set; } = "";
+    public string TabTitle { get; private set; } = "";
+    public string? TabToolTip => string.Join('\n', new[] { _left.Path, _right.Path }.Where(p => !string.IsNullOrEmpty(p)));
+    public bool IsDirty => _left.Dirty || _right.Dirty;
+
+    /// <summary>탭이 처음 보일 때 한 번 (창의 <c>Opened</c>를 대신한다).</summary>
+    public async void Start()
+    {
+        await ReloadAsync();
+        RecordHistory();
+    }
+
+    /// <summary>탭을 닫기 전에: 고친 것이 있으면 저장·버리기·취소를 묻는다.</summary>
+    public async Task<bool> ConfirmCloseAsync()
+    {
+        if (_editBatchOpen) { _left.Real = _left.CanEdit ? ExtractReal(_left) : _left.Real; _right.Real = _right.CanEdit ? ExtractReal(_right) : _right.Real; _editBatchOpen = false; }
+        var dirty = new[] { _left, _right }.Where(x => x.Dirty).ToList();
+        if (dirty.Count == 0) return true;
+        var s = Strings.Current;
+        var choice = await MessageDialog.ShowAsync(Owner, s.CompareUnsavedTitle, s.CompareUnsavedBody(string.Join(", ", dirty.Select(d => d.Name))),
+            [s.CommonCancel, s.CompareDontSave, s.CommonSave], 2, 0);
+        if (choice <= 0) return false;
+        if (choice == 2)
+            foreach (var side in dirty)
+                if (!await SaveAsync(side)) return false;
+        return true;
+    }
+
+    /// <summary>탭이 닫힐 때 (창이 닫히거나 탭을 닫은 뒤) 자원 정리.</summary>
+    public void Dispose()
+    {
+        Strings.Changed -= OnLanguageChanged;
+        _recompareTimer.Stop();
+        foreach (var side in new[] { _left, _right })
         {
-            Strings.Changed -= OnLanguageChanged;
-            _recompareTimer.Stop();
-            foreach (var side in new[] { _left, _right })
-            {
-                side.TextMate?.Dispose();
-                side.Watcher?.Dispose();
-            }
-        };
-        Opened += async (_, _) =>
-        {
-            await ReloadAsync();
-            RecordHistory();
-        };
+            side.TextMate?.Dispose();
+            side.Watcher?.Dispose();
+        }
     }
 
     /// <summary>두 쪽이 모두 파일이면 최근 비교 목록에 기록한다 (붙여 넣은 글은 경로가 없어 건너뛴다).</summary>
@@ -317,8 +343,8 @@ public sealed class CompareWindow : Window
                 Tool("search", Tip(s.CompareFindMenu, "Ctrl+F"), () => OpenFind()),
                 commands,
                 Separator(),
-                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(this)),
-                Tool("info", s.AboutTooltip, () => AboutDialog.Open(this)),
+                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(Owner)),
+                Tool("info", s.AboutTooltip, () => AboutDialog.Open(Owner)),
             },
         };
         var appBar = new Border
@@ -706,7 +732,7 @@ public sealed class CompareWindow : Window
     /// </summary>
     async Task PasteAsync(Side side)
     {
-        var text = Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null;
+        var text = TopLevel.GetTopLevel(this)?.Clipboard is { } clipboard ? await clipboard.TryGetTextAsync() : null;
         if (string.IsNullOrEmpty(text))
         {
             Notice(Strings.Current.CompareClipboardEmpty);
@@ -1111,7 +1137,7 @@ public sealed class CompareWindow : Window
             lines.Add(s.CompareSaveBackupNote);
             var offerUtf8 = check.Lost.Count > 0 && text.File.Encoding != TextEncodingKind.Utf8;
             string[] buttons = offerUtf8 ? [s.CommonCancel, s.CompareSaveAnyway, s.CompareSaveAsUtf8] : [s.CommonCancel, s.CommonSave];
-            var choice = await MessageDialog.ShowAsync(this, s.CompareSaveTitle(side.Name), string.Join("\n\n", lines), buttons, buttons.Length - 1, 0);
+            var choice = await MessageDialog.ShowAsync(Owner, s.CompareSaveTitle(side.Name), string.Join("\n\n", lines), buttons, buttons.Length - 1, 0);
             if (choice <= 0) return false;
             if (offerUtf8 && choice == 2) encoding = TextEncodingKind.Utf8;
         }
@@ -1132,27 +1158,9 @@ public sealed class CompareWindow : Window
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            await MessageDialog.ShowAsync(this, s.CompareSaveTitle(side.Name), s.CompareSaveFailed(e.Message), [s.CommonClose], 0, 0);
+            await MessageDialog.ShowAsync(Owner, s.CompareSaveTitle(side.Name), s.CompareSaveFailed(e.Message), [s.CommonClose], 0, 0);
             return false;
         }
-    }
-
-    async void OnClosing(object? sender, WindowClosingEventArgs e)
-    {
-        if (_closeConfirmed) return;
-        if (_editBatchOpen) { _left.Real = _left.CanEdit ? ExtractReal(_left) : _left.Real; _right.Real = _right.CanEdit ? ExtractReal(_right) : _right.Real; _editBatchOpen = false; }
-        var dirty = new[] { _left, _right }.Where(x => x.Dirty).ToList();
-        if (dirty.Count == 0) return;
-        e.Cancel = true;
-        var s = Strings.Current;
-        var choice = await MessageDialog.ShowAsync(this, s.CompareUnsavedTitle, s.CompareUnsavedBody(string.Join(", ", dirty.Select(d => d.Name))),
-            [s.CommonCancel, s.CompareDontSave, s.CommonSave], 2, 0);
-        if (choice <= 0) return;
-        if (choice == 2)
-            foreach (var side in dirty)
-                if (!await SaveAsync(side)) return;
-        _closeConfirmed = true;
-        Close();
     }
 
     // --- 바깥 변경 감지 (ROADMAP §6-1 ③ 자동 다시 비교) ---
@@ -1299,11 +1307,13 @@ public sealed class CompareWindow : Window
         return flyout;
     }
 
-    void UpdateTitle()
+    void UpdateTitle(bool raise = true)
     {
         var dirty = _left.Dirty || _right.Dirty ? "● " : "";
-        Title = $"{dirty}{Strings.Current.CompareWindowTitle(_left.Name, _right.Name)} — {AppIdentity.DisplayName}";
+        WindowTitle = $"{dirty}{Strings.Current.CompareWindowTitle(_left.Name, _right.Name)}";
+        TabTitle = $"{dirty}{(_left.Name == _right.Name ? _left.Name : Strings.Current.CompareWindowTitle(_left.Name, _right.Name))}";
         _save.IsEnabled = _left.Dirty || _right.Dirty;
+        if (raise) TitleChanged?.Invoke();
     }
 
     /// <summary>잠깐 보이는 알림 (저장함 등) — 상태 표시 자리에 4초.</summary>
@@ -1615,7 +1625,7 @@ public sealed class CompareWindow : Window
     {
         var side = FocusedSide();
         var s = Strings.Current;
-        var input = await InputDialog.ShowAsync(this, s.CompareGoTo, s.CompareGoToPrompt(side.Name), "", s.CommonOk, s.CommonCancel);
+        var input = await InputDialog.ShowAsync(Owner, s.CompareGoTo, s.CompareGoToPrompt(side.Name), "", s.CommonOk, s.CommonCancel);
         if (input is null || !int.TryParse(input.Trim(), out var line) || line < 1) return;
         var row = _leftState.Diff is { } d ? (side.Left ? d.RowOfLeftLine(line - 1) : d.RowOfRightLine(line - 1)) : line - 1;
         var doc = side.Editor.Document;
@@ -1639,7 +1649,7 @@ public sealed class CompareWindow : Window
                 $"{TextEncodings.DisplayName(t.File.Encoding, t.File.HasBom)} · {lineBreak}",
                 s.CompareInfoLines(DiffEdits.Split(side.Real).Lines.Count));
         }
-        await MessageDialog.ShowAsync(this, s.CompareInfo, $"{s.HomeLeft}\n{Describe(_left)}\n\n{s.HomeRight}\n{Describe(_right)}", [s.CommonClose], 0, 0);
+        await MessageDialog.ShowAsync(Owner, s.CompareInfo, $"{s.HomeLeft}\n{Describe(_left)}\n\n{s.HomeRight}\n{Describe(_right)}", [s.CommonClose], 0, 0);
     }
 
     /// <summary>
@@ -1650,11 +1660,11 @@ public sealed class CompareWindow : Window
     {
         await CommitEditsAsync();
         if (!side.HasText) return;
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        var file = await Owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = Strings.Current.CompareSaveFileAs,
             SuggestedFileName = side.Path is null ? "pasted.txt" : System.IO.Path.GetFileName(side.Path.Replace(ArchivePaths.Separator, "/")),
-            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
+            SuggestedStartLocation = await PickLocations.StartAsync(Owner.StorageProvider),
         });
         if (file?.TryGetLocalPath() is not { } path) return;
         var template = side.Text is { } t && !side.IsScratch
@@ -1679,7 +1689,7 @@ public sealed class CompareWindow : Window
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            await MessageDialog.ShowAsync(this, Strings.Current.CompareSaveFileAs, Strings.Current.CompareSaveFailed(e.Message), [Strings.Current.CommonClose], 0, 0);
+            await MessageDialog.ShowAsync(Owner, Strings.Current.CompareSaveFileAs, Strings.Current.CompareSaveFailed(e.Message), [Strings.Current.CommonClose], 0, 0);
         }
     }
 
@@ -1690,7 +1700,7 @@ public sealed class CompareWindow : Window
         var dirty = new[] { _left, _right }.Where(x => x.Dirty).ToList();
         if (dirty.Count == 0) return true;
         var s = Strings.Current;
-        var choice = await MessageDialog.ShowAsync(this, s.CompareUnsavedTitle, s.CompareUnsavedBody(string.Join(", ", dirty.Select(d => d.Name))),
+        var choice = await MessageDialog.ShowAsync(Owner, s.CompareUnsavedTitle, s.CompareUnsavedBody(string.Join(", ", dirty.Select(d => d.Name))),
             [s.CommonCancel, s.CompareDontSave, s.CommonSave], 2, 0);
         if (choice <= 0) return false;
         if (choice == 2)
@@ -1714,11 +1724,11 @@ public sealed class CompareWindow : Window
 
     async Task PickAsync(Side side)
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        var files = await Owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = side.Left ? Strings.Current.CompareOpenLeftTitle : Strings.Current.CompareOpenRightTitle,
             AllowMultiple = false,
-            SuggestedStartLocation = await PickLocations.StartAsync(StorageProvider),
+            SuggestedStartLocation = await PickLocations.StartAsync(Owner.StorageProvider),
         });
         if (files.Count == 0 || files[0].TryGetLocalPath() is not { } path) return;
         PickLocations.Remember(path, isFolder: false);
@@ -1748,7 +1758,7 @@ public sealed class CompareWindow : Window
         });
         if (problem is not null)
         {
-            await MessageDialog.ShowAsync(this, AppIdentity.DisplayName, problem, [s.CommonClose], 0, 0);
+            await MessageDialog.ShowAsync(Owner, AppIdentity.DisplayName, problem, [s.CommonClose], 0, 0);
             // 지금 파일은 그대로. 고쳐 다시 쓸 수 있게 쓴 글을 주소 창에 되살린다 (Esc나 다른 곳을 누르면 지금 경로로 돌아간다).
             side.PathText.Focus();
             side.PathText.Text = path;
@@ -1794,7 +1804,7 @@ public sealed class CompareWindow : Window
     {
         _dropHint.IsVisible = false;
         var plan = DropPlanner.Plan(ItemsOf(e), TargetAt(e), Item(_left), Item(_right));
-        await ApplyDropAsync(this, plan, async (l, r) =>
+        await ApplyDropAsync(Owner, plan, async (l, r) =>
         {
             if (!await ConfirmDiscardAsync()) return;
             _left.Path = l;
@@ -1823,7 +1833,7 @@ public sealed class CompareWindow : Window
                 await apply(p.Left?.Path, p.Right?.Path);
                 break;
             case DropPlan.Compare { Mode: CompareMode.Folders } c:
-                FolderCompareWindow.Open(owner, c.Left.Path, c.Right.Path);
+                FolderCompareView.Open(owner, c.Left.Path, c.Right.Path);
                 break;
             case DropPlan.Compare { Mode: CompareMode.Files } c:
                 await apply(c.Left.Path, c.Right.Path);
@@ -1853,7 +1863,7 @@ public sealed class CompareWindow : Window
 
     // --- 단축키 (UI_UX.md) ---
 
-    void OnKeyDown(object? sender, KeyEventArgs e)
+    public void HandleKey(KeyEventArgs e)
     {
         var primary = Mods.Primary(e.KeyModifiers);
         var shift = e.KeyModifiers.HasFlag(KeyModifiers.Shift);
@@ -1906,8 +1916,7 @@ public sealed class CompareWindow : Window
             case Key.F5: _ = ReloadWithConfirmAsync(); break;
             case Key.U when primary && !shift: _ = SwapAsync(); break;
             case Key.O when primary: _ = PickAsync(_right.Path is null || _left.Path is not null && _right.Editor.TextArea.IsFocused ? _right : _left); break;
-            case Key.W when primary: Close(); break;
-            case Key.OemComma when primary: SettingsWindow.Open(this); break;
+            case Key.OemComma when primary: SettingsWindow.Open(Owner); break;
             default: handled = false; break;
         }
         e.Handled = handled;

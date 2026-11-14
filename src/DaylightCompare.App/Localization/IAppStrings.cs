@@ -38,6 +38,9 @@ public interface IAppStrings
     // 비교 창 · 홈 창 고르기 · 끌어다 놓기
     string CompareWindowTitle(string left, string right);
     string CompareSwap { get; }
+    string TabClose { get; }
+    string TabCloseOthers { get; }
+    string TabDetach { get; }
     string CompareOpen { get; }
     string CompareOpenLeftTitle { get; }
     string CompareOpenRightTitle { get; }
