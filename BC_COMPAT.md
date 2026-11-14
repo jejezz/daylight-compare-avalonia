@@ -51,7 +51,15 @@ Never align differences), Format(형식·인코딩), Replacements가 우리 정�
 
 - **상태 (4b)**: ✅ Copy to Right / Left(`Ctrl+R`/`Ctrl+L`) · Delete · Open · Next/Previous Difference(`Ctrl+N`/`Ctrl+P`) · Select All · Select Newer/Orphans(왼쪽·오른쪽·양쪽) · Invert Selection ·
   Expand/Collapse All · Refresh(`F5`) · Swap Sides · 보기 필터 열두 가지와 여섯 토글 · Always Show Folders · 필터 막대 · 색.
-  ➕ 아직: Copy to Other Side, Move to …, Rename, New Folder, Compare Contents/Quick Compare, Compare To/Align With, Find Filename, Back/Forward/Up One Level, Synchronize, Suppress Filters, Columns, Legend, Select Newer의 "고른 것만" 등.
+  ➕ 아직: Copy to Other Side, Move to …, Rename, New Folder, Compare Contents/Quick Compare, Compare To/Align With, Find Filename, Synchronize, Suppress Filters, Columns, Legend, Select Newer의 "고른 것만", 열 머리글을 눌러 정렬·열 폭 조절, Back/Forward/Up One Level의 단축키 등.
+- **4b 이후 더한 것 (v0.1.1 이후, `staging` → `main` PR #26)** — 모습은 BC와 달라도 되는 것과 우리가 다르게 만든 것을 구분해 적는다.
+  - ✅ **가운데 상태 기호 칸** (BC의 가운데 열): 같음 `=`, 다름 `≠`(빨강), 비교 중 `…`(BC는 모래시계), 읽기 실패 `!`. 한쪽에만 있는 줄은 비운다. 복사 방향 표시는 아직 없다.
+  - ✅ **열 머리글** 이름 · 크기 · 수정한 날짜 (표시만, 정렬·폭 조절 ➕). **트리 안내선** (BC의 나무 점선). 한쪽에만 있는 쪽은 BC처럼 **채움 없는 빈 줄**. 목록은 편집기(고정폭) 글꼴을 따른다.
+  - ✅ **Up One Level**: 패널마다 폴더 열기 옆 단추로 그 쪽 루트만 한 칸 위로 (압축 파일 안이면 안쪽 부모, 압축 파일 루트면 그것이 든 폴더). 단축키는 BC 키를 확인하기 전까지 정하지 않았다.
+  - ✅ **Back / Forward**: 툴바 단추 "이전 위치 / 다음 위치" — 양쪽 루트 쌍의 이동 기록(위로·지금 비교·바꾸기·주소창·끌어다 놓기). `Alt+←/→`❓는 아직 안 걸었다.
+  - ✅ **한쪽에만 있는 폴더는 펼칠 때 읽는다** (BC의 방식과 같은지는 확인 필요❓): 비교 때 훑지 않아 엉뚱한 폴더로 올라가도 느리지 않다. 상태 줄의 "한쪽에만" 개수는 읽지 않은 폴더를 1개로 센다.
+  - 🔧 **필터 막대는 두 칸(include / exclude)** — BC는 한 칸(Filters)에 `-`로 제외까지 적는다. 우리는 두 칸으로 나누되 **같은 BC 문법**을 쓰고(제외 칸은 `-`를 붙여 합친다) `.dcfilter`로 가져오기·내보내기 한다. 한 칸 방식으로 맞출지는 정하지 않았다.
+  - ✅/— **줄의 오른쪽 단추 메뉴**: 지금 비교 · Filter: 제외 · Filter: 포함 · 오른쪽/왼쪽으로 복사. "지금 비교"(파일이면 파일 비교 창, 폴더면 그 폴더를 루트로 다시 비교, 한쪽에만 있으면 있는 쪽만 이동)와 "Filter: 제외/포함"(고른 이름을 필터 칸에 더함)은 BC의 정확한 대응 명령·이름을 확인하지 못했다 — BC 이름을 찾으면 ❓로 두고 맞춘다.
 - 명령: Copy to Right / Left `Ctrl+R` / `Ctrl+L` (도움말 명시), Copy to Other Side, Move to …, Delete, Rename `F2`❓, New Folder `Insert`❓,
   Compare Contents(CRC · Binary · Rules-based), Quick Compare, Compare To `F7`❓, Align With `F6`❓, Expand / Collapse All,
   Select Newer / Orphans(Left·Right·Both), Invert Selection, Refresh `F5`❓ / Full Refresh `Ctrl+F5`❓, Refresh Selection `Shift+F5`❓,
