@@ -77,6 +77,8 @@ public sealed class EnglishStrings : IAppStrings
     public string FolderViewFilterTooltip => "Display Filter";
     public string FolderMenuActions => "Actions";
     public string FolderOpen => "Open";
+    public string FolderUpLevel => "Up One Level";
+    public string FolderCannotGoUp => "Already at the top";
     public string FolderCompareNow => "Compare Now";
     public string FolderFilterExcludeItem => "Filter: Exclude";
     public string FolderFilterIncludeItem => "Filter: Include";

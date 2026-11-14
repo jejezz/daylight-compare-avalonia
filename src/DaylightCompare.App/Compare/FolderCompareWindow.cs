@@ -212,6 +212,8 @@ public sealed class FolderCompareWindow : Window
             Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center,
             Children =
             {
+                Tool("parent-folder", s.FolderUpLevel, () => _ = GoUpAsync()),
+                Separator(),
                 _viewFilter,
                 Separator(),
                 Tool("back", Tip(s.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyAsync(toRight: false)),
@@ -598,6 +600,7 @@ public sealed class FolderCompareWindow : Window
         }
         var flyout = new MenuFlyout();
         flyout.Items.Add(Group(s.CompareMenuSession,
+            Item(s.FolderUpLevel, null, () => _ = GoUpAsync()),
             Item(s.CompareSwap, "Ctrl+U", () => _ = SwapAsync()),
             Item(s.FolderRefresh, "F5", () => _ = StartCompareAsync())));
         flyout.Items.Add(Group(s.FolderMenuActions,
@@ -842,6 +845,44 @@ public sealed class FolderCompareWindow : Window
         RecordHistory();
         await StartCompareAsync();
     }
+
+    /// <summary>한 칸 위로: 양쪽 루트를 각각 부모 폴더로 (압축 파일 안이면 안쪽 부모, 압축 파일 루트면 그것이 든 폴더). 한쪽이라도 더 못 올라가면 그대로 둔다.</summary>
+    async Task GoUpAsync()
+    {
+        await ResolveOnce();
+        var left = ParentOf(_leftRoot);
+        var right = ParentOf(_rightRoot);
+        if ((_leftRoot.Length > 0 && left is null) || (_rightRoot.Length > 0 && right is null))
+        {
+            Notice(Strings.Current.FolderCannotGoUp);
+            return;
+        }
+        if (left is not null) (_leftFs, _leftRoot) = (FsFor(left), left);
+        if (right is not null) (_rightFs, _rightRoot) = (FsFor(right), right);
+        _expanded.Clear();
+        UpdateTitle();
+        RecordHistory();
+        await StartCompareAsync();
+    }
+
+    /// <summary>부모 경로 (문자열만 다룬다 — 디스크를 만지지 않는다). 비어 있거나 더 올라갈 곳이 없으면 null.</summary>
+    static string? ParentOf(string root)
+    {
+        if (root.Length == 0) return null;
+        if (ArchivePaths.TryParse(root) is { } loc)
+            return ArchivePaths.ParentInner(loc.Inner) is { } up
+                ? ArchivePaths.Format(loc.Archive, up)
+                : Path.GetDirectoryName(loc.Archive) is { Length: > 0 } dir ? dir : null;
+        var trimmed = root.Length > 3 ? root.TrimEnd('\\', '/') : root;
+        return Path.GetDirectoryName(trimmed) is { Length: > 0 } parent ? parent : null;
+    }
+
+    IFileSystem FsFor(string root) =>
+        ArchivePaths.TryParse(root) is { } loc
+            ? (ArchivePaths.IsInArchive(_leftRoot) && ArchivePaths.TryParse(_leftRoot)!.Archive == loc.Archive ? _leftFs
+                : ArchivePaths.IsInArchive(_rightRoot) && ArchivePaths.TryParse(_rightRoot)!.Archive == loc.Archive ? _rightFs
+                : new ArchiveFileSystem(loc.Archive))
+            : LocalFileSystem.Instance;
 
     async Task ChooseAsync(bool left)
     {
