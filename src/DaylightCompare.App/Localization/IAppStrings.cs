@@ -38,6 +38,24 @@ public interface IAppStrings
     // 비교 창 · 홈 창 고르기 · 끌어다 놓기
     string CompareWindowTitle(string left, string right);
     string CompareSwap { get; }
+    string CompareFormatTooltip { get; }
+    string CompareFormatLineBreak { get; }
+    string CompareFormatSaveEncoding { get; }
+    string CompareFormatMenuTooltip { get; }
+    string CompareFormatPlain { get; }
+    string CompareFormatAuto(string name);
+    string CompareHeaderInfo(DateTime modifiedLocal, long length);
+    string CompareShowBytes { get; }
+    string CompareSectionPosition(int index, int count);
+    string CompareSectionCount(int count);
+    string CompareLineBreakMixed { get; }
+    string CompareInsertMode { get; }
+    string CompareOverwriteMode { get; }
+    string CompareLoadTime(double seconds);
+    string CompareBytesNoLine { get; }
+    string TabClose { get; }
+    string TabCloseOthers { get; }
+    string TabDetach { get; }
     string CompareOpen { get; }
     string CompareOpenLeftTitle { get; }
     string CompareOpenRightTitle { get; }

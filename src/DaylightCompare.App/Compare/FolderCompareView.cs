@@ -25,9 +25,9 @@ namespace DaylightCompare.App.Compare;
 /// 폴더 비교 창 (ROADMAP 4b, 창 하나 = 폴더 비교 하나). 모습은 Beyond Compare의 폴더 비교를 따른다(BC_COMPAT.md §2): 좌우 나무를 같은 줄에 나란히,
 /// 같음(보통 글자색)·다름과 더 새것(빨강, 더 오래된 쪽은 흐리게)·한쪽에만(보라)·아직 모름(회색), 보기 필터·필터 막대·복사·삭제·고르기 명령.
 /// 비교는 <see cref="FolderComparer"/>가 백그라운드에서 하고, 읽는 대로 보인다 (알림은 모아서 0.15초마다 한 번 줄 목록을 다시 만든다).
-/// 파일 짝을 열면 텍스트 비교 창(<see cref="CompareWindow"/>)이 열린다.
+/// 파일 짝을 열면 텍스트 비교 창(<see cref="CompareView"/>)이 열린다.
 /// </summary>
-public sealed class FolderCompareWindow : Window
+public sealed class FolderCompareView : UserControl, ICompareTab
 {
     const double RowHeight = 26;
 
@@ -78,15 +78,12 @@ public sealed class FolderCompareWindow : Window
             : (LocalFileSystem.Instance, path);
 
     /// <summary>폴더 비교 창을 연다. 한쪽(또는 양쪽)이 비어 있으면 빈 창으로 열고, 그쪽은 주소 창에서 고르거나 끌어다 놓아 채운다.</summary>
-    public static FolderCompareWindow Open(Window? near, string? left, string? right)
-    {
-        var w = new FolderCompareWindow(left ?? "", right ?? "");
-        if (near is not null) WindowPlacementHelper.OpenNear(near, w);
-        else w.Show();
-        return w;
-    }
+    public static CompareHost Open(Window? near, string? left, string? right) =>
+        CompareHost.Open(near, new FolderCompareView(left ?? "", right ?? ""));
 
-    FolderCompareWindow(string left, string right)
+    Window Owner => TopLevel.GetTopLevel(this) as Window ?? throw new InvalidOperationException("not attached");
+
+    FolderCompareView(string left, string right)
     {
         // 경로가 폴더인지 압축 파일인지는 열 때 UI 스레드에서 디스크를 만져 알아내지 않는다 (네트워크 드라이브에서는 이것만으로 앱이 멈출 수 있다).
         // 일단 받은 그대로 두고, 첫 비교를 시작할 때 백그라운드에서 정한다 (ResolveOnce).
@@ -97,10 +94,6 @@ public sealed class FolderCompareWindow : Window
         _show = (FolderShow)settings.FolderShowFlags & FolderShow.All;
         if (_show == FolderShow.None) _show = FolderShow.All;
         _alwaysFolders = settings.FolderAlwaysShowFolders;
-        Width = 1280;
-        Height = 780;
-        MinWidth = 900;
-        MinHeight = 480;
 
         // 줄 높이는 우리가 정한다 (ListBoxItem의 기본 안쪽 여백·최소 높이를 없앤다).
         Styles.Add(new Style(x => x.OfType<ListBoxItem>())
@@ -145,23 +138,37 @@ public sealed class FolderCompareWindow : Window
                 else if (e.Key == Key.Escape) { _list.Focus(); e.Handled = true; }
             };
         _timer.Tick += (_, _) => { if (_dirty) { _dirty = false; Rebuild(); } };
-        AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         Strings.Changed += OnLanguageChanged;
         ActualThemeVariantChanged += (_, _) => Rebuild();
-        Closed += (_, _) =>
-        {
-            Strings.Changed -= OnLanguageChanged;
-            _timer.Stop();
-            _cts?.Cancel();
-        };
-        Opened += (_, _) =>
-        {
-            _timer.Start();
-            RecordHistory();
-            _ = StartCompareAsync();
-        };
-        UpdateTitle();
+        UpdateTitle(raise: false);
         UpdateViewFilterButton();
+    }
+
+    // --- 탭 호스트가 부르는 부분 (ICompareTab) ---
+
+    public Control View => this;
+    public bool IsFolder => true;
+    public event Action? TitleChanged;
+    public string WindowTitle { get; private set; } = "";
+    public string TabTitle => WindowTitle;
+    public string? TabToolTip => string.Join('\n', new[] { _leftRoot, _rightRoot }.Where(p => p.Length > 0));
+    public bool IsDirty => false;
+
+    /// <summary>탭이 처음 보일 때 한 번 (창의 <c>Opened</c>를 대신한다).</summary>
+    public void Start()
+    {
+        _timer.Start();
+        RecordHistory();
+        _ = StartCompareAsync();
+    }
+
+    public Task<bool> ConfirmCloseAsync() => Task.FromResult(true);
+
+    public void Dispose()
+    {
+        Strings.Changed -= OnLanguageChanged;
+        _timer.Stop();
+        _cts?.Cancel();
     }
 
     void OnLanguageChanged() => Dispatcher.UIThread.Post(() =>
@@ -186,12 +193,13 @@ public sealed class FolderCompareWindow : Window
 
     static string Original(string root) => ArchivePaths.TryParse(root)?.Archive ?? root;
 
-    void UpdateTitle()
+    void UpdateTitle(bool raise = true)
     {
         _leftPath.Text = _leftRoot;
         _rightPath.Text = _rightRoot;
         static string Name(string root) => root.Length == 0 ? Strings.Current.HomeNotChosen : Locations.NameOf(root.Replace(ArchivePaths.Separator, "/"));
-        Title = $"{Strings.Current.FolderWindowTitle(Name(_leftRoot), Name(_rightRoot))} — {AppIdentity.DisplayName}";
+        WindowTitle = Strings.Current.FolderWindowTitle(Name(_leftRoot), Name(_rightRoot));
+        if (raise) TitleChanged?.Invoke();
     }
 
     // --- 배치 ---
@@ -239,8 +247,8 @@ public sealed class FolderCompareWindow : Window
                 Tool("refresh", Tip(s.FolderRefresh, "F5"), () => _ = StartCompareAsync()),
                 commands,
                 Separator(),
-                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(this)),
-                Tool("info", s.AboutTooltip, () => AboutDialog.Open(this)),
+                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(Owner)),
+                Tool("info", s.AboutTooltip, () => AboutDialog.Open(Owner)),
             },
         };
         var appBar = new Border
@@ -771,7 +779,7 @@ public sealed class FolderCompareWindow : Window
         if (!node.IsDirectory)
         {
             if (node.Left is null || node.Right is null) { Notice(Strings.Current.FolderCompareNeedBoth); return; }
-            CompareWindow.Open(this, node.Left.Path, node.Right.Path, recordHistory: false);
+            OpenFileTab(node.Left.Path, node.Right.Path);
             return;
         }
         // 폴더: 양쪽에 있으면 양쪽을, 한쪽에만 있으면 있는 쪽만 그 폴더로 바꾼다 (다른 쪽은 그대로).
@@ -854,12 +862,16 @@ public sealed class FolderCompareWindow : Window
         }
     }
 
+    /// <summary>파일 짝을 이 창의 새 탭으로 연다 (BC처럼). 이미 열려 있으면 그 탭으로 간다.</summary>
+    void OpenFileTab(string? left, string? right) =>
+        (TopLevel.GetTopLevel(this) as CompareHost)?.OpenFileTab(left, right);
+
     /// <summary>Enter·더블클릭: 파일 짝은 텍스트 비교 창으로, 폴더는 펴고 접는다.</summary>
     void OpenSelected()
     {
         if (Selected.FirstOrDefault() is not { } row) return;
         if (row.IsFolder) { Toggle(row.Node); return; }
-        CompareWindow.Open(this, row.Node.Left?.Path, row.Node.Right?.Path, recordHistory: false);
+        OpenFileTab(row.Node.Left?.Path, row.Node.Right?.Path);
     }
 
     // --- 복사·삭제 (BC Copy to Right / Left, Delete) ---
@@ -932,7 +944,7 @@ public sealed class FolderCompareWindow : Window
     async Task ExportFilterAsync()
     {
         var s = Strings.Current;
-        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        var file = await Owner.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = s.FolderFilterExport,
             SuggestedFileName = "filter",
@@ -949,7 +961,7 @@ public sealed class FolderCompareWindow : Window
     async Task ImportFilterAsync()
     {
         var s = Strings.Current;
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        var files = await Owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = s.FolderFilterImport,
             AllowMultiple = false,
@@ -1049,8 +1061,8 @@ public sealed class FolderCompareWindow : Window
     async Task ChooseAsync(bool left)
     {
         var s = Strings.Current;
-        var start = await CurrentFolderAsync(left ? _leftRoot : _rightRoot) ?? await PickLocations.StartAsync(StorageProvider);
-        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        var start = await CurrentFolderAsync(left ? _leftRoot : _rightRoot) ?? await PickLocations.StartAsync(Owner.StorageProvider);
+        var folders = await Owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             Title = left ? s.FolderChooseLeftTitle : s.FolderChooseRightTitle,
             AllowMultiple = false,
@@ -1067,7 +1079,7 @@ public sealed class FolderCompareWindow : Window
         var path = Original(root);
         var dir = await Task.Run(() => Directory.Exists(path) ? path : Path.GetDirectoryName(path) is { Length: > 0 } d && Directory.Exists(d) ? d : null);
         if (dir is null) return null;
-        try { return await StorageProvider.TryGetFolderFromPathAsync(dir); }
+        try { return await Owner.StorageProvider.TryGetFolderFromPathAsync(dir); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException) { return null; }
     }
 
@@ -1115,7 +1127,7 @@ public sealed class FolderCompareWindow : Window
 
     // --- 단축키: Beyond Compare 기본 키 (BC_COMPAT.md §2) ---
 
-    void OnKeyDown(object? sender, KeyEventArgs e)
+    public void HandleKey(KeyEventArgs e)
     {
         if (_dialogs.IsOpen || _filterBox.IsFocused || _excludeBox.IsFocused) return;
         // 주소 창에 쓰는 중이면 Enter·Delete·Ctrl+A 등은 글 상자의 것이다 (터널로 먼저 받아 가로채지 않는다).
@@ -1135,8 +1147,7 @@ public sealed class FolderCompareWindow : Window
             case Key.Delete: _ = DeleteAsync(_activeLeft); break;
             case Key.Right when !primary && Selected.FirstOrDefault() is { IsFolder: true, IsExpanded: false } r: Toggle(r.Node); break;
             case Key.Left when !primary && Selected.FirstOrDefault() is { IsFolder: true, IsExpanded: true } r: Toggle(r.Node); break;
-            case Key.W when primary: Close(); break;
-            case Key.OemComma when primary: SettingsWindow.Open(this); break;
+            case Key.OemComma when primary: SettingsWindow.Open(Owner); break;
             default: handled = false; break;
         }
         e.Handled = handled;

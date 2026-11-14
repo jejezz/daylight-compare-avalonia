@@ -66,13 +66,13 @@ public sealed class CompareConvenienceTests : IDisposable
         var left = Write("l.txt", Lines(0, 40) + "LEFT\n" + Lines(41, 80));
         var right = Write("r.txt", Lines(0, 40) + "RIGHT\n" + Lines(41, 80));
         App.Settings.Update(s => s with { CompareViewFilter = Domain.Settings.CompareViewFilter.All }); // 기본은 Show All
-        var all = CompareWindow.Open(null, left, right);
+        var all = CompareView.Open(null, left, right);
         await Settle();
         Assert.Empty(Folds(Editors(all).Right)); // 기본은 Show All
         all.Close();
 
         App.Settings.Update(s => s with { CompareViewFilter = Domain.Settings.CompareViewFilter.Context, CompareContextLines = 3 });
-        var w = CompareWindow.Open(null, left, right);
+        var w = CompareView.Open(null, left, right);
         await Settle();
         var (l, r) = Editors(w);
         var lf = Folds(l).Select(f => (f.StartOffset, f.EndOffset, f.IsFolded)).ToList();
@@ -100,7 +100,7 @@ public sealed class CompareConvenienceTests : IDisposable
         App.Settings.Update(s => s with { CompareViewFilter = Domain.Settings.CompareViewFilter.Same });
         var left2 = Write("l2.txt", Lines(0, 10) + "A\nB\n" + Lines(12, 20));
         var right2 = Write("r2.txt", Lines(0, 10) + "a\nb\n" + Lines(12, 20));
-        var same = CompareWindow.Open(null, left2, right2);
+        var same = CompareView.Open(null, left2, right2);
         await Settle();
         var folds = Folds(Editors(same).Right);
         Assert.Single(folds);
@@ -114,7 +114,7 @@ public sealed class CompareConvenienceTests : IDisposable
         App.Settings.Update(s => s with { CompareViewFilter = Domain.Settings.CompareViewFilter.Context });
         var left = Write("fl.txt", Lines(0, 30) + "needle here\n" + Lines(31, 60) + "LEFT\n");
         var right = Write("fr.txt", Lines(0, 30) + "needle here\n" + Lines(31, 60) + "RIGHT\n");
-        var w = CompareWindow.Open(null, left, right);
+        var w = CompareView.Open(null, left, right);
         await Settle();
         var (_, r) = Editors(w);
         Assert.Contains(Folds(r), f => f.IsFolded);
@@ -146,7 +146,7 @@ public sealed class CompareConvenienceTests : IDisposable
     public async Task 빈_칸에_글을_쓰면_파일_없이_비교하고_저장을_묻지_않는다()
     {
         var left = Write("sl.txt", "alpha\nbeta\n");
-        var w = CompareWindow.Open(null, left, null);
+        var w = CompareView.Open(null, left, null);
         await Settle();
         var (_, r) = Editors(w);
         Assert.False(r.IsReadOnly);

@@ -44,7 +44,7 @@ public sealed class ChromeShotTests : IDisposable
         var r = Path.Combine(_dir, "r.txt");
         File.WriteAllText(l, "one\ntwo\nthree\n");
         File.WriteAllText(r, "one\nTWO\nthree\nfour\n");
-        var w = CompareWindow.Open(null, l, r);
+        var w = CompareView.Open(null, l, r);
         await Settle();
         Shot(w, "chrome-dark-compare");
         w.Close();
@@ -54,7 +54,7 @@ public sealed class ChromeShotTests : IDisposable
         File.WriteAllText(Path.Combine(_dir, "a", "x.txt"), "1");
         File.WriteAllText(Path.Combine(_dir, "b", "x.txt"), "22");
         File.WriteAllText(Path.Combine(_dir, "a", "only.txt"), "o");
-        var f = FolderCompareWindow.Open(null, Path.Combine(_dir, "a"), Path.Combine(_dir, "b"));
+        var f = FolderCompareView.Open(null, Path.Combine(_dir, "a"), Path.Combine(_dir, "b"));
         await Settle();
         Shot(f, "chrome-dark-folder");
         f.Close();

@@ -73,7 +73,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
 
         // 폴더 먼저: 같지 않은 sub는 펴고, 모두 같은 tidy는 접는다.
@@ -88,7 +88,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings(FolderShow.All & ~FolderShow.Same);
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Assert.Equal(["sub", " deep.txt", "changed.txt", "onlyLeft.txt", "onlyRight.txt"], Names(w)); // tidy(모두 같음)·same.txt는 숨는다
         Shot(w, "folder-compare-differences");
@@ -100,7 +100,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         var list = ListOf(w);
         var rows = ((IEnumerable<FolderRow>)list.ItemsSource!).ToList();
@@ -140,7 +140,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         var list = ListOf(w);
         list.SelectedItems!.Add(((IEnumerable<FolderRow>)list.ItemsSource!).Single(r => r.Node.Name == "onlyLeft.txt"));
@@ -162,7 +162,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings(FolderShow.None); // 토글을 모두 끈 채로 저장된 설정 — 예전에는 창을 열 때마다 빈 목록이 나왔다
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Assert.NotEmpty(Names(w));
         w.Close();
@@ -174,7 +174,7 @@ public sealed class FolderCompareWindowTests : IDisposable
         MakeTrees();
         ResetSettings(FolderShow.LeftOrphan); // 왼쪽에만 있는 것만 보기
         File.Delete(Path.Combine(L, "onlyLeft.txt")); // 그런데 왼쪽에만 있는 것이 없다 → 모두 숨겨진다
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Assert.Empty(Names(w));
         var showAll = w.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ShowAllButton");
@@ -196,7 +196,7 @@ public sealed class FolderCompareWindowTests : IDisposable
         ResetSettings();
         var other = Path.Combine(_dir, "other");
         Put(other, "only-in-other.txt", "z");
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Assert.DoesNotContain("only-in-other.txt", Names(w));
         var box = w.GetVisualDescendants().OfType<TextBox>().First(t => t.Text == L);
@@ -214,7 +214,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         var boxes = w.GetVisualDescendants().OfType<TextBox>().Where(t => t.PlaceholderText is { Length: > 0 }).ToList();
         var include = boxes.First(t => t.PlaceholderText!.StartsWith("포함"));
@@ -235,9 +235,9 @@ public sealed class FolderCompareWindowTests : IDisposable
 
     static async Task Invoke(Window w, string method)
     {
-        var m = typeof(FolderCompareWindow).GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        var m = typeof(FolderCompareView).GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
         var args = m.GetParameters().Length == 0 ? null : new object[] { -1 };
-        await (Task)m.Invoke(w, args)!;
+        await (Task)m.Invoke(((CompareHost)w).ActiveFolder, args)!;
         await Settle();
     }
 
@@ -254,7 +254,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Select(w, "sub");
         await Invoke(w, "CompareNowAsync");
@@ -270,7 +270,7 @@ public sealed class FolderCompareWindowTests : IDisposable
         MakeTrees();
         Put(L, "lonely/a.txt", "1");
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Select(w, "lonely");
         await Invoke(w, "CompareNowAsync");
@@ -284,7 +284,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Select(w, "sub");
         await Invoke(w, "CompareNowAsync");
@@ -302,7 +302,7 @@ public sealed class FolderCompareWindowTests : IDisposable
         MakeTrees();
         Put(L, "lonely/a.txt", "1");
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Assert.Contains("lonely", Names(w));
         Assert.DoesNotContain(" a.txt", Names(w)); // 들여쓴 이름 (깊이 1)
