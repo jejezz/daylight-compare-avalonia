@@ -48,7 +48,7 @@ public sealed class CompareBcKeysTests : IDisposable
     public async Task 다음_차이_구간과_줄_단위_다음_차이()
     {
         // 행: 0 a | 1~2 바뀐 두 줄 | 3 d | 4 바뀜 | 5 f
-        var w = CompareWindow.Open(null, Write("l.txt", "a\nB1\nB2\nd\nE\nf\n"), Write("r.txt", "a\nb1\nb2\nd\ne\nf\n"));
+        var w = CompareView.Open(null, Write("l.txt", "a\nB1\nB2\nd\nE\nf\n"), Write("r.txt", "a\nb1\nb2\nd\ne\nf\n"));
         await Settle();
         var (_, r) = Editors(w);
         Assert.Equal(2, r.TextArea.Caret.Line); // 처음 차이로
@@ -70,7 +70,7 @@ public sealed class CompareBcKeysTests : IDisposable
     {
         var left = Write("l2.txt", "a\nL1\nL2\nz\n");
         var right = Write("r2.txt", "a\nR1\nR2\nz\n");
-        var w = CompareWindow.Open(null, left, right);
+        var w = CompareView.Open(null, left, right);
         await Settle();
         var (l, r) = Editors(w);
 
@@ -92,7 +92,7 @@ public sealed class CompareBcKeysTests : IDisposable
     [AvaloniaFact]
     public async Task 구간_선택과_모두_바꾸기()
     {
-        var w = CompareWindow.Open(null, Write("l3.txt", "a\nx1\nx2\nb\n"), Write("r3.txt", "a\ny1\ny2\nb\n"));
+        var w = CompareView.Open(null, Write("l3.txt", "a\nx1\nx2\nb\n"), Write("r3.txt", "a\ny1\ny2\nb\n"));
         await Settle();
         var (_, r) = Editors(w);
         r.TextArea.Focus();
@@ -120,7 +120,7 @@ public sealed class CompareBcKeysTests : IDisposable
     {
         var left = Write("tmp_LOCAL_123.txt", "a\n");
         var right = Write("r4.txt", "b\n");
-        var w = CompareWindow.Open(null, left, right, new CompareOptions(LeftTitle: "a.txt (HEAD)", LeftReadOnly: true));
+        var w = CompareView.Open(null, left, right, new CompareOptions(LeftTitle: "a.txt (HEAD)", LeftReadOnly: true));
         await Settle();
         var (l, r) = Editors(w);
         Assert.True(l.IsReadOnly);

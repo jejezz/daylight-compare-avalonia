@@ -43,7 +43,7 @@ public sealed class EditorFontTests : IDisposable
     public async Task 기본_편집기_글꼴은_고정폭이다()
     {
         App.Settings.Update(x => x with { EditorFontFamily = null });
-        var w = CompareWindow.Open(null, Write("a.txt", "il.WM0\n"), Write("b.txt", "il.WM1\n"));
+        var w = CompareView.Open(null, Write("a.txt", "il.WM0\n"), Write("b.txt", "il.WM1\n"));
         await Settle();
         var editors = Editors(w);
         Assert.Equal(2, editors.Count);
@@ -63,7 +63,7 @@ public sealed class EditorFontTests : IDisposable
         Assert.All(monos, n => Assert.True(EditorFonts.IsMonospaced(n), n));
         var other = monos.FirstOrDefault(n => n != EditorFonts.DefaultName) ?? monos[0];
 
-        var w = CompareWindow.Open(null, Write("a.txt", "x\n"), Write("b.txt", "y\n"));
+        var w = CompareView.Open(null, Write("a.txt", "x\n"), Write("b.txt", "y\n"));
         await Settle();
         App.Settings.Update(x => x with { EditorFontFamily = other });
         await Settle();

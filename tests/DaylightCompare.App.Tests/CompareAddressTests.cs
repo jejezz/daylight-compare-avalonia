@@ -44,7 +44,7 @@ public sealed class CompareAddressTests : IDisposable
     public async Task 주소_창에_쓴_파일을_Enter로_연다()
     {
         var (l, r, other) = (File_("l.txt", "a\n"), File_("r.txt", "b\n"), File_("other.txt", "c\n"));
-        var w = CompareWindow.Open(null, l, r);
+        var w = CompareView.Open(null, l, r);
         w.Show();
         await Settle();
         var box = Address(w, left: false);
@@ -65,7 +65,7 @@ public sealed class CompareAddressTests : IDisposable
     public async Task 없는_파일이면_지금_파일을_그대로_둔다()
     {
         var (l, r) = (File_("l.txt", "a\n"), File_("r.txt", "b\n"));
-        var w = CompareWindow.Open(null, l, r);
+        var w = CompareView.Open(null, l, r);
         w.Show();
         await Settle();
         var box = Address(w, left: true);

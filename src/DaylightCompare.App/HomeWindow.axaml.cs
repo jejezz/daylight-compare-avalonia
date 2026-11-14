@@ -48,8 +48,8 @@ public partial class HomeWindow : Window
 
         OpenFilesButton.Click += async (_, _) => await OpenFilesAsync();
         OpenFoldersButton.Click += async (_, _) => await OpenFoldersAsync();
-        FolderCompareCard.Click += (_, _) => FolderCompareWindow.Open(this, null, null);
-        TextCompareCard.Click += (_, _) => CompareWindow.Open(this, null, null);
+        FolderCompareCard.Click += (_, _) => FolderCompareView.Open(this, null, null);
+        TextCompareCard.Click += (_, _) => CompareView.Open(this, null, null);
         AddHandler(DragDrop.DragOverEvent, (_, e) =>
         {
             // 디스크를 만지지 않고 개수만 본다 (종류는 놓은 뒤 백그라운드에서 가린다).
@@ -186,8 +186,8 @@ public partial class HomeWindow : Window
             return;
         }
         HistoryNotice.Text = "";
-        if (e.IsFolders) FolderCompareWindow.Open(this, e.Left, e.Right);
-        else CompareWindow.Open(this, e.Left, e.Right);
+        if (e.IsFolders) FolderCompareView.Open(this, e.Left, e.Right);
+        else CompareView.Open(this, e.Left, e.Right);
     }
 
     // --- 놓기 구역의 모양 (Daylight PDF 홈: 최근 목록이 생기면 한 줄로 작아진다) ---
@@ -275,13 +275,13 @@ public partial class HomeWindow : Window
         var items = await Task.Run(() => DropClassifier.Classify(paths));
         var plan = DropPlanner.Plan(items, DropTarget.Window);
         if (plan is DropPlan.Pending { Left: { } one })
-            return one.IsContainer ? FolderCompareWindow.Open(this, one.Path, null) : CompareWindow.Open(this, one.Path, null);
+            return one.IsContainer ? FolderCompareView.Open(this, one.Path, null) : CompareView.Open(this, one.Path, null);
         if (plan is DropPlan.Compare { Mode: CompareMode.Folders } folders)
-            return FolderCompareWindow.Open(this, folders.Left.Path, folders.Right.Path);
+            return FolderCompareView.Open(this, folders.Left.Path, folders.Right.Path);
         Window? opened = null;
-        await CompareWindow.ApplyDropAsync(this, plan, (l, r) =>
+        await CompareView.ApplyDropAsync(this, plan, (l, r) =>
         {
-            opened = CompareWindow.Open(this, l, r);
+            opened = CompareView.Open(this, l, r);
             return Task.CompletedTask;
         });
         return opened;
