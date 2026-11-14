@@ -11,6 +11,7 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using DaylightCompare.App.Dialogs;
 using DaylightCompare.App.Icons;
+using DaylightCompare.App.Localization;
 using DaylightCompare.App.Views;
 using DaylightCompare.Domain;
 using DaylightCompare.Domain.Folder;
@@ -163,6 +164,7 @@ public sealed class FolderCompareWindow : Window
     {
         UpdateTitle();
         UpdateViewFilterButton();
+        foreach (var (text, label) in _columnLabels) text.Text = label(Strings.Current);
         _filterBox.PlaceholderText = Strings.Current.FolderFilterPlaceholder;
         _excludeBox.PlaceholderText = Strings.Current.FolderFilterExcludePlaceholder;
         Rebuild();
@@ -266,19 +268,56 @@ public sealed class FolderCompareWindow : Window
         _list.Bind(ListBox.FontSizeProperty, this.GetResourceObservable("FsBody"));
         _list.Bind(ListBox.FontFamilyProperty, this.GetResourceObservable("AppEditorFont")); // 파일 비교와 같은 편집기 글꼴 (고정폭)
 
-        var grid = new Grid { RowDefinitions = new RowDefinitions("44,Auto,Auto,*") };
+        var grid = new Grid { RowDefinitions = new RowDefinitions("44,Auto,Auto,Auto,*") };
         Place(grid, appBar, 0);
         Place(grid, filterBar, 1);
         Place(grid, header, 2);
-        Place(grid, _list, 3);
+        Place(grid, ColumnHeaders(), 3);
+        Place(grid, _list, 4);
         _allHidden.Children.Add(_allHiddenText);
         _allHidden.Children.Add(_showAllButton);
         _allHiddenText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
         _showAllButton.Click += (_, _) => SetShow(FolderShow.All);
-        Place(grid, _allHidden, 3);
+        Place(grid, _allHidden, 4);
         grid.Children.Add(_dialogs);
-        Grid.SetRowSpan(_dialogs, 4);
+        Grid.SetRowSpan(_dialogs, 5);
         return grid;
+    }
+
+    readonly List<(TextBlock Text, Func<IAppStrings, string> Label)> _columnLabels = [];
+
+    /// <summary>열 머리글 (이름 · 크기 · 수정한 때) — 줄(<see cref="Side"/>)과 같은 폭·여백으로 맞춘다.</summary>
+    Control ColumnHeaders()
+    {
+        Control Half()
+        {
+            TextBlock Label(Func<IAppStrings, string> label, double width = double.NaN, TextAlignment align = TextAlignment.Left)
+            {
+                var tb = new TextBlock { Text = label(Strings.Current), Width = width, TextAlignment = align, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeight.SemiBold };
+                tb.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
+                _columnLabels.Add((tb, label));
+                return tb;
+            }
+            var name = Label(s => s.FolderColName);
+            name.Margin = new Thickness(28, 0, 0, 0); // 줄의 펼침 화살표 자리만큼 들여 아이콘 오른쪽에서 시작한다
+            var size = Label(s => s.FolderColSize, 76, TextAlignment.Right);
+            var modified = Label(s => s.FolderColModified, 128);
+            var g = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 8, Margin = new Thickness(0, 0, 8, 0), Children = { name, size, modified } };
+            Grid.SetColumn(size, 1);
+            Grid.SetColumn(modified, 2);
+            return g;
+        }
+        var left = Half();
+        var right = Half();
+        Grid.SetColumn(right, 2);
+        var border = new Border
+        {
+            Height = 24, BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = new Grid { ColumnDefinitions = new ColumnDefinitions($"*,{GutterWidth},*"), Children = { left, right } },
+        };
+        border.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
+        border.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
+        return border;
     }
 
     static TextBlock FilterLabel(string text) => new() { Text = text, VerticalAlignment = VerticalAlignment.Center, Opacity = 0.75 };
