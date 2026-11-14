@@ -62,6 +62,9 @@ public sealed class EnglishStrings : IAppStrings
     public string BinaryEmptyFile => "The file is empty";
     public string BinaryDifferences(int count, long bytes) => $"{count:N0} difference(s) · {bytes:N0} different bytes";
     public string BinaryLengthDiffers(long left, long right) => $"The sizes differ ({left:N0} ↔ {right:N0} bytes)";
+    public string BinaryConverted(string kind, long start, long end, int records, int warnings) =>
+        $"{kind} → image  0x{start:X8}~0x{end - 1:X8}  {records:N0} record(s)" + (warnings > 0 ? $"  ·  {warnings} warning(s)" : "");
+    public string BinaryConvertFailed(string error) => $"Could not decode the firmware file, showing the raw file: {error}";
     public string BinaryOpen => "Open as Binary Compare";
     public string TabClose => "Close Tab";
     public string TabCloseOthers => "Close Other Tabs";

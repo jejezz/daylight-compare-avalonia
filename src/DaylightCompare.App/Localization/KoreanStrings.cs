@@ -62,6 +62,9 @@ public sealed class KoreanStrings : IAppStrings
     public string BinaryEmptyFile => "비어 있는 파일입니다";
     public string BinaryDifferences(int count, long bytes) => $"차이 {count:N0}곳 · 다른 바이트 {bytes:N0}";
     public string BinaryLengthDiffers(long left, long right) => $"크기가 다릅니다 ({left:N0} ↔ {right:N0} 바이트)";
+    public string BinaryConverted(string kind, long start, long end, int records, int warnings) =>
+        $"{kind} → 이미지  0x{start:X8}~0x{end - 1:X8}  레코드 {records:N0}개" + (warnings > 0 ? $"  ·  경고 {warnings}건" : "");
+    public string BinaryConvertFailed(string error) => $"펌웨어 파일로 풀지 못해 파일 그대로 보입니다: {error}";
     public string BinaryOpen => "바이너리 비교로 열기";
     public string TabClose => "탭 닫기";
     public string TabCloseOthers => "다른 탭 닫기";
