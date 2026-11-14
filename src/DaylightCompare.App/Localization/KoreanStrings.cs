@@ -240,6 +240,9 @@ public sealed class KoreanStrings : IAppStrings
     public string FontDefaultOption(string name) => $"{name} (기본)";
     public string FontSearchHint => "글꼴 검색";
     public string SettingsEditorFont => "편집기 글꼴";
+    public string SettingsEditorScheme => "편집기 색상 구성표";
+    public string SettingsEditorSchemeHint => "비교 창 편집기의 바탕·글자·문법 색입니다. 앱 테마와 다르게 골라도 차이 줄 색이 맞춰집니다.";
+    public string EditorSchemeFollowApp => "앱 테마를 따름";
     public string SettingsEditorFontHint => "비교 창의 좌우 편집기에 쓰는 글꼴입니다. 줄과 글자 열이 맞도록 고정폭 글꼴만 고를 수 있습니다.";
     public string SettingsFontSize => "화면 글자 크기";
     public string SettingsFontSizeHint => "메뉴, 탭, 폴더 이름, 상태 줄 등 모든 글자의 크기입니다.";

@@ -240,6 +240,9 @@ public sealed class EnglishStrings : IAppStrings
     public string FontDefaultOption(string name) => $"{name} (default)";
     public string FontSearchHint => "Search fonts";
     public string SettingsEditorFont => "Editor font";
+    public string SettingsEditorScheme => "Editor color scheme";
+    public string SettingsEditorSchemeHint => "Background, text and syntax colors of the compare editors. Difference colors adapt to the scheme even if it differs from the app theme.";
+    public string EditorSchemeFollowApp => "Follow app theme";
     public string SettingsEditorFontHint => "Used by the left and right editors in compare windows. Only monospaced fonts are listed so lines and columns stay aligned.";
     public string SettingsFontSize => "Text size";
     public string SettingsFontSizeHint => "Size of all text: menus, tabs, folder names, status bar.";

@@ -68,6 +68,10 @@ public sealed record AppSettings
     [JsonPropertyName("editor_font_family")]
     public string? EditorFontFamily { get; init; }
 
+    /// <summary>파일 비교 편집기의 색상 구성표 id (문법 색·편집기 바탕·글자색). null이면 앱 테마를 따른다.</summary>
+    [JsonPropertyName("editor_scheme")]
+    public string? EditorScheme { get; init; }
+
     /// <summary>자주 쓰는 네트워크 서버 (연결 대화상자에서 한 번에 고른다). Daylight Commander와 같은 키.</summary>
     [JsonPropertyName("network_profiles")]
     public IReadOnlyList<NetworkProfile> NetworkProfiles { get; init; } = [];
