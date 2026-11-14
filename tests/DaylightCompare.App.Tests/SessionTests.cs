@@ -191,7 +191,7 @@ public sealed class SessionTests : IDisposable
         await Settle();
         foreach (var view in new Control[] { file, folder.Tabs.OfType<FolderCompareView>().Single() })
         {
-            var button = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content is DaylightCompare.App.Icons.DuoIcon { Icon: "history" });
+            var button = view.GetVisualDescendants().OfType<Button>().Single(b => b.Content is DaylightCompare.App.Icons.DuoIcon { Icon: "bookmark" });
             Assert.True(button.IsEffectivelyEnabled);
             Assert.True(ToolTip.GetTip(button) is string tip && (tip.StartsWith("세션 저장") || tip.StartsWith("Save Session")));
         }

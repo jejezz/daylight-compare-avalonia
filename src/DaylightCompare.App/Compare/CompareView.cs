@@ -431,7 +431,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
                 Separator(),
                 Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync()),
                 Tool("refresh", Tip(s.CompareReload, "F5"), () => _ = ReloadWithConfirmAsync()),
-                Tool("history", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync()),
+                Tool("bookmark", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync()),
                 Tool("search", Tip(s.CompareFindMenu, "Ctrl+F"), () => OpenFind()),
                 commands,
                 Separator(),

@@ -113,7 +113,10 @@
                     <StackPanel Spacing="16">
                         <StackPanel x:Name="SessionBlock" IsVisible="False">
                             <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                                <TextBlock x:Name="SessionsTitle" Text="{DynamicResource Str.HomeSessionsTitle}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <StackPanel x:Name="SessionsTitle" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <icons:DuoIcon Icon="bookmarks" ColorKey="AppPrimary" Width="16" Height="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{DynamicResource Str.HomeSessionsTitle}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                </StackPanel>
                                 <Button Grid.Column="1" x:Name="RestoreWindowsButton" Classes="text" IsVisible="False"/>
                             </Grid>
                             <StackPanel x:Name="SessionRows" Spacing="2"/>
