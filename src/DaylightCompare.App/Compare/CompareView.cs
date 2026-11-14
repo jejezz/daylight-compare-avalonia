@@ -162,6 +162,11 @@ public sealed partial class CompareView : UserControl, ICompareTab
 
     /// <summary>BC 보기 필터 (Show All / Differences / Same / Context) — 드롭다운 하나.</summary>
     readonly DropDownButton _viewFilter = new() { VerticalAlignment = VerticalAlignment.Center };
+
+    /// <summary>파일 형식 드롭다운 (BC 머리글의 "Everything Else"): 비교 규칙과 문법 강조를 정하는 형식. null이면 이름으로 찾고(자동), 빈 글이면 형식 없음.</summary>
+    readonly DropDownButton _formatButton = new() { VerticalAlignment = VerticalAlignment.Center };
+    string? _formatId;
+    string? _detectedFormat;
     CompareViewFilter _filter;
     int _contextLines;
     static readonly int[] ContextChoices = [0, 1, 2, 3, 5, 10, 20];
@@ -317,6 +322,8 @@ public sealed partial class CompareView : UserControl, ICompareTab
         UpdateStatus();
         foreach (var side in new[] { _left, _right }) UpdateSideChrome(side);
         UpdateViewFilterButton();
+        UpdateFormatButton();
+        ToolTip.SetTip(_formatButton, Strings.Current.CompareFormatMenuTooltip);
         ToolTip.SetTip(_showBytes, Strings.Current.CompareShowBytes);
         UpdateCaretUi();
         _findBox.PlaceholderText = Strings.Current.CompareFindPlaceholder;
@@ -345,6 +352,9 @@ public sealed partial class CompareView : UserControl, ICompareTab
         ToolTip.SetTip(_save, s.CompareSave);
         _save.Click += async (_, _) => await SaveAllAsync();
         ToolTip.SetTip(_viewFilter, s.CompareViewFilterTooltip);
+        ToolTip.SetTip(_formatButton, s.CompareFormatMenuTooltip);
+        _formatButton.Click += async (_, e) => { e.Handled = true; await ShowFormatMenuAsync(); };
+        UpdateFormatButton();
         var commands = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } };
         ToolTip.SetTip(commands, s.CompareCommandsTooltip);
         commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
@@ -362,6 +372,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
             Children =
             {
                 _viewFilter,
+                _formatButton,
                 _ignoreUnimportant,
                 _showBytes,
                 Separator(),
@@ -801,7 +812,9 @@ public sealed partial class CompareView : UserControl, ICompareTab
         {
             var policy = await App.Policy.LoadAsync();
             var name = System.IO.Path.GetFileName(_left.Path ?? _right.Path ?? "");
-            var effective = policy.Resolve(name, namesIgnoreCase: PolicyStore.NamesIgnoreCase);
+            var effective = policy.Resolve(name, namesIgnoreCase: PolicyStore.NamesIgnoreCase, formatId: _formatId);
+            _detectedFormat = _formatId is null ? effective.Format?.Id : _detectedFormat;
+            _highlightExtension = HighlightExtensionOf(policy, effective);
             var (l, r) = (_left.Real, _right.Real);
             aligned = await Task.Run(() => new AlignedDiff(TextDiff.Compare(l, r, effective)));
             if (version != _version) return;
@@ -826,7 +839,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
                         side.Fillers.Add(anchor);
                     }
             side.Editor.IsReadOnly = !side.CanEdit;
-            if (side.HighlightedPath != side.Path) InstallHighlighting(side, text.Length);
+            if (side.HighlightedPath != HighlightKey(side)) InstallHighlighting(side, text.Length);
             UpdateSideChrome(side);
         }
         _applying = false;
@@ -835,6 +848,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
         ApplyFolds(redraw: false);
         UpdateTitle();
         UpdateStatus();
+        UpdateFormatButton();
         Redraw();
 
         if (keepCaret is { } k && aligned is not null)
@@ -862,9 +876,11 @@ public sealed partial class CompareView : UserControl, ICompareTab
     {
         side.TextMate?.Dispose();
         side.TextMate = null;
-        side.HighlightedPath = side.Path;
+        side.HighlightedPath = HighlightKey(side);
         if (length > HighlightMaxChars || side.Path is null) return;
-        if (EditorLanguages.ExtensionFor(System.IO.Path.GetFileName(side.Path.Replace(ArchivePaths.Separator, "/"))) is not { } ext) return;
+        // 형식을 고른 비교는 그 형식의 문법으로, 자동이면 파일 이름의 확장자로 강조한다.
+        var ext = _formatId is null ? EditorLanguages.ExtensionFor(System.IO.Path.GetFileName(side.Path.Replace(ArchivePaths.Separator, "/"))) : _highlightExtension;
+        if (ext is null) return;
         try
         {
             var options = new RegistryOptions(ThemeService.IsDark(Application.Current!) ? ThemeName.DarkPlus : ThemeName.LightPlus);

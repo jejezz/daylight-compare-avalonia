@@ -33,6 +33,9 @@ public sealed class EnglishStrings : IAppStrings
     public string CompareFormatTooltip => "Reopen with another encoding · choose the line ending and encoding to save with";
     public string CompareFormatLineBreak => "Line ending on save";
     public string CompareFormatSaveEncoding => "Encoding on save";
+    public string CompareFormatMenuTooltip => "File format (compare rules and syntax highlighting)";
+    public string CompareFormatPlain => "Plain Text";
+    public string CompareFormatAuto(string name) => $"{name} (auto)";
     public string CompareShowBytes => "Show Line Bytes";
     public string CompareBytesNoLine => "No matching line";
     public string TabClose => "Close Tab";

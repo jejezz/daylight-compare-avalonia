@@ -41,6 +41,9 @@ public interface IAppStrings
     string CompareFormatTooltip { get; }
     string CompareFormatLineBreak { get; }
     string CompareFormatSaveEncoding { get; }
+    string CompareFormatMenuTooltip { get; }
+    string CompareFormatPlain { get; }
+    string CompareFormatAuto(string name);
     string CompareShowBytes { get; }
     string CompareSectionPosition(int index, int count);
     string CompareSectionCount(int count);
