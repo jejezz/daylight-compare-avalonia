@@ -116,7 +116,9 @@ public sealed class CompareHost : Window
         var host = new CompareHost { SessionName = name };
         foreach (var tab in session.Tabs)
         {
-            host.Add(tab.Kind == SessionTab.Binary
+            host.Add(tab.Kind == SessionTab.Image
+                ? ImageCompareView.Create(tab.Left.Length > 0 ? tab.Left : null, tab.Right.Length > 0 ? tab.Right : null, tab)
+                : tab.Kind == SessionTab.Binary
                 ? BinaryCompareView.Create(tab.Left.Length > 0 ? tab.Left : null, tab.Right.Length > 0 ? tab.Right : null, tab)
                 : tab.IsFolder
                 ? FolderCompareView.Create(tab.Left, tab.Right, tab)
@@ -179,7 +181,7 @@ public sealed class CompareHost : Window
         if (options is null && left is not null && right is not null)
             foreach (var t in _tabs)
             {
-                var (l, r) = t.Content switch { CompareView v => (v.LeftPath, v.RightPath), BinaryCompareView b => (b.LeftPath, b.RightPath), _ => ((string?)null, (string?)null) };
+                var (l, r) = t.Content switch { CompareView v => (v.LeftPath, v.RightPath), BinaryCompareView b => (b.LeftPath, b.RightPath), ImageCompareView i => (i.LeftPath, i.RightPath), _ => ((string?)null, (string?)null) };
                 if (string.Equals(l, left, StringComparison.OrdinalIgnoreCase) && string.Equals(r, right, StringComparison.OrdinalIgnoreCase))
                 {
                     Select(t);
