@@ -24,6 +24,12 @@ public sealed class EnglishStrings : IAppStrings
     public string FolderDropFoldersOnly => "Only folders or archives can be dropped in Folder Compare.";
     public string CompareWindowTitle(string left, string right) => $"{left} ↔ {right}";
     public string CompareSwap => "Swap Sides";
+    public string CompareSectionPosition(int index, int count) => $"Section {index} of {count}";
+    public string CompareSectionCount(int count) => $"{count} difference section(s)";
+    public string CompareLineBreakMixed => "Mixed line endings";
+    public string CompareInsertMode => "Insert";
+    public string CompareOverwriteMode => "Overwrite";
+    public string CompareLoadTime(double seconds) => $"Load time: {seconds:0.00} seconds";
     public string CompareShowBytes => "Show Line Bytes";
     public string CompareBytesNoLine => "No matching line";
     public string TabClose => "Close Tab";

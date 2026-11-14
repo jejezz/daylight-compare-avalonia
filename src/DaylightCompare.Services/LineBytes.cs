@@ -12,14 +12,20 @@ public sealed class LineByteMap
     readonly byte[] _bytes;
     readonly int[] _starts; // 줄 시작 위치. 마지막 값 = 끝
 
-    LineByteMap(byte[] bytes, int[] starts, int bomLength)
+    LineByteMap(byte[] bytes, int[] starts, int bomLength, int crlf, int lf, int cr)
     {
+        (CrLfCount, LfCount, CrCount) = (crlf, lf, cr);
         _bytes = bytes;
         _starts = starts;
         BomLength = bomLength;
     }
 
     public int LineCount => _starts.Length - 1;
+
+    /// <summary>줄 끝 종류별 개수 (상태 표시줄의 CRLF·LF·혼합 표시).</summary>
+    public int CrLfCount { get; }
+    public int LfCount { get; }
+    public int CrCount { get; }
     /// <summary>첫 줄 맨 앞의 BOM 바이트 수 (없으면 0).</summary>
     public int BomLength { get; }
 
@@ -39,6 +45,7 @@ public sealed class LineByteMap
         var wide = kind is TextEncodingKind.Utf16Le or TextEncodingKind.Utf16Be;
         var unit = wide ? 2 : 1;
         var starts = new List<int> { 0 };
+        int crlf = 0, lf = 0, cr = 0;
         var i = bom;
         var lineStart = 0;
         bool Is(int at, byte ch) => at + unit <= bytes.Length && (wide
@@ -46,11 +53,11 @@ public sealed class LineByteMap
             : bytes[at] == ch);
         while (i + unit <= bytes.Length)
         {
-            if (Is(i, 0x0A)) { i += unit; starts.Add(i); lineStart = i; }
+            if (Is(i, 0x0A)) { i += unit; starts.Add(i); lineStart = i; lf++; }
             else if (Is(i, 0x0D))
             {
                 i += unit;
-                if (Is(i, 0x0A)) i += unit; // \r\n
+                if (Is(i, 0x0A)) { i += unit; crlf++; } else cr++; // \r\n
                 starts.Add(i);
                 lineStart = i;
             }
@@ -58,7 +65,7 @@ public sealed class LineByteMap
         }
         // 마지막 줄 끝이 없는 글(또는 홀수 바이트 꼬리): 남은 바이트가 있으면 한 줄이다.
         if (lineStart < bytes.Length) starts.Add(bytes.Length);
-        return new LineByteMap(bytes, [.. starts], bom);
+        return new LineByteMap(bytes, [.. starts], bom, crlf, lf, cr);
     }
 }
 

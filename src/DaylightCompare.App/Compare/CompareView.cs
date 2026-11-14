@@ -84,6 +84,8 @@ public sealed class CompareView : UserControl, ICompareTab
         public FoldingManager Folding = null!;
 
         /// <summary>줄 바이트 표 (글이 바뀌면 다시 만든다 — <see cref="ByteMapFor"/>가 만든 때의 글과 원본).</summary>
+        public string? LineBreakText;
+        public object? LineBreakSource;
         public LineByteMap? ByteMap;
         public string? ByteMapFor;
         public object? ByteMapSource;
@@ -141,6 +143,15 @@ public sealed class CompareView : UserControl, ICompareTab
     readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center };
     /// <summary>BC View > Ignore Unimportant Differences (켜면 중요하지 않은 차이를 차이로 보이지 않는다).</summary>
     readonly ToggleButton _ignoreUnimportant = new() { Classes = { "tool" } };
+    // 아래쪽 상태 표시줄 (BC): 구간 위치 | 양쪽 줄:칸·줄 끝 | 삽입/덮어쓰기 · 읽은 시간.
+    readonly TextBlock _sectionText = new() { VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock _leftPos = new() { VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock _rightPos = new() { VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock _modeText = new() { VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock _loadText = new() { VerticalAlignment = VerticalAlignment.Center };
+    readonly Border _statusBar = new() { BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(12, 3), MinHeight = 26 };
+    double? _loadSeconds;
+
     /// <summary>줄 단위 바이트 패널 (BC의 16진수 줄) — 커서가 있는 행의 양쪽 줄 바이트.</summary>
     readonly LineBytesPanel _bytes = new() { IsVisible = false };
     readonly ToggleButton _showBytes = new() { Classes = { "tool" } };
@@ -219,7 +230,7 @@ public sealed class CompareView : UserControl, ICompareTab
         {
             _bytes.IsVisible = _showBytes.IsChecked == true;
             App.Settings.Update(x => x with { CompareShowBytes = _bytes.IsVisible });
-            UpdateBytePanel();
+            UpdateCaretUi();
         };
         _leftState.ShowUnimportant = _rightState.ShowUnimportant = !ignore;
         UpdateViewFilterButton();
@@ -304,7 +315,7 @@ public sealed class CompareView : UserControl, ICompareTab
         foreach (var side in new[] { _left, _right }) UpdateSideChrome(side);
         UpdateViewFilterButton();
         ToolTip.SetTip(_showBytes, Strings.Current.CompareShowBytes);
-        UpdateBytePanel();
+        UpdateCaretUi();
         _findBox.PlaceholderText = Strings.Current.CompareFindPlaceholder;
         _replaceBox.PlaceholderText = Strings.Current.CompareReplacePlaceholder;
         UpdateFindWhere();
@@ -384,7 +395,7 @@ public sealed class CompareView : UserControl, ICompareTab
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("44,Auto,Auto,Auto,*,Auto"),
+            RowDefinitions = new RowDefinitions("44,Auto,Auto,Auto,*,Auto,Auto"),
             ColumnDefinitions = new ColumnDefinitions("*,32,*,22"),
         };
         Place(grid, appBar, 0, 0, 4);
@@ -411,6 +422,7 @@ public sealed class CompareView : UserControl, ICompareTab
         Place(grid, _mergeLayer, 4, 1, 1);
         Place(grid, _overview, 4, 3, 1);
         Place(grid, _bytes, 5, 0, 4);
+        Place(grid, BuildStatusBar(), 6, 0, 4);
         _overview.State = _leftState;
 
         _dropHint.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppPrimary"));
@@ -696,13 +708,14 @@ public sealed class CompareView : UserControl, ICompareTab
         e.TextArea.Caret.PositionChanged += (_, _) =>
         {
             if (_syncing) return;
-            if (_applying) { UpdateBytePanel(); return; } // 다시 비교를 화면에 옮기는 동안은 캐럿을 맞추지 않는다 — 패널만 새로 그린다
+            if (_applying) { UpdateCaretUi(); return; } // 다시 비교를 화면에 옮기는 동안은 캐럿을 맞추지 않는다 — 패널만 새로 그린다
             var other = side.Left ? _right : _left;
             _syncing = true;
             other.Editor.TextArea.Caret.Line = Math.Min(e.TextArea.Caret.Line, other.Editor.Document.LineCount); // 같은 행 = 맞은편의 대응 줄
             _syncing = false;
-            UpdateBytePanel();
+            UpdateCaretUi();
         };
+        e.TextArea.PropertyChanged += (_, args) => { if (args.Property == AvaloniaEdit.Editing.TextArea.OverstrikeModeProperty) UpdateStatusBar(); };
         e.Document.TextChanged += (_, _) => OnEdited(side);
         e.PropertyChanged += (_, args) =>
         {
@@ -718,6 +731,7 @@ public sealed class CompareView : UserControl, ICompareTab
     {
         _recompareTimer.Stop();
         var version = ++_version;
+        var watch = System.Diagnostics.Stopwatch.StartNew();
         _status.Text = Strings.Current.CompareLoading;
         // 파일이 없는 칸은 지금 글(붙여 넣거나 쓴 것)을 그대로 쓴다.
         var sources = await Task.WhenAll(
@@ -745,6 +759,9 @@ public sealed class CompareView : UserControl, ICompareTab
         _undo.Clear();
         _redo.Clear();
         await RecompareAsync(version, keepCaret: null, jumpToFirst: true);
+        if (version != _version) return;
+        _loadSeconds = watch.Elapsed.TotalSeconds;
+        UpdateCaretUi();
     }
 
     static CompareSource ScratchSource(string text) =>
@@ -827,7 +844,7 @@ public sealed class CompareView : UserControl, ICompareTab
                 side.Editor.TextArea.Caret.Line = Math.Min(row + 1, side.Editor.Document.LineCount);
                 side.Editor.TextArea.Caret.Column = k.Column;
                 _syncing = false;
-                UpdateBytePanel();
+                UpdateCaretUi();
             }, DispatcherPriority.Background);
         }
         else if (!jumpToFirst) Dispatcher.UIThread.Post(() => ScrollTo(_right, null, offset), DispatcherPriority.Background);
@@ -1375,7 +1392,7 @@ public sealed class CompareView : UserControl, ICompareTab
             side.Margin.InvalidateVisual();
         }
         UpdateViewport();
-        UpdateBytePanel();
+        UpdateCaretUi();
     }
 
     // --- 줄 단위 바이트 패널 ---
@@ -1404,6 +1421,75 @@ public sealed class CompareView : UserControl, ICompareTab
         if (line is not { } n || ByteMapOf(side) is not { } map) return new ByteLine(name, default, false, 0);
         var (offset, length) = map.Range(n);
         return new ByteLine($"{name} {n + 1}  ·  0x{offset:X}  ·  {length:N0} B", map.Line(n), true, n == 0 ? map.BomLength : 0);
+    }
+
+    /// <summary>캐럿이 움직이거나 비교가 바뀔 때 캐럿에 딸린 표시를 모두 새로 한다.</summary>
+    void UpdateCaretUi()
+    {
+        UpdateStatusBar();
+        UpdateBytePanel();
+    }
+
+    Control BuildStatusBar()
+    {
+        foreach (var t in new[] { _sectionText, _leftPos, _rightPos, _modeText, _loadText })
+            t.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
+        _statusBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
+        _statusBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") };
+        var panes = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 24, Margin = new Thickness(24, 0), Children = { _leftPos, _rightPos } };
+        var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 24, Children = { _modeText, _loadText } };
+        Grid.SetColumn(panes, 1);
+        Grid.SetColumn(right, 2);
+        grid.Children.Add(_sectionText);
+        grid.Children.Add(panes);
+        grid.Children.Add(right);
+        _statusBar.Child = grid;
+        return _statusBar;
+    }
+
+    /// <summary>줄 끝 종류 (읽은 파일 기준): CRLF · LF · CR, 섞여 있으면 "줄 끝 혼합", 줄 끝이 없으면 빈 글.</summary>
+    string LineBreakOf(Side side)
+    {
+        if (side.Text is not { } t) return "";
+        if (ReferenceEquals(side.LineBreakSource, t) && side.LineBreakText is { } cached) return cached;
+        var map = LineByteMap.Build(t.Bytes, t.File.Encoding, t.File.HasBom);
+        var kinds = (map.CrLfCount > 0 ? 1 : 0) + (map.LfCount > 0 ? 1 : 0) + (map.CrCount > 0 ? 1 : 0);
+        var text = kinds > 1 ? Strings.Current.CompareLineBreakMixed
+            : map.CrLfCount > 0 ? "CRLF" : map.LfCount > 0 ? "LF" : map.CrCount > 0 ? "CR" : "";
+        (side.LineBreakSource, side.LineBreakText) = (t, text);
+        return text;
+    }
+
+    string PositionOf(Side side, AlignedRow? row)
+    {
+        var s = Strings.Current;
+        var name = side.Left ? s.HomeLeft : s.HomeRight;
+        var real = row is { } r ? (side.Left ? r.Left : r.Right) : null;
+        var caret = side.Editor.TextArea.Caret;
+        var line = real is { } n ? (n + 1).ToString() : "—";
+        var breaks = LineBreakOf(side);
+        return $"{name}  {line}:{caret.Column}" + (breaks.Length > 0 ? $"  {breaks}" : "");
+    }
+
+    void UpdateStatusBar()
+    {
+        var s = Strings.Current;
+        var diff = _leftState.Diff;
+        var row = diff is not null ? CurrentRow() : -1;
+        AlignedRow? current = diff is not null && row >= 0 && row < diff.Rows.Count ? diff.Rows[row] : null;
+        _overview.CaretRow = diff is not null && row >= 0 && row < diff.Rows.Count ? row : null;
+        _leftPos.Text = PositionOf(_left, current);
+        _rightPos.Text = PositionOf(_right, current);
+        if (diff is null) _sectionText.Text = "";
+        else
+        {
+            var sections = diff.Ranges.Where(x => x.Kind is DiffBlockKind.Changed or DiffBlockKind.LeftOnly or DiffBlockKind.RightOnly).ToList();
+            var index = sections.FindIndex(x => row >= x.StartRow && row < x.StartRow + x.RowCount);
+            _sectionText.Text = index >= 0 ? s.CompareSectionPosition(index + 1, sections.Count) : s.CompareSectionCount(sections.Count);
+        }
+        _modeText.Text = (_right.Editor.TextArea.OverstrikeMode || _left.Editor.TextArea.OverstrikeMode) ? s.CompareOverwriteMode : s.CompareInsertMode;
+        _loadText.Text = _loadSeconds is { } sec ? s.CompareLoadTime(sec) : "";
     }
 
     void UpdateBytePanel()
@@ -1463,7 +1549,7 @@ public sealed class CompareView : UserControl, ICompareTab
         _right.Editor.TextArea.Caret.Line = line;
         _left.Editor.TextArea.Caret.Line = Math.Min(line, _left.Editor.Document.LineCount);
         _syncing = false;
-        UpdateBytePanel();
+        UpdateCaretUi();
     }
 
     // --- 차이만 보기 (같은 줄 접기) ---
