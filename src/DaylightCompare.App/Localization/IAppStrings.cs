@@ -39,6 +39,12 @@ public interface IAppStrings
     string CompareWindowTitle(string left, string right);
     string CompareSwap { get; }
     string CompareShowBytes { get; }
+    string CompareSectionPosition(int index, int count);
+    string CompareSectionCount(int count);
+    string CompareLineBreakMixed { get; }
+    string CompareInsertMode { get; }
+    string CompareOverwriteMode { get; }
+    string CompareLoadTime(double seconds);
     string CompareBytesNoLine { get; }
     string TabClose { get; }
     string TabCloseOthers { get; }

@@ -24,6 +24,12 @@ public sealed class KoreanStrings : IAppStrings
     public string FolderDropFoldersOnly => "폴더 비교에는 폴더나 압축 파일만 놓을 수 있어요.";
     public string CompareWindowTitle(string left, string right) => $"{left} ↔ {right}";
     public string CompareSwap => "좌우 바꾸기";
+    public string CompareSectionPosition(int index, int count) => $"구간 {index} / {count}";
+    public string CompareSectionCount(int count) => $"차이 구간 {count}";
+    public string CompareLineBreakMixed => "줄 끝 혼합";
+    public string CompareInsertMode => "삽입";
+    public string CompareOverwriteMode => "덮어쓰기";
+    public string CompareLoadTime(double seconds) => $"읽은 시간 {seconds:0.00}초";
     public string CompareShowBytes => "줄의 바이트 보기";
     public string CompareBytesNoLine => "짝이 되는 줄이 없다";
     public string TabClose => "탭 닫기";
