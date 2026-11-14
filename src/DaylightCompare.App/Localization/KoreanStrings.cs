@@ -30,6 +30,9 @@ public sealed class KoreanStrings : IAppStrings
     public string CompareInsertMode => "삽입";
     public string CompareOverwriteMode => "덮어쓰기";
     public string CompareLoadTime(double seconds) => $"읽은 시간 {seconds:0.00}초";
+    public string CompareFormatTooltip => "인코딩 다시 열기 · 저장할 줄 끝·인코딩 고르기";
+    public string CompareFormatLineBreak => "저장할 줄 끝";
+    public string CompareFormatSaveEncoding => "저장할 인코딩";
     public string CompareShowBytes => "줄의 바이트 보기";
     public string CompareBytesNoLine => "짝이 되는 줄이 없다";
     public string TabClose => "탭 닫기";
