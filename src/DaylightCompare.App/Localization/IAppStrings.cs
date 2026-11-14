@@ -257,6 +257,9 @@ public interface IAppStrings
     /// <summary>설정 "편집기 글꼴" (고정폭 글꼴만).</summary>
     string SettingsEditorFont { get; }
     string SettingsEditorFontHint { get; }
+    string SettingsEditorScheme { get; }
+    string SettingsEditorSchemeHint { get; }
+    string EditorSchemeFollowApp { get; }
     string SettingsFontSize { get; }
     string SettingsFontSizeHint { get; }
     string SettingsLanguage { get; }

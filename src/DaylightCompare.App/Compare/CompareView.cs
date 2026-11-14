@@ -265,7 +265,16 @@ public sealed partial class CompareView : UserControl, ICompareTab
         AddHandler(DragDrop.DragLeaveEvent, (_, _) => _dropHint.IsVisible = false);
         AddHandler(DragDrop.DropEvent, OnDrop);
         Strings.Changed += OnLanguageChanged;
+        ThemeService.Applied += OnThemeApplied;
     }
+
+    /// <summary>색상 구성표(또는 앱 테마)가 바뀌면 문법 색을 새 테마로 다시 입힌다 (바탕·글자·차이 색은 자원이라 저절로 바뀐다).</summary>
+    void OnThemeApplied() => Dispatcher.UIThread.Post(() =>
+    {
+        foreach (var side in new[] { _left, _right })
+            if (side.HasText) InstallHighlighting(side, side.Real.Length);
+        Redraw();
+    });
 
     // --- 탭 호스트가 부르는 부분 (ICompareTab) ---
 
@@ -304,6 +313,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
     public void Dispose()
     {
         Strings.Changed -= OnLanguageChanged;
+        ThemeService.Applied -= OnThemeApplied;
         _recompareTimer.Stop();
         foreach (var side in new[] { _left, _right })
         {
@@ -422,9 +432,9 @@ public sealed partial class CompareView : UserControl, ICompareTab
             Place(grid, PathRow(side), 2, col, side.Left ? 1 : 2);
             Place(grid, BannerFor(side), 3, col, side.Left ? 1 : 2);
             var body = new Grid { Children = { side.Editor, side.Overlay } };
-            body.Bind(Panel.BackgroundProperty, this.GetResourceObservable("AppEditorBg")); // 편집기 바탕 — 위의 틀 띠와 한 단 다르게
+            body.Bind(Panel.BackgroundProperty, this.GetResourceObservable("AppEdBg")); // 편집기 바탕 — 위의 틀 띠와 한 단 다르게
             side.Overlay.Child = side.OverlayText;
-            side.OverlayText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
+            side.OverlayText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppEdMid"));
             Place(grid, body, 4, col, 1);
         }
         // 두 편집기 사이의 가운데 영역: 고른 행 옆에 → / ← 가 뜬다 (BC 병합 도구의 가운데 띠처럼).
@@ -691,7 +701,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
         e.IsReadOnly = true;
         e.Bind(TextEditor.FontFamilyProperty, this.GetResourceObservable("AppEditorFont")); // 설정의 편집기 글꼴 (고정폭)
         e.Bind(TextEditor.FontSizeProperty, this.GetResourceObservable("FsBody"));
-        e.Bind(TextEditor.ForegroundProperty, this.GetResourceObservable("AppTextHi"));
+        e.Bind(TextEditor.ForegroundProperty, this.GetResourceObservable("AppEdFg"));
         e.Background = Brushes.Transparent;
         e.ShowLineNumbers = false;
         e.WordWrap = false; // 줄바꿈하면 좌우 행이 어긋난다
@@ -887,7 +897,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
         if (ext is null) return;
         try
         {
-            var options = new RegistryOptions(ThemeService.IsDark(Application.Current!) ? ThemeName.DarkPlus : ThemeName.LightPlus);
+            var options = new RegistryOptions(ThemeService.EditorScheme?.Theme ?? (ThemeService.IsDark(Application.Current!) ? ThemeName.DarkPlus : ThemeName.LightPlus));
             if (options.GetLanguageByExtension(ext) is not { } language) return;
             side.TextMate = side.Editor.InstallTextMate(options);
             side.TextMate.SetGrammar(options.GetScopeByLanguageId(language.Id));

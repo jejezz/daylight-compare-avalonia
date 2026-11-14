@@ -207,6 +207,9 @@ public sealed class SettingsWindow : Window
         page.Children.Add(Heading(s.SettingsEditorFont));
         page.Children.Add(EditorFontPicker());
 
+        page.Children.Add(Heading(s.SettingsEditorScheme));
+        page.Children.Add(EditorSchemePicker());
+
         page.Children.Add(Heading(s.SettingsFontSize));
         page.Children.Add(TextScaleSlider());
 
@@ -432,5 +435,70 @@ public sealed class SettingsWindow : Window
             label.FontFamily = isDefault ? defaultFamily() : new FontFamily(name!);
         });
         return button;
+    }
+
+    /// <summary>
+    /// 편집기 색상 구성표 고르기: 이름 옆에 그 구성표의 견본 칩(편집기 바탕 위에 문법 색 막대 몇 개)을 보여 준다.
+    /// 첫 항목은 "앱 테마를 따름"(저장은 null).
+    /// </summary>
+    Control EditorSchemePicker()
+    {
+        var s = Strings.Current;
+        var button = UiScale.Enable(new Button { Classes = { "picker" }, Height = ControlHeight, MinWidth = 260, HorizontalAlignment = HorizontalAlignment.Left });
+        var arrow = new Icons.DuoIcon { Icon = "caret-down", Width = 14, Height = 14, Margin = new Thickness(8, 0, 0, 0) };
+        var current = new ContentControl { VerticalAlignment = VerticalAlignment.Center };
+        button.Content = new DockPanel { LastChildFill = true, Children = { arrow, current } };
+        DockPanel.SetDock(arrow, Dock.Right);
+
+        // null = 앱 테마를 따름
+        Control Row(EditorScheme? scheme)
+        {
+            var colors = scheme is null ? null : EditorSchemes.ColorsOf(scheme);
+            var name = new TextBlock { Text = scheme?.Name ?? s.EditorSchemeFollowApp, VerticalAlignment = VerticalAlignment.Center };
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+            row.Children.Add(SchemeChip(colors));
+            row.Children.Add(name);
+            return row;
+        }
+
+        var items = new List<EditorScheme?> { null };
+        items.AddRange(EditorSchemes.All.Where(x => EditorSchemes.ColorsOf(x) is not null));
+        var list = new ListBox { Height = 360, Width = 340, ItemsSource = items };
+        list.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<EditorScheme?>((scheme, _) => Row(scheme));
+        var flyout = new Flyout { Content = list, Placement = PlacementMode.BottomEdgeAlignedLeft };
+        button.Flyout = flyout;
+        list.SelectionChanged += (_, e) =>
+        {
+            if (e.AddedItems.Count == 0) return;
+            var picked = e.AddedItems[0] as EditorScheme;
+            App.Settings.Update(x => x with { EditorScheme = picked?.Id });
+            list.SelectedItem = null;
+            flyout.Hide();
+        };
+        _refreshers.Add(() => current.Content = Row(EditorSchemes.Find(App.Settings.Value.EditorScheme)));
+
+        var hint = new TextBlock { Text = s.SettingsEditorSchemeHint, TextWrapping = TextWrapping.Wrap, Opacity = 0.8 };
+        hint.Bind(TextBlock.FontSizeProperty, this.GetResourceObservable("FsSmall"));
+        return new StackPanel { Spacing = 4, Children = { button, hint } };
+    }
+
+    /// <summary>견본 칩: 구성표의 편집기 바탕색 위에 문법 색 막대들. (null이면 앱 테마를 따르는 칩 — 두 색을 반반)</summary>
+    static Control SchemeChip(SchemeColors? colors)
+    {
+        var bars = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 2, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+        if (colors is null)
+        {
+            bars.Children.Add(new Avalonia.Controls.Shapes.Ellipse { Width = 12, Height = 12, Fill = Brushes.Gray, Opacity = 0.7 });
+            return new Border { Width = 52, Height = 22, CornerRadius = new CornerRadius(5), BorderThickness = new Thickness(1), BorderBrush = Brushes.Gray, Child = bars };
+        }
+        foreach (var c in colors.Swatch.Take(6))
+            bars.Children.Add(new Border { Width = 6, Height = 14, Background = new SolidColorBrush(Color.FromUInt32(c)) });
+        return new Border
+        {
+            Width = 52, Height = 22, CornerRadius = new CornerRadius(5), BorderThickness = new Thickness(1),
+            Background = new SolidColorBrush(Color.FromUInt32(colors.Background)),
+            BorderBrush = new SolidColorBrush(Color.FromUInt32(colors.Dim)),
+            Child = bars,
+        };
     }
 }

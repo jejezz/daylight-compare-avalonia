@@ -18,6 +18,12 @@ static class ThemeService
     public static ThemeMode Mode { get; private set; } = ThemeMode.System;
     public static ColorPalette Palette { get; private set; } = ColorPalette.Saturn;
 
+    /// <summary>지금 적용된 편집기 색상 구성표 (null = 앱 테마를 따른다).</summary>
+    public static EditorScheme? EditorScheme { get; private set; }
+
+    /// <summary>설정이 적용된 뒤 (열려 있는 비교 창이 문법 색을 다시 입힌다).</summary>
+    public static event Action? Applied;
+
     public static bool IsDark(Application app) => Mode switch
     {
         ThemeMode.Dark => true,
@@ -45,7 +51,38 @@ static class ThemeService
         app.Resources["FsSmall"] = 11 * scale;
         app.Resources["FsTitle"] = 16 * scale;
         UiScale.Set(scale); // 아이콘 크기·버튼/행 높이도 같은 배율
+        ApplyEditorScheme(app, settings.EditorScheme, settings.Palette);
+        Applied?.Invoke();
     }
+
+    /// <summary>
+    /// 편집기 색 자원 <c>AppEdBg</c>·<c>AppEdFg</c>·<c>AppEdMid</c> (바탕·글자·흐린 글자)를 정한다. 구성표가 없으면 앱 테마의 편집기 색 그대로,
+    /// 있으면 그 구성표의 색이다 — 이때 차이 색(<c>AppDiff*</c>)은 앱 테마가 아니라 <b>구성표의 밝기</b>에 맞는 벌로 바꾼다 (어두운 편집기에 밝은 앱 테마의 연한 차이 색을 올리면 안 읽힌다).
+    /// </summary>
+    static void ApplyEditorScheme(Application app, string? schemeId, ColorPalette palette)
+    {
+        var dark = IsDark(app);
+        var c = AppColors.For(palette, dark);
+        var scheme = EditorSchemes.Find(schemeId);
+        var colors = scheme is null ? null : EditorSchemes.ColorsOf(scheme);
+        EditorScheme = colors is null ? null : scheme;
+        Brush(app, "AppEdBg", colors?.Background ?? AppColors.EditorBackground(c, dark));
+        Brush(app, "AppEdFg", colors?.Foreground ?? c.TextHi);
+        Brush(app, "AppEdMid", colors?.Dim ?? c.TextMid);
+        if (colors is null) return; // 앱 테마를 따를 때의 차이 색은 Apply(mode, palette)가 이미 정했다
+        var d = DiffColors.For(colors.Dark, palette == ColorPalette.HighContrast);
+        Brush(app, "AppDiffChanged", d.ChangedLine);
+        Brush(app, "AppDiffChangedStrong", d.ChangedStrong);
+        Brush(app, "AppDiffLeftOnly", d.LeftOnlyLine);
+        Brush(app, "AppDiffLeftOnlyStrong", d.LeftOnlyStrong);
+        Brush(app, "AppDiffRightOnly", d.RightOnlyLine);
+        Brush(app, "AppDiffRightOnlyStrong", d.RightOnlyStrong);
+        Brush(app, "AppDiffUnimportantText", d.UnimportantText);
+        Brush(app, "AppDiffUnimportant", d.UnimportantLine);
+        Brush(app, "AppDiffFiller", d.Filler);
+        Brush(app, "AppDiffMarker", d.Marker);
+    }
+
 
     public const string DefaultFontName = "SeoulNamsan";
 
