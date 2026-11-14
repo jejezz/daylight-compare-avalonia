@@ -60,6 +60,7 @@ public partial class HomeWindow : Window
         AddHandler(DragDrop.DragLeaveEvent, (_, _) => SetDropHighlight(false));
         AddHandler(DragDrop.DropEvent, OnDrop);
         ClearHistoryButton.Click += (_, _) => App.Settings.Update(s => s with { CompareHistory = [] });
+        RestoreWindowsButton.Click += (_, _) => RestoreWindows();
         Strings.Changed += RefreshHistoryOnUi;
         App.Settings.Changed += OnSettingsChanged;
         Closed += (_, _) =>
@@ -78,17 +79,21 @@ public partial class HomeWindow : Window
 
     void OnSettingsChanged(AppSettings s)
     {
-        if (!ReferenceEquals(s.CompareHistory, _historyShown)) Avalonia.Threading.Dispatcher.UIThread.Post(RefreshHistory);
+        if (!ReferenceEquals(s.CompareHistory, _historyShown) || SessionsChanged(s)) Avalonia.Threading.Dispatcher.UIThread.Post(RefreshHistory);
     }
 
     void RefreshHistoryOnUi() => Avalonia.Threading.Dispatcher.UIThread.Post(RefreshHistory);
 
     void RefreshHistory()
     {
-        var all = App.Settings.Value.CompareHistory;
+        var settings = App.Settings.Value;
+        var all = settings.CompareHistory;
         _historyShown = all;
-        HistorySection.IsVisible = all.Count > 0;
-        ApplyLayout(compact: all.Count > 0);
+        var any = all.Count > 0 || settings.Sessions.Count > 0 || settings.LastWindows.Count > 0;
+        HistorySection.IsVisible = any;
+        RecentBlock.IsVisible = all.Count > 0;
+        ApplyLayout(compact: any);
+        RefreshSessions(settings);
         HistoryList.Children.Clear();
         HistoryNotice.Text = "";
         var rows = new List<(CompareHistoryEntry Entry, Control Row)>();
