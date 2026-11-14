@@ -81,6 +81,22 @@ public sealed class FolderComparer
         Changed?.Invoke(Root);
     }
 
+    readonly HashSet<FolderNode> _loading = [];
+
+    /// <summary>
+    /// 한쪽에만 있는 폴더를 한 칸 읽는다 (펼칠 때). 이미 읽었거나 읽는 중이면 아무것도 하지 않는다.
+    /// 아래 폴더도 한쪽에만 있으니 마찬가지로 펼칠 때 읽는다. 항상 백그라운드에서 돈다.
+    /// </summary>
+    public Task LoadAsync(FolderNode folder, CancellationToken ct = default) => Task.Run(async () =>
+    {
+        lock (Gate)
+        {
+            if (!folder.Scanning || !folder.IsOrphan || !_loading.Add(folder)) return;
+        }
+        try { await ScanAsync(folder, new Queue<FolderNode>(), [], ct); }
+        finally { lock (Gate) _loading.Remove(folder); }
+    }, ct);
+
     async Task ScanAsync(FolderNode folder, Queue<FolderNode> queue, List<FolderNode> contentJobs, CancellationToken ct)
     {
         var lists = await Task.WhenAll(ListAsync(_leftFs, folder.Left, ct), ListAsync(_rightFs, folder.Right, ct));
@@ -97,7 +113,9 @@ public sealed class FolderComparer
                 var rel = folder.RelativePath.Length == 0 ? any.Name : folder.RelativePath + "/" + any.Name;
                 var node = new FolderNode(any.Name, rel, any.IsDirectory, l, r, folder);
                 folder.Children.Add(node);
-                if (node.IsDirectory) queue.Enqueue(node);
+                // 한쪽에만 있는 폴더는 훑지 않는다 — 안은 모두 한쪽에만 있는 것이고, 크면 (엉뚱한 폴더로 올라갔을 때처럼) 훑는 데만 몇 분이 걸린다.
+                // 사용자가 펼칠 때 LoadAsync로 한 칸만 읽는다 (BC도 그렇게 한다). Scanning이 true인 채로 남는다.
+                if (node.IsDirectory) { if (l is not null && r is not null) queue.Enqueue(node); }
                 else if (l is not null && r is not null)
                 {
                     var (verdict, newer, _) = FolderJudge.Quick(l, r, _rules.Criteria);
