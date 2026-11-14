@@ -92,6 +92,8 @@ public interface IAppStrings
     string FolderMenuActions { get; }
     string FolderOpen { get; }
     string FolderUpLevel { get; }
+    string FolderNavBack { get; }
+    string FolderNavForward { get; }
     string FolderCannotGoUp { get; }
     string FolderCompareNow { get; }
     string FolderFilterExcludeItem { get; }

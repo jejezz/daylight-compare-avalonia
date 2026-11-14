@@ -92,13 +92,23 @@ public sealed class FolderComparerTests : IDisposable
     }
 
     [Fact]
-    public async Task 한쪽에만_있는_폴더의_안쪽도_고아로_보인다()
+    public async Task 한쪽에만_있는_폴더는_훑지_않고_펼칠_때_한_칸만_읽는다()
     {
         Put(L, "only/x.txt", "1");
+        Put(L, "only/deeper/y.txt", "2");
         Directory.CreateDirectory(R);
         var c = await Run(LocalFileSystem.Instance, L, LocalFileSystem.Instance, R);
-        Assert.Equal(FolderState.LeftOrphan, Find(c.Root, "only").State);
+        var only = Find(c.Root, "only");
+        Assert.Equal(FolderState.LeftOrphan, only.State);
+        Assert.True(only.IsUnloaded);
+        Assert.Empty(only.Children);
+
+        await c.LoadAsync(only);
+        Assert.False(only.IsUnloaded);
         Assert.Equal(FolderState.LeftOrphan, Find(c.Root, "only/x.txt").State);
+        var deeper = Find(c.Root, "only/deeper");
+        Assert.True(deeper.IsUnloaded); // 아래 폴더도 펼칠 때 읽는다
+        Assert.Empty(deeper.Children);
     }
 
     [Fact]

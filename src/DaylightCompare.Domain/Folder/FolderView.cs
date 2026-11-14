@@ -102,7 +102,8 @@ public static class FolderView
             return any;
         }
 
-        bool IsExpanded(FolderNode f) => expanded.TryGetValue(f.RelativePath, out var v) ? v : f.State != FolderState.Same;
+        // 아직 읽지 않은 한쪽 폴더는 접어 둔다 (펼칠 때 읽는다).
+        bool IsExpanded(FolderNode f) => expanded.TryGetValue(f.RelativePath, out var v) ? v : f.State != FolderState.Same && !f.IsUnloaded;
 
         bool PassesAsFolder(FolderNode f) => f.State switch
         {
@@ -122,7 +123,12 @@ public static class FolderView
         int same = 0, diff = 0, lo = 0, ro = 0, pending = 0;
         foreach (var n in root.Descendants())
         {
-            if (n.IsDirectory) continue;
+            if (n.IsDirectory)
+            {
+                // 읽지 않은 한쪽 폴더는 안을 모르니 폴더 하나를 그쪽에만 있는 것 하나로 센다.
+                if (n.IsUnloaded) { if (n.State == FolderState.LeftOrphan) lo++; else ro++; }
+                continue;
+            }
             switch (n.State)
             {
                 case FolderState.Same: same++; break;

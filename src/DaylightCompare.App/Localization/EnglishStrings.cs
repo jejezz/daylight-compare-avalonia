@@ -78,6 +78,8 @@ public sealed class EnglishStrings : IAppStrings
     public string FolderMenuActions => "Actions";
     public string FolderOpen => "Open";
     public string FolderUpLevel => "Up One Level";
+    public string FolderNavBack => "Previous Location";
+    public string FolderNavForward => "Next Location";
     public string FolderCannotGoUp => "Already at the top";
     public string FolderCompareNow => "Compare Now";
     public string FolderFilterExcludeItem => "Filter: Exclude";
