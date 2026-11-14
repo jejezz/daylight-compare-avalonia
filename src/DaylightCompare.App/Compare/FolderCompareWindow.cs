@@ -300,8 +300,8 @@ public sealed class FolderCompareWindow : Window
             }
             var name = Label(s => s.FolderColName);
             name.Margin = new Thickness(28, 0, 0, 0); // 줄의 펼침 화살표 자리만큼 들여 아이콘 오른쪽에서 시작한다
-            var size = Label(s => s.FolderColSize, 76, TextAlignment.Right);
-            var modified = Label(s => s.FolderColModified, 128);
+            var size = Label(s => s.FolderColSize, 76, TextAlignment.Center);
+            var modified = Label(s => s.FolderColModified, 128, TextAlignment.Center);
             var g = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto"), ColumnSpacing = 8, Margin = new Thickness(0, 0, 8, 0), Children = { name, size, modified } };
             Grid.SetColumn(size, 1);
             Grid.SetColumn(modified, 2);
