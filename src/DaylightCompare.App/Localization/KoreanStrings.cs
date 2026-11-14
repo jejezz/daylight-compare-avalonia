@@ -77,6 +77,8 @@ public sealed class KoreanStrings : IAppStrings
     public string FolderViewFilterTooltip => "보기 필터";
     public string FolderMenuActions => "동작";
     public string FolderOpen => "열기";
+    public string FolderUpLevel => "상위 폴더로";
+    public string FolderCannotGoUp => "더 올라갈 수 없습니다";
     public string FolderCompareNow => "지금 비교";
     public string FolderFilterExcludeItem => "Filter: 제외";
     public string FolderFilterIncludeItem => "Filter: 포함";
