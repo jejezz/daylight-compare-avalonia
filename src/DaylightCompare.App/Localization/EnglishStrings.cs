@@ -30,6 +30,9 @@ public sealed class EnglishStrings : IAppStrings
     public string CompareInsertMode => "Insert";
     public string CompareOverwriteMode => "Overwrite";
     public string CompareLoadTime(double seconds) => $"Load time: {seconds:0.00} seconds";
+    public string CompareFormatTooltip => "Reopen with another encoding · choose the line ending and encoding to save with";
+    public string CompareFormatLineBreak => "Line ending on save";
+    public string CompareFormatSaveEncoding => "Encoding on save";
     public string CompareShowBytes => "Show Line Bytes";
     public string CompareBytesNoLine => "No matching line";
     public string TabClose => "Close Tab";

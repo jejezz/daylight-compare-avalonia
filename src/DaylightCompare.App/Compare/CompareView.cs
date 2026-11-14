@@ -34,7 +34,7 @@ namespace DaylightCompare.App.Compare;
 /// 다시 비교할 때 문서를 통째로 바꾸므로 편집기 자체의 실행 취소 대신 <b>실제 글 한 쌍</b>을 쌓는 실행 취소를 쓴다(Ctrl+Z / Ctrl+Y).
 /// </para>
 /// </summary>
-public sealed class CompareView : UserControl, ICompareTab
+public sealed partial class CompareView : UserControl, ICompareTab
 {
     /// <summary>강조(TextMate)를 켜는 크기 상한 — 큰 생성 파일에서 화면이 느려지지 않게.</summary>
     const int HighlightMaxChars = 2 * 1024 * 1024;
@@ -96,7 +96,10 @@ public sealed class CompareView : UserControl, ICompareTab
         /// <summary>파일이 없는 칸: 붙여 넣거나 바로 쓴 글을 비교한다 (클립보드 비교). 저장하지 않으므로 고쳐도 "고친 상태"가 아니다.</summary>
         public bool IsScratch => Path is null;
         public bool CanEdit => Text is not null && !ReadOnly && (Path is null || !ArchivePaths.IsInArchive(Path));
-        public bool Dirty => HasText && !IsScratch && Real != SavedText;
+        /// <summary>읽었을 때의 저장 형식 (인코딩·BOM·줄 끝) — 머리글에서 바꾼 것이 있나 알아내는 기준.</summary>
+        public (TextEncodingKind Encoding, bool Bom, string LineBreak)? LoadedFormat;
+        public bool FormatChanged => Text is { } t && LoadedFormat is { } l && (t.File.Encoding, t.File.HasBom, t.File.LineBreak) != l;
+        public bool Dirty => HasText && !IsScratch && (Real != SavedText || FormatChanged);
         public string Name => Title is { Length: > 0 } t ? t : Path is null ? Strings.Current.CompareScratchName : Locations.NameOf(Path.Replace(ArchivePaths.Separator, "/"));
     }
 
@@ -651,7 +654,7 @@ public sealed class CompareView : UserControl, ICompareTab
         Grid.SetColumn(paste, 3);
         Grid.SetColumn(open, 4);
         side.EncodingText.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("AppTextMid"));
-        side.EncodingText.PointerPressed += (_, _) => { if (side.HasText && !side.IsScratch) EncodingFlyout(side).ShowAt(side.EncodingText); };
+        side.EncodingText.PointerPressed += (_, _) => { if (side.HasText && !side.IsScratch) FormatFlyout(side).ShowAt(side.EncodingText); };
         var border = new Border { Child = row, BorderThickness = new Thickness(0, 0, 0, 1) };
         border.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
         border.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
@@ -751,6 +754,7 @@ public sealed class CompareView : UserControl, ICompareTab
                 side.Repair = repair;
             }
             side.Real = side.Text?.File.Text ?? "";
+            side.LoadedFormat = side.Text is { } lf ? (lf.File.Encoding, lf.File.HasBom, lf.File.LineBreak) : null;
             // 복구한 글은 디스크와 다르므로 "고친 상태"로 시작한다 — 저장해야 파일이 고쳐진다.
             side.SavedText = side.Repair is not null ? (sources[side.Left ? 0 : 1] as CompareSource.Text)?.File.Text ?? "" : side.Real;
             side.EndsWithNewline = side.Real.EndsWith('\n');
@@ -1189,6 +1193,7 @@ public sealed class CompareView : UserControl, ICompareTab
             // 섞인 인코딩을 복구한 글은 UTF-8로 통일해 저장한다.
             var (saved, _) = await CompareSave.SaveAsync(path, side.Real, text.File, BackupRoot, encoding ?? (side.Repair is not null ? TextEncodingKind.Utf8 : null));
             side.Source = text with { File = saved with { Text = side.Real } };
+            side.LoadedFormat = (saved.Encoding, saved.HasBom, saved.LineBreak);
             side.SavedText = side.Real;
             side.Repair = null;
             side.RepairRequested = false;
@@ -1267,9 +1272,9 @@ public sealed class CompareView : UserControl, ICompareTab
         }
         ToolTip.SetTip(side.PathText, side.Path ?? (side.Real.Length > 0 ? s.CompareScratchTooltip : null));
         side.EncodingText.Text = side.Text is { } t && !side.IsScratch
-            ? TextEncodings.DisplayName(t.File.Encoding, t.File.HasBom) + (side.HasText && !side.CanEdit ? " · " + s.CompareReadOnly : "")
+            ? FormatLabel(t.File) + (side.HasText && !side.CanEdit ? " · " + s.CompareReadOnly : "")
             : "";
-        ToolTip.SetTip(side.EncodingText, side.HasText && !side.IsScratch ? s.CompareReopenEncoding : null);
+        ToolTip.SetTip(side.EncodingText, side.HasText && !side.IsScratch ? s.CompareFormatTooltip : null);
         side.EncodingText.Cursor = side.HasText && !side.IsScratch ? new Cursor(StandardCursorType.Hand) : Cursor.Default;
 
         (side.Overlay.IsVisible, side.OverlayText.Text) = side.Source switch
@@ -1405,7 +1410,7 @@ public sealed class CompareView : UserControl, ICompareTab
         byte[] bytes;
         try
         {
-            var untouched = side.Repair is null && side.Real == TextFiles.NormalizeLineBreaks(t.File.Text);
+            var untouched = side.Repair is null && !side.FormatChanged && side.Real == TextFiles.NormalizeLineBreaks(t.File.Text);
             bytes = untouched ? t.Bytes : TextEncodings.Encode(TextFiles.ApplyLineBreak(side.Real, t.File.LineBreak), t.File.Encoding, t.File.HasBom);
         }
         catch (Exception) { return null; }
@@ -1452,6 +1457,7 @@ public sealed class CompareView : UserControl, ICompareTab
     string LineBreakOf(Side side)
     {
         if (side.Text is not { } t) return "";
+        if (side.FormatChanged) return LineBreakShort(t.File.LineBreak); // 저장할 줄 끝을 바꿨다
         if (ReferenceEquals(side.LineBreakSource, t) && side.LineBreakText is { } cached) return cached;
         var map = LineByteMap.Build(t.Bytes, t.File.Encoding, t.File.HasBom);
         var kinds = (map.CrLfCount > 0 ? 1 : 0) + (map.LfCount > 0 ? 1 : 0) + (map.CrCount > 0 ? 1 : 0);
@@ -1792,7 +1798,7 @@ public sealed class CompareView : UserControl, ICompareTab
         {
             if (side.IsScratch) return $"{side.Name}\n{s.CompareInfoLines(DiffEdits.Split(side.Real).Lines.Count)}";
             if (side.Text is not { } t) return $"{side.Path}\n—";
-            var lineBreak = t.File.LineBreak switch { "\r\n" => "CRLF (Windows)", "\r" => "CR (Mac)", _ => "LF (Unix)" };
+            var lineBreak = LineBreakName(t.File.LineBreak);
             return string.Join("\n",
                 side.Path,
                 s.CompareInfoSize(BytesFormat.Format(t.File.Length), t.File.Modified.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")),
