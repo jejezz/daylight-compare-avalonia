@@ -58,6 +58,7 @@ public sealed class BinaryCompareView : UserControl, ICompareTab
     string? _notice;
     bool _recordHistory = true;
     CancellationTokenSource? _cts;
+    byte _fill = 0xFF;
 
     public string? LeftPath => _left.Path;
     public string? RightPath => _right.Path;
@@ -121,13 +122,17 @@ public sealed class BinaryCompareView : UserControl, ICompareTab
     public async void Start()
     {
         await ReloadAsync();
-        if (_recordHistory && _left.Path is { } l && _right.Path is { } r) App.RecordHistory(l, r, folders: false);
+        // 읽는 동안 탭이 닫혔으면 기록하지 않는다 (닫힌 뒤에 늦게 쓰면 다음 일의 기록에 섞인다).
+        if (!_disposed && _recordHistory && _left.Path is { } l && _right.Path is { } r) App.RecordHistory(l, r, folders: false);
     }
+
+    bool _disposed;
 
     public Task<bool> ConfirmCloseAsync() => Task.FromResult(true);
 
     public void Dispose()
     {
+        _disposed = true;
         Strings.Changed -= OnLanguageChanged;
         _cts?.Cancel();
         _left.Source?.Dispose();
@@ -309,13 +314,29 @@ public sealed class BinaryCompareView : UserControl, ICompareTab
         SetPanes();
         oldL?.Dispose();
         oldR?.Dispose();
-        var sources = await Task.WhenAll(
-            _left.Path is { Length: > 0 } lp ? BinarySources.OpenAsync(lp) : Task.FromResult<BinarySource?>(null).ContinueWith(t => t.Result!),
-            _right.Path is { Length: > 0 } rp ? BinarySources.OpenAsync(rp) : Task.FromResult<BinarySource?>(null).ContinueWith(t => t.Result!));
+        // 이름에 맞는 정책 형식에 변환기가 있으면(Intel HEX·S-Record) 이미지로 풀어서 연다 — 그 밖의 파일은 그대로.
+        var policy = await App.Policy.LoadAsync();
+        async Task<BinarySource?> OpenSide(string? path)
+        {
+            if (path is not { Length: > 0 }) return null;
+            var effective = policy.Resolve(System.IO.Path.GetFileName(path.Replace(ArchivePaths.Separator, "/")), namesIgnoreCase: PolicyStore.NamesIgnoreCase);
+            _fill = effective.Binary.FillByte;
+            return effective.Converter?.Builtin is "ihex-to-bin" or "srec-to-bin"
+                ? await BinarySources.OpenConvertedAsync(path, effective.Converter.Builtin, effective.Binary.FillByte)
+                : await BinarySources.OpenAsync(path);
+        }
+        var sources = await Task.WhenAll(OpenSide(_left.Path), OpenSide(_right.Path));
         if (version != _version)
         {
             foreach (var x in sources) x?.Dispose();
             return;
+        }
+        // 둘 다 펌웨어 이미지면 같은 주소 범위로 맞춰서 주소끼리 비교한다 (시작 주소가 달라도 어긋나지 않게).
+        if (sources[0] is { ConvertedFrom: not null, Source: MemoryByteSource lm } l0 && sources[1] is { ConvertedFrom: not null, Source: MemoryByteSource rm } r0)
+        {
+            var (a, b) = FirmwareFormats.Align(new FirmwareImage(lm.Data, l0.BaseAddress, l0.Records, l0.Warnings), new FirmwareImage(rm.Data, r0.BaseAddress, r0.Records, r0.Warnings), _fill);
+            if (a.Data != lm.Data) sources[0] = l0 with { Source = new MemoryByteSource(a.Data), BaseAddress = a.BaseAddress };
+            if (b.Data != rm.Data) sources[1] = r0 with { Source = new MemoryByteSource(b.Data), BaseAddress = b.BaseAddress };
         }
         _left.Source = sources[0];
         _right.Source = sources[1];
@@ -377,6 +398,8 @@ public sealed class BinaryCompareView : UserControl, ICompareTab
     void SetPanes()
     {
         var ok = _left.Source is { Ok: true } && _right.Source is { Ok: true };
+        _left.Pane.AddressBase = _left.Source?.BaseAddress ?? 0;
+        _right.Pane.AddressBase = _right.Source?.BaseAddress ?? 0;
         _left.Pane.SetData(ok ? _rows : null, _left.Source?.Source, _right.Source?.Source, _ignore);
         _right.Pane.SetData(ok ? _rows : null, _right.Source?.Source, _left.Source?.Source, _ignore);
         _overview.Rows = ok ? _rows : null;
@@ -400,8 +423,17 @@ public sealed class BinaryCompareView : UserControl, ICompareTab
         var s = Strings.Current;
         if (!side.PathText.IsFocused) side.PathText.Text = side.Path ?? "";
         ToolTip.SetTip(side.PathText, side.Path);
-        side.InfoText.Text = side.Source is { Ok: true } src ? s.CompareHeaderInfo(src.Modified.ToLocalTime(), src.Length) : "";
+        side.InfoText.Text = side.Source is { Ok: true } src ? s.CompareHeaderInfo(src.Modified.ToLocalTime(), src.Length) + ConversionInfo(src) : "";
+        ToolTip.SetTip(side.InfoText, side.Source is { Warnings.Count: > 0 } w ? string.Join('\n', w.Warnings.Take(15)) : null);
         UpdateOverlay(side);
+    }
+
+    /// <summary>머리글 둘째 줄에 덧붙이는 변환 안내: 펌웨어 파일을 이미지로 풀었으면 주소 범위·레코드 수·경고 수, 풀지 못했으면 그 이유.</summary>
+    static string ConversionInfo(BinarySource src)
+    {
+        var s = Strings.Current;
+        if (src.ConvertedFrom is { } kind) return "   ·   " + s.BinaryConverted(kind, src.BaseAddress, src.BaseAddress + src.Length, src.Records, src.Warnings.Count);
+        return src.ConvertError is { } error ? "   ·   " + s.BinaryConvertFailed(error) : "";
     }
 
     void UpdateTitle(bool raise = true)
@@ -510,6 +542,8 @@ public sealed class BinaryCompareView : UserControl, ICompareTab
         var s = Strings.Current;
         var typed = await InputDialog.ShowAsync(Owner, s.BinaryGoTo, s.BinaryGoToPrompt, "", s.CommonOk, s.CommonCancel);
         if (typed is null || !TryParseOffset(typed, out var offset) || _rows is null) return;
+        offset -= _left.Source?.BaseAddress ?? 0; // 펌웨어 이미지는 주소로 적는다
+        if (offset < 0) return;
         var row = _rows.RowOfLeftOffset(offset);
         var r = _rows.At(row);
         MoveCursor(row, (int)Math.Clamp(offset - r.LeftOffset, 0, BinaryRows.Width - 1), scroll: false);
@@ -542,18 +576,18 @@ public sealed class BinaryCompareView : UserControl, ICompareTab
         var index = differences.FindIndex(x => x.i == block);
         _sectionText.Text = index >= 0 ? s.CompareSectionPosition(index + 1, differences.Count) : s.CompareSectionCount(differences.Count);
         var (lo, ro) = _rows.OffsetsAt(_cursor.Row, _cursor.Col);
-        _leftCursor.Text = CursorText(s.HomeLeft, _left.Source?.Source, lo);
-        _rightCursor.Text = CursorText(s.HomeRight, _right.Source?.Source, ro);
+        _leftCursor.Text = CursorText(s.HomeLeft, _left.Source?.Source, lo, _left.Source?.BaseAddress ?? 0);
+        _rightCursor.Text = CursorText(s.HomeRight, _right.Source?.Source, ro, _right.Source?.BaseAddress ?? 0);
     }
 
     /// <summary>커서 바이트의 위치와 값: <c>왼쪽 0x00001A2B  41 (65)  LE16 4241 BE16 4142  LE32 … BE32 …</c> — 리틀·빅 엔디언 값 (BC Hex Compare의 값 보기).</summary>
-    static string CursorText(string name, IByteSource? source, long? offset)
+    static string CursorText(string name, IByteSource? source, long? offset, long baseAddress)
     {
         if (source is null || offset is not { } o) return $"{name}  —";
         Span<byte> b = stackalloc byte[4];
         var n = source.Read(o, b);
-        if (n <= 0) return $"{name}  0x{o:X8}  —";
-        var text = $"{name}  0x{o:X8}  {b[0]:X2} ({b[0]})";
+        if (n <= 0) return $"{name}  0x{o + baseAddress:X8}  —";
+        var text = $"{name}  0x{o + baseAddress:X8}  {b[0]:X2} ({b[0]})";
         if (n >= 2) text += $"  LE16 {(b[1] << 8 | b[0]):X4}  BE16 {(b[0] << 8 | b[1]):X4}";
         if (n >= 4) text += $"  LE32 {(uint)(b[3] << 24 | b[2] << 16 | b[1] << 8 | b[0]):X8}  BE32 {(uint)(b[0] << 24 | b[1] << 16 | b[2] << 8 | b[3]):X8}";
         return text;

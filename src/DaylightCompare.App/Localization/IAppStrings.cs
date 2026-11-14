@@ -77,6 +77,8 @@ public interface IAppStrings
     string BinaryDifferences(int count, long bytes);
     string BinaryLengthDiffers(long left, long right);
     string BinaryOpen { get; }
+    string BinaryConverted(string kind, long start, long end, int records, int warnings);
+    string BinaryConvertFailed(string error);
     string TabClose { get; }
     string TabCloseOthers { get; }
     string TabDetach { get; }

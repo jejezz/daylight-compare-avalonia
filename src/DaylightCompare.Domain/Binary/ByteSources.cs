@@ -16,6 +16,9 @@ public interface IByteSource
 
 public sealed class MemoryByteSource(byte[] data) : IByteSource
 {
+    /// <summary>안에 든 바이트 (읽기용 — 고치지 않는다).</summary>
+    public byte[] Data => data;
+
     public long Length => data.Length;
 
     public int Read(long offset, Span<byte> destination)

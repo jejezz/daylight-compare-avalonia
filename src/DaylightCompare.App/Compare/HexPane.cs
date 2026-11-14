@@ -29,6 +29,7 @@ sealed class HexPane : Control
     BinaryRows? _rows;
     IReadOnlyList<ByteRange> _ignore = [];
     long _top;
+    long _addressBase;
     (long Row, int Col)? _cursor;
     Typeface _typeface = new(FontFamily.Default);
     double _fontSize = 13;
@@ -91,6 +92,9 @@ sealed class HexPane : Control
         InvalidateVisual();
     }
 
+    /// <summary>오프셋 칸에 더해 보일 시작 주소 (펌웨어 이미지는 그 주소, 그냥 파일은 0).</summary>
+    public long AddressBase { get => _addressBase; set { if (_addressBase == value) return; _addressBase = value; InvalidateVisual(); } }
+
     public long TopRow
     {
         get => _top;
@@ -150,7 +154,7 @@ sealed class HexPane : Control
             // 문자열 한 줄과 글자 색
             var text = new char[LineChars];
             Array.Fill(text, ' ');
-            var addr = offset.ToString("X" + OffsetDigits, CultureInfo.InvariantCulture);
+            var addr = (offset + _addressBase).ToString("X" + OffsetDigits, CultureInfo.InvariantCulture);
             for (var c = 0; c < OffsetDigits && c < addr.Length; c++) text[c] = addr[c];
             for (var k = 0; k < count; k++)
             {

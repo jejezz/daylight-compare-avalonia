@@ -218,4 +218,80 @@ public sealed class BinaryCompareTests : IDisposable
             File.WriteAllText(policyFile, original);
         }
     }
+
+    // Intel HEX 한 줄 만들기: 주소 + 바이트 → 체크섬 포함
+    static string Rec(int address, byte[] data)
+    {
+        var bytes = new List<byte> { (byte)data.Length, (byte)(address >> 8), (byte)address, 0 };
+        bytes.AddRange(data);
+        var sum = bytes.Sum(b => b);
+        bytes.Add((byte)(-sum & 0xFF));
+        return ":" + Convert.ToHexString(bytes.ToArray());
+    }
+
+    static string Hex(int baseAddress, byte[] image, int recordLength)
+    {
+        var lines = new List<string>();
+        // 확장 선형 주소: 상위 16비트
+        var upper = (ushort)(baseAddress >> 16);
+        var upperBytes = new List<byte> { 2, 0, 0, 4, (byte)(upper >> 8), (byte)upper };
+        upperBytes.Add((byte)(-upperBytes.Sum(b => b) & 0xFF));
+        lines.Add(":" + Convert.ToHexString(upperBytes.ToArray()));
+        for (var i = 0; i < image.Length; i += recordLength)
+            lines.Add(Rec((baseAddress & 0xFFFF) + i, image.Skip(i).Take(recordLength).ToArray()));
+        lines.Add(":00000001FF");
+        return string.Join('\n', lines) + '\n';
+    }
+
+    [AvaloniaFact]
+    public async Task Intel_HEX는_이미지로_풀어_주소로_비교한다_줄_길이가_달라도_같다()
+    {
+        var image = Random(600, 21);
+        // 줄 길이(16/32)가 달라도 풀면 같은 이미지다 — 글로 비교하면 모두 다르게 나올 파일.
+        var left = Write("a.hex", System.Text.Encoding.ASCII.GetBytes(Hex(0x08000000, image, 16)));
+        var changed = (byte[])image.Clone();
+        changed[300] ^= 0xFF;
+        var right = Write("b.hex", System.Text.Encoding.ASCII.GetBytes(Hex(0x08000000, changed, 32)));
+        var host = CompareView.Open(null, left, right);
+        await Settle();
+        var view = Binary(host);
+        Assert.Equal(1, view.Result!.DifferenceCount);
+        Assert.Equal(1, view.Result.DifferentBytes);
+        Assert.Equal(600, view.Result.LeftLength);
+        // 위치 이동은 주소로: 0x0800012C(= 300번째 바이트)
+        var (row, _) = (view.Rows!.RowOfLeftOffset(300), 0);
+        Assert.True(row > 0);
+        Shot(host, "binary-ihex");
+        host.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task 시작_주소가_다른_두_HEX는_주소끼리_맞춰_비교한다()
+    {
+        var a = Random(256, 22);
+        var b = a.Skip(64).ToArray(); // 오른쪽은 0x0840부터 (왼쪽의 64번째 바이트부터)
+        var left = Write("c.hex", System.Text.Encoding.ASCII.GetBytes(Hex(0x0800, a, 16)));
+        var right = Write("d.hex", System.Text.Encoding.ASCII.GetBytes(Hex(0x0840, b, 16)));
+        var host = CompareView.Open(null, left, right);
+        await Settle();
+        var view = Binary(host);
+        // 맞추면 오른쪽 앞쪽 0x0800~0x083F가 채움(0xFF)이라 그 구간만 다르다. 겹치는 구간은 같다.
+        Assert.Equal(1, view.Result!.DifferenceCount);
+        Assert.Equal(64, view.Result.DifferentBytes);
+        Assert.Equal(256, view.Result.LeftLength);
+        Assert.Equal(256, view.Result.RightLength);
+        host.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task 풀지_못하는_HEX는_파일_그대로_보이고_이유를_알린다()
+    {
+        var left = Write("e.hex", "이것은 hex가 아님"u8.ToArray());
+        var right = Write("f.hex", "다른 글"u8.ToArray());
+        var host = CompareView.Open(null, left, right);
+        await Settle();
+        var view = Binary(host);
+        Assert.NotNull(view.Result); // 그대로 비교한다
+        host.Close();
+    }
 }
