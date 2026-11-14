@@ -259,7 +259,7 @@ public sealed class FolderCompareWindow : Window
         filterBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
         filterBar.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
 
-        var header = new Border { BorderThickness = new Thickness(0, 0, 0, 1), Child = new Grid { ColumnDefinitions = new ColumnDefinitions("*,1,*"), Children = { PathHeader(left: true), PathHeader(left: false) } } };
+        var header = new Border { BorderThickness = new Thickness(0, 0, 0, 1), Child = new Grid { ColumnDefinitions = new ColumnDefinitions($"*,{GutterWidth},*"), Children = { PathHeader(left: true), PathHeader(left: false) } } };
         header.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStrokeStrong"));
         header.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
         _list.Bind(ListBox.BackgroundProperty, this.GetResourceObservable("AppEditorBg")); // 목록 바탕 — 위의 틀 띠와 한 단 다르게
@@ -350,19 +350,38 @@ public sealed class FolderCompareWindow : Window
         _ => Brush("AppFolderPending"),
     };
 
+    /// <summary>두 패널 사이 상태 기호 칸의 폭 (머리글과 같아야 줄이 맞는다).</summary>
+    const double GutterWidth = 28;
+
     Control BuildRow(FolderRow row)
     {
-        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions("*,1,*"), Height = RowHeight };
-        var divider = new Border();
-        divider.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppStroke"));
-        Grid.SetColumn(divider, 1);
+        var grid = new Grid { ColumnDefinitions = new ColumnDefinitions($"*,{GutterWidth},*"), Height = RowHeight };
         var left = Side(row, left: true);
         var right = Side(row, left: false);
+        var gutter = Gutter(row.Node);
+        Grid.SetColumn(gutter, 1);
         Grid.SetColumn(right, 2);
         grid.Children.Add(left);
-        grid.Children.Add(divider);
+        grid.Children.Add(gutter);
         grid.Children.Add(right);
         return grid;
+    }
+
+    /// <summary>BC의 가운데 칸: 같음 <c>=</c>, 다름 <c>≠</c>(빨강), 비교 중 <c>…</c>, 읽기 실패 <c>!</c>. 한쪽에만 있는 줄은 비운다.</summary>
+    Control Gutter(FolderNode n)
+    {
+        var (glyph, key) = n.State switch
+        {
+            FolderState.Same => ("=", "AppTextMid"),
+            FolderState.Different => ("≠", "AppFolderDifferent"),
+            FolderState.Error => ("!", "AppFolderDifferent"),
+            FolderState.Pending => ("…", "AppFolderPending"),
+            _ => ("", "AppTextMid"),
+        };
+        var host = new Border { BorderThickness = new Thickness(1, 0), IsHitTestVisible = false };
+        host.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppStroke"));
+        host.Child = new TextBlock { Text = glyph, Foreground = Brush(key), HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeight.SemiBold };
+        return host;
     }
 
     Control Side(FolderRow row, bool left)
