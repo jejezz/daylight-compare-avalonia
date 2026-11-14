@@ -18,6 +18,10 @@ public interface ICompareTab
     string? TabToolTip { get; }
     bool IsDirty { get; }
     event Action? TitleChanged;
+    /// <summary>세션에 적을 모양으로 (경로와 이 비교의 필터·보기 설정).</summary>
+    DaylightCompare.Domain.Settings.SessionTab Capture();
+    /// <summary>잠깐 보이는 알림 (세션을 저장했을 때 등).</summary>
+    void Announce(string text);
     /// <summary>처음 보일 때 한 번: 읽고 비교를 시작한다.</summary>
     void Start();
     /// <summary>탭을 닫아도 되나 (고친 것이 있으면 저장·버리기·취소를 묻는다).</summary>

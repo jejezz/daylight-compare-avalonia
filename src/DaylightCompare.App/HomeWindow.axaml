@@ -107,16 +107,30 @@
                 </StackPanel>
             </Panel>
 
-            <!-- 최근 비교: 같은 쌍을 매번 다시 고르지 않게 (BC 홈의 Recent Sessions) -->
-            <Grid Grid.Row="2" x:Name="HistorySection" RowDefinitions="Auto,*,Auto" Margin="0,16,0,0" IsVisible="False">
-                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                    <TextBlock Text="{DynamicResource Str.HomeRecentTitle}" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Button Grid.Column="1" x:Name="ClearHistoryButton" Classes="text" Content="{DynamicResource Str.HomeRecentClear}"/>
-                </Grid>
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <StackPanel x:Name="HistoryList" Spacing="2"/>
+            <!-- 저장한 세션 + 최근 비교: 같은 쌍을 매번 다시 고르지 않게 (BC 홈의 Saved Sessions · Recent Sessions) -->
+            <Grid Grid.Row="2" x:Name="HistorySection" RowDefinitions="*,Auto" Margin="0,16,0,0" IsVisible="False">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="16">
+                        <StackPanel x:Name="SessionBlock" IsVisible="False">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <StackPanel x:Name="SessionsTitle" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <icons:DuoIcon Icon="bookmarks" ColorKey="AppPrimary" Width="16" Height="16" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{DynamicResource Str.HomeSessionsTitle}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" x:Name="RestoreWindowsButton" Classes="text" IsVisible="False"/>
+                            </Grid>
+                            <StackPanel x:Name="SessionRows" Spacing="2"/>
+                        </StackPanel>
+                        <StackPanel x:Name="RecentBlock" IsVisible="False">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <TextBlock Text="{DynamicResource Str.HomeRecentTitle}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" x:Name="ClearHistoryButton" Classes="text" Content="{DynamicResource Str.HomeRecentClear}"/>
+                            </Grid>
+                            <StackPanel x:Name="HistoryList" Spacing="2"/>
+                        </StackPanel>
+                    </StackPanel>
                 </ScrollViewer>
-                <TextBlock Grid.Row="2" x:Name="HistoryNotice" Foreground="{DynamicResource AppFolderDifferent}" TextWrapping="Wrap"
+                <TextBlock Grid.Row="1" x:Name="HistoryNotice" Foreground="{DynamicResource AppFolderDifferent}" TextWrapping="Wrap"
                            FontSize="{DynamicResource FsSmall}"/>
             </Grid>
 

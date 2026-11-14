@@ -206,13 +206,13 @@ public sealed partial class CompareView : UserControl, ICompareTab
         CompareHost.Open(near, Create(left, right, options ?? CompareOptions.None, recordHistory));
 
     /// <summary>탭에 넣을 파일 비교 보기를 만든다 (아직 읽지 않는다 — 탭이 보일 때 <see cref="Start"/>).</summary>
-    public static CompareView Create(string? left, string? right, CompareOptions options, bool recordHistory) =>
-        new(left, right, options) { _skipHistory = !recordHistory };
+    public static CompareView Create(string? left, string? right, CompareOptions options, bool recordHistory, SessionTab? restore = null) =>
+        new(left, right, options, restore) { _skipHistory = !recordHistory };
 
     /// <summary>탭 호스트 창 (대화상자 주인·클립보드·파일 선택기).</summary>
     Window Owner => TopLevel.GetTopLevel(this) as Window ?? throw new InvalidOperationException("not attached");
 
-    CompareView(string? left, string? right, CompareOptions options)
+    CompareView(string? left, string? right, CompareOptions options, SessionTab? restore = null)
     {
         _left.Title = options.LeftTitle;
         _right.Title = options.RightTitle;
@@ -234,6 +234,14 @@ public sealed partial class CompareView : UserControl, ICompareTab
         _filter = settings.CompareViewFilter;
         _contextLines = Math.Clamp(settings.CompareContextLines, 0, AppSettings.MaxContextLines);
         var ignore = options.IgnoreUnimportant ?? settings.CompareIgnoreUnimportant; // /iu는 이 창에만
+        if (restore is not null)
+        {
+            // 저장한 세션의 보기 설정 (설정 파일의 값을 바꾸지 않고 이 비교에만).
+            _filter = SessionTab.ViewFilterOf(restore.ViewFilter);
+            _contextLines = Math.Clamp(restore.ContextLines, 0, AppSettings.MaxContextLines);
+            ignore = restore.IgnoreUnimportant;
+            _formatId = restore.FormatId;
+        }
         _ignoreUnimportant.IsChecked = ignore;
         _showBytes.IsChecked = _bytes.IsVisible = settings.CompareShowBytes;
         _showBytes.IsCheckedChanged += (_, _) =>
@@ -297,6 +305,20 @@ public sealed partial class CompareView : UserControl, ICompareTab
     public string TabTitle { get; private set; } = "";
     public string? TabToolTip => string.Join('\n', new[] { _left.Path, _right.Path }.Where(p => !string.IsNullOrEmpty(p)));
     public bool IsDirty => _left.Dirty || _right.Dirty;
+
+    /// <summary>지금의 비교를 세션에 적을 모양으로 (경로 + 보기 필터·문맥 줄 수·중요하지 않은 차이 무시·고정한 파일 형식).</summary>
+    public SessionTab Capture() => new()
+    {
+        Kind = SessionTab.File,
+        Left = _left.Path ?? "",
+        Right = _right.Path ?? "",
+        ViewFilter = SessionTab.ViewFilterName(_filter),
+        ContextLines = _contextLines,
+        IgnoreUnimportant = _ignoreUnimportant.IsChecked == true,
+        FormatId = _formatId,
+    };
+
+    public void Announce(string text) => Notice(text);
 
     /// <summary>탭이 처음 보일 때 한 번 (창의 <c>Opened</c>를 대신한다).</summary>
     public async void Start()
@@ -409,6 +431,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
                 Separator(),
                 Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync()),
                 Tool("refresh", Tip(s.CompareReload, "F5"), () => _ = ReloadWithConfirmAsync()),
+                Tool("bookmark", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync()),
                 Tool("search", Tip(s.CompareFindMenu, "Ctrl+F"), () => OpenFind()),
                 commands,
                 Separator(),
@@ -605,7 +628,9 @@ public sealed partial class CompareView : UserControl, ICompareTab
             Item(s.CompareSwap, "Ctrl+U", () => _ = SwapAsync()),
             Item(s.CompareReload, "F5", () => _ = ReloadWithConfirmAsync()),
             Item(s.CompareRecompareNow, "Ctrl+F5", () => _ = RecompareNowAsync()),
-            Item(s.CompareInfo, "Ctrl+I", () => _ = ShowInfoAsync())));
+            Item(s.CompareInfo, "Ctrl+I", () => _ = ShowInfoAsync()),
+            new Separator(),
+            Item(s.SessionSaveMenu, null, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync())));
         flyout.Items.Add(Group(s.CompareMenuFile,
             Item(s.CompareOpenFile, "Ctrl+O", () => _ = PickAsync(focused)),
             Item(s.CompareOpenClipboard, "Ctrl+Shift+V", () => _ = PasteAsync(focused)),
