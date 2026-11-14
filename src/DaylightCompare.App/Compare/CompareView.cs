@@ -83,6 +83,11 @@ public sealed class CompareView : UserControl, ICompareTab
         /// <summary>차이만 보기의 접기 (양쪽이 같은 행을 접어서 나란히 남는다).</summary>
         public FoldingManager Folding = null!;
 
+        /// <summary>줄 바이트 표 (글이 바뀌면 다시 만든다 — <see cref="ByteMapFor"/>가 만든 때의 글과 원본).</summary>
+        public LineByteMap? ByteMap;
+        public string? ByteMapFor;
+        public object? ByteMapSource;
+
         public CompareSource.Text? Text => Source as CompareSource.Text;
         public bool HasText => Text is not null;
 
@@ -136,6 +141,9 @@ public sealed class CompareView : UserControl, ICompareTab
     readonly TextBlock _status = new() { VerticalAlignment = VerticalAlignment.Center };
     /// <summary>BC View > Ignore Unimportant Differences (켜면 중요하지 않은 차이를 차이로 보이지 않는다).</summary>
     readonly ToggleButton _ignoreUnimportant = new() { Classes = { "tool" } };
+    /// <summary>줄 단위 바이트 패널 (BC의 16진수 줄) — 커서가 있는 행의 양쪽 줄 바이트.</summary>
+    readonly LineBytesPanel _bytes = new() { IsVisible = false };
+    readonly ToggleButton _showBytes = new() { Classes = { "tool" } };
     readonly Button _save = new() { Classes = { "tool" }, IsEnabled = false };
 
     /// <summary>BC 보기 필터 (Show All / Differences / Same / Context) — 드롭다운 하나.</summary>
@@ -206,6 +214,13 @@ public sealed class CompareView : UserControl, ICompareTab
         _contextLines = Math.Clamp(settings.CompareContextLines, 0, AppSettings.MaxContextLines);
         var ignore = options.IgnoreUnimportant ?? settings.CompareIgnoreUnimportant; // /iu는 이 창에만
         _ignoreUnimportant.IsChecked = ignore;
+        _showBytes.IsChecked = _bytes.IsVisible = settings.CompareShowBytes;
+        _showBytes.IsCheckedChanged += (_, _) =>
+        {
+            _bytes.IsVisible = _showBytes.IsChecked == true;
+            App.Settings.Update(x => x with { CompareShowBytes = _bytes.IsVisible });
+            UpdateBytePanel();
+        };
         _leftState.ShowUnimportant = _rightState.ShowUnimportant = !ignore;
         UpdateViewFilterButton();
         _ignoreUnimportant.IsCheckedChanged += (_, _) =>
@@ -288,6 +303,8 @@ public sealed class CompareView : UserControl, ICompareTab
         UpdateStatus();
         foreach (var side in new[] { _left, _right }) UpdateSideChrome(side);
         UpdateViewFilterButton();
+        ToolTip.SetTip(_showBytes, Strings.Current.CompareShowBytes);
+        UpdateBytePanel();
         _findBox.PlaceholderText = Strings.Current.CompareFindPlaceholder;
         _replaceBox.PlaceholderText = Strings.Current.CompareReplacePlaceholder;
         UpdateFindWhere();
@@ -308,6 +325,8 @@ public sealed class CompareView : UserControl, ICompareTab
         }
         _ignoreUnimportant.Content = new DuoIcon { Icon = "visible-off" };
         ToolTip.SetTip(_ignoreUnimportant, s.CompareIgnoreUnimportant);
+        _showBytes.Content = new DuoIcon { Icon = "memory" };
+        ToolTip.SetTip(_showBytes, s.CompareShowBytes);
         _save.Content = new DuoIcon { Icon = "save" };
         ToolTip.SetTip(_save, s.CompareSave);
         _save.Click += async (_, _) => await SaveAllAsync();
@@ -330,6 +349,7 @@ public sealed class CompareView : UserControl, ICompareTab
             {
                 _viewFilter,
                 _ignoreUnimportant,
+                _showBytes,
                 Separator(),
                 toolCopyLeft,
                 toolCopyRight,
@@ -364,7 +384,7 @@ public sealed class CompareView : UserControl, ICompareTab
 
         var grid = new Grid
         {
-            RowDefinitions = new RowDefinitions("44,Auto,Auto,Auto,*"),
+            RowDefinitions = new RowDefinitions("44,Auto,Auto,Auto,*,Auto"),
             ColumnDefinitions = new ColumnDefinitions("*,32,*,22"),
         };
         Place(grid, appBar, 0, 0, 4);
@@ -390,6 +410,7 @@ public sealed class CompareView : UserControl, ICompareTab
         _copyLeftButton.Click += (_, _) => _ = CopySelectionAsync(toRight: false);
         Place(grid, _mergeLayer, 4, 1, 1);
         Place(grid, _overview, 4, 3, 1);
+        Place(grid, _bytes, 5, 0, 4);
         _overview.State = _leftState;
 
         _dropHint.Bind(Border.BorderBrushProperty, this.GetResourceObservable("AppPrimary"));
@@ -527,7 +548,8 @@ public sealed class CompareView : UserControl, ICompareTab
         }
         var focused = FocusedSide();
         var view = Group(s.CompareMenuView, [.. ViewFilterItems(), new Separator(),
-            Item(s.CompareIgnoreUnimportant, null, () => _ignoreUnimportant.IsChecked = _ignoreUnimportant.IsChecked != true)]);
+            Item(s.CompareIgnoreUnimportant, null, () => _ignoreUnimportant.IsChecked = _ignoreUnimportant.IsChecked != true),
+            Item(s.CompareShowBytes, null, () => _showBytes.IsChecked = _showBytes.IsChecked != true)]);
         var flyout = new MenuFlyout();
         flyout.Items.Add(Group(s.CompareMenuSession,
             Item(s.CompareSwap, "Ctrl+U", () => _ = SwapAsync()),
@@ -673,11 +695,13 @@ public sealed class CompareView : UserControl, ICompareTab
         side.Margin.PointerReleased += (_, args) => { _gutterAnchor = -1; args.Pointer.Capture(null); };
         e.TextArea.Caret.PositionChanged += (_, _) =>
         {
-            if (_syncing || _applying) return;
+            if (_syncing) return;
+            if (_applying) { UpdateBytePanel(); return; } // 다시 비교를 화면에 옮기는 동안은 캐럿을 맞추지 않는다 — 패널만 새로 그린다
             var other = side.Left ? _right : _left;
             _syncing = true;
             other.Editor.TextArea.Caret.Line = Math.Min(e.TextArea.Caret.Line, other.Editor.Document.LineCount); // 같은 행 = 맞은편의 대응 줄
             _syncing = false;
+            UpdateBytePanel();
         };
         e.Document.TextChanged += (_, _) => OnEdited(side);
         e.PropertyChanged += (_, args) =>
@@ -803,6 +827,7 @@ public sealed class CompareView : UserControl, ICompareTab
                 side.Editor.TextArea.Caret.Line = Math.Min(row + 1, side.Editor.Document.LineCount);
                 side.Editor.TextArea.Caret.Column = k.Column;
                 _syncing = false;
+                UpdateBytePanel();
             }, DispatcherPriority.Background);
         }
         else if (!jumpToFirst) Dispatcher.UIThread.Post(() => ScrollTo(_right, null, offset), DispatcherPriority.Background);
@@ -1350,6 +1375,44 @@ public sealed class CompareView : UserControl, ICompareTab
             side.Margin.InvalidateVisual();
         }
         UpdateViewport();
+        UpdateBytePanel();
+    }
+
+    // --- 줄 단위 바이트 패널 ---
+
+    /// <summary>줄 바이트 표. 읽은 그대로이면 원래 바이트로, 고쳤으면 지금의 글을 같은 인코딩·줄 끝으로 다시 인코딩해서 만든다 (글이 바뀔 때만 다시 만든다).</summary>
+    LineByteMap? ByteMapOf(Side side)
+    {
+        if (side.Text is not { } t) return null;
+        if (side.ByteMap is not null && ReferenceEquals(side.ByteMapFor, side.Real) && ReferenceEquals(side.ByteMapSource, t)) return side.ByteMap;
+        byte[] bytes;
+        try
+        {
+            var untouched = side.Repair is null && side.Real == TextFiles.NormalizeLineBreaks(t.File.Text);
+            bytes = untouched ? t.Bytes : TextEncodings.Encode(TextFiles.ApplyLineBreak(side.Real, t.File.LineBreak), t.File.Encoding, t.File.HasBom);
+        }
+        catch (Exception) { return null; }
+        side.ByteMap = LineByteMap.Build(bytes, t.File.Encoding, t.File.HasBom);
+        (side.ByteMapFor, side.ByteMapSource) = (side.Real, t);
+        return side.ByteMap;
+    }
+
+    ByteLine BytesAt(Side side, int? line)
+    {
+        var s = Strings.Current;
+        var name = side.Left ? s.HomeLeft : s.HomeRight;
+        if (line is not { } n || ByteMapOf(side) is not { } map) return new ByteLine(name, default, false, 0);
+        var (offset, length) = map.Range(n);
+        return new ByteLine($"{name} {n + 1}  ·  0x{offset:X}  ·  {length:N0} B", map.Line(n), true, n == 0 ? map.BomLength : 0);
+    }
+
+    void UpdateBytePanel()
+    {
+        if (!_bytes.IsVisible || _leftState.Diff is not { } diff) return;
+        var row = CurrentRow();
+        if (row < 0 || row >= diff.Rows.Count) return;
+        var r = diff.Rows[row];
+        _bytes.Show(BytesAt(_left, r.Left), BytesAt(_right, r.Right), r.Kind == DiffBlockKind.Unimportant, Strings.Current.CompareBytesNoLine);
     }
 
     // --- 스크롤·이동 ---
@@ -1400,6 +1463,7 @@ public sealed class CompareView : UserControl, ICompareTab
         _right.Editor.TextArea.Caret.Line = line;
         _left.Editor.TextArea.Caret.Line = Math.Min(line, _left.Editor.Document.LineCount);
         _syncing = false;
+        UpdateBytePanel();
     }
 
     // --- 차이만 보기 (같은 줄 접기) ---

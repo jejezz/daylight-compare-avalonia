@@ -88,6 +88,10 @@ public sealed record AppSettings
     [JsonPropertyName("compare_ignore_unimportant")]
     public bool CompareIgnoreUnimportant { get; init; }
 
+    /// <summary>텍스트 비교 아래쪽의 줄 바이트 패널 (BC의 16진수 줄)을 보인다.</summary>
+    [JsonPropertyName("compare_show_bytes")]
+    public bool CompareShowBytes { get; init; }
+
     /// <summary>Show Context에서 차이 위아래로 남기는 줄 수 (BC Text View Options > Number of context lines) (0~<see cref="MaxContextLines"/>).</summary>
     [JsonPropertyName("compare_context_lines")]
     public int CompareContextLines { get; init; } = DefaultContextLines;

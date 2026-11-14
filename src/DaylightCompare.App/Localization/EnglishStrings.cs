@@ -24,6 +24,8 @@ public sealed class EnglishStrings : IAppStrings
     public string FolderDropFoldersOnly => "Only folders or archives can be dropped in Folder Compare.";
     public string CompareWindowTitle(string left, string right) => $"{left} ↔ {right}";
     public string CompareSwap => "Swap Sides";
+    public string CompareShowBytes => "Show Line Bytes";
+    public string CompareBytesNoLine => "No matching line";
     public string TabClose => "Close Tab";
     public string TabCloseOthers => "Close Other Tabs";
     public string TabDetach => "Move to New Window";
