@@ -16,6 +16,13 @@ public static class UiScale
     public static readonly AttachedProperty<bool> EnabledProperty =
         AvaloniaProperty.RegisterAttached<Control, Control, bool>("Enabled");
 
+    /// <summary>켜면 이 컨트롤의 크기는 배율이 건드리지 않고 컨트롤 스스로(예: <see cref="AdaptiveToolbar"/>) 정한다.</summary>
+    public static readonly AttachedProperty<bool> FreeProperty =
+        AvaloniaProperty.RegisterAttached<Control, Control, bool>("Free");
+
+    public static bool GetFree(Control c) => c.GetValue(FreeProperty);
+    public static void SetFree(Control c, bool value) => c.SetValue(FreeProperty, value);
+
     public static bool GetEnabled(Control c) => c.GetValue(EnabledProperty);
     public static void SetEnabled(Control c, bool value) => c.SetValue(EnabledProperty, value);
 
@@ -79,6 +86,7 @@ public static class UiScale
                 _width = c.Width; _height = c.Height; _minHeight = c.MinHeight;
                 _captured = true;
             }
+            if (GetFree(c)) return;
             if (double.IsFinite(_width)) c.Width = Scaled(_width);
             if (double.IsFinite(_height)) c.Height = Scaled(_height);
             if (_minHeight > 0) c.MinHeight = Scaled(_minHeight);
