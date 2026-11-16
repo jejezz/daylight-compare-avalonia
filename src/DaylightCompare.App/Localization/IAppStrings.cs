@@ -213,6 +213,23 @@ public interface IAppStrings
     string CompareIgnoreUnimportant { get; }
     string CompareViewFilterTooltip { get; }
     string CompareCommandsTooltip { get; }
+    string ToolLabelIgnore { get; }
+    string ToolLabelBytes { get; }
+    string ToolLabelCopyLeft { get; }
+    string ToolLabelCopyRight { get; }
+    string ToolLabelPrevDiff { get; }
+    string ToolLabelNextDiff { get; }
+    string ToolLabelSwap { get; }
+    string ToolLabelRefresh { get; }
+    string ToolLabelSession { get; }
+    string ToolLabelFind { get; }
+    string ToolLabelCommands { get; }
+    string ToolLabelSettings { get; }
+    string ToolLabelAbout { get; }
+    string ToolLabelExpand { get; }
+    string ToolLabelCollapse { get; }
+    string ToolLabelBack { get; }
+    string ToolLabelForward { get; }
     string CompareReload { get; }
     string CompareRecompareNow { get; }
     string CompareShowAll { get; }

@@ -237,54 +237,55 @@ public sealed class FolderCompareView : UserControl, ICompareTab
     {
         var s = Strings.Current;
         string Tip(string name, string? key) => key is null ? name : $"{name} ({(OperatingSystem.IsMacOS() ? key.Replace("Ctrl+", "⌘") : key)})";
-        Button Tool(string icon, string tip, Action click)
+        Button Tool(string icon, string tip, Action click, string? label = null, int priority = 1)
         {
             var b = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = icon } };
+            if (label is not null) AdaptiveToolbar.Labeled(b, label, priority);
             ToolTip.SetTip(b, tip);
             b.Click += (_, _) => click();
             return b;
         }
-        _navBack = Tool("nav-back", s.FolderNavBack, () => _ = NavigateAsync(-1));
-        _navForward = Tool("nav-forward", s.FolderNavForward, () => _ = NavigateAsync(+1));
+        _navBack = Tool("nav-back", s.FolderNavBack, () => _ = NavigateAsync(-1), s.ToolLabelBack, 4);
+        _navForward = Tool("nav-forward", s.FolderNavForward, () => _ = NavigateAsync(+1), s.ToolLabelForward, 4);
         UpdateNavButtons();
-        Border Separator() => new() { Width = 1, Margin = new Thickness(4, 8), [!Border.BackgroundProperty] = this.GetResourceObservable("AppStrokeStrong").ToBinding() };
-        var commands = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } };
+        var Separator = AdaptiveToolbar.Separator;
+        var commands = AdaptiveToolbar.Labeled(new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } }, s.ToolLabelCommands, 9);
         ToolTip.SetTip(commands, s.CompareCommandsTooltip);
         commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
         ToolTip.SetTip(_viewFilter, s.FolderViewFilterTooltip);
 
         // 툴바: 보기 필터 | 복사 | 이전·다음 차이 | 모두 펴기·접기 | 좌우 바꾸기 · 새로 고침 · 모든 명령 | 설정 · 정보 — BC 폴더 비교의 묶음 순서.
-        var tools = new StackPanel
+        var tools = new AdaptiveToolbar
         {
-            Orientation = Orientation.Horizontal, Spacing = 8, VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
             Children =
             {
                 _navBack, _navForward,
                 Separator(),
                 _viewFilter,
                 Separator(),
-                Tool("back", Tip(s.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyAsync(toRight: false)),
-                Tool("forward", Tip(s.CompareCopyToRight, "Ctrl+R"), () => _ = CopyAsync(toRight: true)),
+                Tool("back", Tip(s.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyAsync(toRight: false), s.ToolLabelCopyLeft, 1),
+                Tool("forward", Tip(s.CompareCopyToRight, "Ctrl+R"), () => _ = CopyAsync(toRight: true), s.ToolLabelCopyRight, 1),
                 Separator(),
-                Tool("up", Tip(s.ComparePrevLine, "Ctrl+P"), () => GoDifference(next: false)),
-                Tool("down", Tip(s.CompareNextLine, "Ctrl+N"), () => GoDifference(next: true)),
+                Tool("up", Tip(s.ComparePrevLine, "Ctrl+P"), () => GoDifference(next: false), s.ToolLabelPrevDiff, 2),
+                Tool("down", Tip(s.CompareNextLine, "Ctrl+N"), () => GoDifference(next: true), s.ToolLabelNextDiff, 2),
                 Separator(),
-                Tool("expand-all", s.FolderExpandAll, () => ExpandAll(true)),
-                Tool("collapse-all", s.FolderCollapseAll, () => ExpandAll(false)),
+                Tool("expand-all", s.FolderExpandAll, () => ExpandAll(true), s.ToolLabelExpand, 6),
+                Tool("collapse-all", s.FolderCollapseAll, () => ExpandAll(false), s.ToolLabelCollapse, 6),
                 Separator(),
-                Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync()),
-                Tool("refresh", Tip(s.FolderRefresh, "F5"), () => _ = StartCompareAsync()),
-                Tool("bookmark", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync()),
+                Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync(), s.ToolLabelSwap, 5),
+                Tool("refresh", Tip(s.FolderRefresh, "F5"), () => _ = StartCompareAsync(), s.ToolLabelRefresh, 3),
+                Tool("bookmark", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync(), s.ToolLabelSession, 8),
                 commands,
                 Separator(),
-                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(Owner)),
-                Tool("info", s.AboutTooltip, () => AboutDialog.Open(Owner)),
+                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(Owner), s.ToolLabelSettings, 11),
+                Tool("info", s.AboutTooltip, () => AboutDialog.Open(Owner), s.ToolLabelAbout, 12),
             },
         };
         var appBar = new Border
         {
-            Height = 44, Padding = new Thickness(14, 0), BorderThickness = new Thickness(0, 0, 0, 1),
-            Child = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 12, Children = { _status, tools } },
+            Height = 52, Padding = new Thickness(14, 0), BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 12, Children = { _status, tools } },
         };
         Grid.SetColumn(tools, 1);
         appBar.Bind(Border.BackgroundProperty, this.GetResourceObservable("AppSurfaceHi"));
@@ -316,7 +317,7 @@ public sealed class FolderCompareView : UserControl, ICompareTab
         _list.Bind(ListBox.FontSizeProperty, this.GetResourceObservable("FsBody"));
         _list.Bind(ListBox.FontFamilyProperty, this.GetResourceObservable("AppEditorFont")); // 파일 비교와 같은 편집기 글꼴 (고정폭)
 
-        var grid = new Grid { RowDefinitions = new RowDefinitions("44,Auto,Auto,Auto,*") };
+        var grid = new Grid { RowDefinitions = new RowDefinitions("52,Auto,Auto,Auto,*") };
         Place(grid, appBar, 0);
         Place(grid, filterBar, 1);
         Place(grid, header, 2);
