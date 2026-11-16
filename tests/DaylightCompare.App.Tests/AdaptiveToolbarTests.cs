@@ -102,14 +102,17 @@ public sealed class AdaptiveToolbarTests : IDisposable
         w.Width = 1400;
         await Settle();
         string[] Labels() => [.. Bar(w).GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? "")];
+        string[] Tips() => [.. Bar(w).Children.Select(c => ToolTip.GetTip(c) as string ?? "")];
         try
         {
             Strings.Apply(Domain.Settings.AppLocale.English);
             await Settle();
             Assert.Contains("Next diff", Labels());
+            Assert.Contains("Settings", Tips());
             Strings.Apply(Domain.Settings.AppLocale.Korean);
             await Settle();
             Assert.Contains("다음 차이", Labels());
+            Assert.Contains("설정", Tips());
         }
         finally { Strings.Apply(Domain.Settings.AppLocale.Korean); w.Close(); }
     }

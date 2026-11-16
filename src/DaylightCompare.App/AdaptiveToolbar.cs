@@ -23,6 +23,8 @@ public sealed class AdaptiveToolbar : Panel
     /// <summary>작을수록 중요하다 — 글자도 단추도 가장 나중에 잃는다.</summary>
     /// <summary>글자를 지금 언어로 다시 읽는 함수 (언어가 바뀌면 다시 부른다).</summary>
     public static readonly AttachedProperty<Func<string>?> LabelSourceProperty = AvaloniaProperty.RegisterAttached<AdaptiveToolbar, Control, Func<string>?>("LabelSource");
+    /// <summary>툴팁을 지금 언어로 다시 읽는 함수.</summary>
+    public static readonly AttachedProperty<Func<string>?> TipSourceProperty = AvaloniaProperty.RegisterAttached<AdaptiveToolbar, Control, Func<string>?>("TipSource");
     public static readonly AttachedProperty<int> PriorityProperty = AvaloniaProperty.RegisterAttached<AdaptiveToolbar, Control, int>("Priority", 1);
     public static readonly AttachedProperty<bool> IsSeparatorProperty = AvaloniaProperty.RegisterAttached<AdaptiveToolbar, Control, bool>("IsSeparator");
 
@@ -30,6 +32,13 @@ public sealed class AdaptiveToolbar : Panel
     public static void SetLabel(Control c, string? value) => c.SetValue(LabelProperty, value);
     public static int GetPriority(Control c) => c.GetValue(PriorityProperty);
     public static void SetPriority(Control c, int value) => c.SetValue(PriorityProperty, value);
+
+    /// <summary>툴팁을 달고, 언어가 바뀌면 다시 읽어 바꾼다 (툴바의 자식에 쓴다).</summary>
+    public static void Tip(Control c, Func<string> tip)
+    {
+        c.SetValue(TipSourceProperty, tip);
+        ToolTip.SetTip(c, tip());
+    }
 
     /// <summary>단추에 글자와 우선순위를 준다.</summary>
     public static T Labeled<T>(T tool, Func<string> label, int priority) where T : Control
@@ -116,7 +125,10 @@ public sealed class AdaptiveToolbar : Panel
     void OnLanguageChanged() => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
     {
         foreach (var child in Children)
+        {
             if (child.GetValue(LabelSourceProperty) is { } source) SetLabel(child, source());
+            if (child.GetValue(TipSourceProperty) is { } tip) ToolTip.SetTip(child, tip());
+        }
     });
 
     void OnLabelChanged(Control c)

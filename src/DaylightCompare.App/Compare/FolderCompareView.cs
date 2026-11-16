@@ -237,22 +237,22 @@ public sealed class FolderCompareView : UserControl, ICompareTab
     {
         var s = Strings.Current;
         string Tip(string name, string? key) => key is null ? name : $"{name} ({(OperatingSystem.IsMacOS() ? key.Replace("Ctrl+", "⌘") : key)})";
-        Button Tool(string icon, string tip, Action click, Func<string>? label = null, int priority = 1)
+        Button Tool(string icon, Func<string> tip, Action click, Func<string>? label = null, int priority = 1)
         {
             var b = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = icon } };
             if (label is not null) AdaptiveToolbar.Labeled(b, label, priority);
-            ToolTip.SetTip(b, tip);
+            AdaptiveToolbar.Tip(b, tip);
             b.Click += (_, _) => click();
             return b;
         }
-        _navBack = Tool("nav-back", s.FolderNavBack, () => _ = NavigateAsync(-1), () => Strings.Current.ToolLabelBack, 4);
-        _navForward = Tool("nav-forward", s.FolderNavForward, () => _ = NavigateAsync(+1), () => Strings.Current.ToolLabelForward, 4);
+        _navBack = Tool("nav-back", () => Strings.Current.FolderNavBack, () => _ = NavigateAsync(-1), () => Strings.Current.ToolLabelBack, 4);
+        _navForward = Tool("nav-forward", () => Strings.Current.FolderNavForward, () => _ = NavigateAsync(+1), () => Strings.Current.ToolLabelForward, 4);
         UpdateNavButtons();
         var Separator = AdaptiveToolbar.Separator;
         var commands = AdaptiveToolbar.Labeled(new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } }, () => Strings.Current.ToolLabelCommands, 9);
-        ToolTip.SetTip(commands, s.CompareCommandsTooltip);
+        AdaptiveToolbar.Tip(commands, () => Strings.Current.CompareCommandsTooltip);
         commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
-        ToolTip.SetTip(_viewFilter, s.FolderViewFilterTooltip);
+        AdaptiveToolbar.Tip(_viewFilter, () => Strings.Current.FolderViewFilterTooltip);
 
         // 툴바: 보기 필터 | 복사 | 이전·다음 차이 | 모두 펴기·접기 | 좌우 바꾸기 · 새로 고침 · 모든 명령 | 설정 · 정보 — BC 폴더 비교의 묶음 순서.
         var tools = new AdaptiveToolbar
@@ -264,22 +264,22 @@ public sealed class FolderCompareView : UserControl, ICompareTab
                 Separator(),
                 _viewFilter,
                 Separator(),
-                Tool("back", Tip(s.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyAsync(toRight: false), () => Strings.Current.ToolLabelCopyLeft, 1),
-                Tool("forward", Tip(s.CompareCopyToRight, "Ctrl+R"), () => _ = CopyAsync(toRight: true), () => Strings.Current.ToolLabelCopyRight, 1),
+                Tool("back", () => Tip(Strings.Current.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyAsync(toRight: false), () => Strings.Current.ToolLabelCopyLeft, 1),
+                Tool("forward", () => Tip(Strings.Current.CompareCopyToRight, "Ctrl+R"), () => _ = CopyAsync(toRight: true), () => Strings.Current.ToolLabelCopyRight, 1),
                 Separator(),
-                Tool("up", Tip(s.ComparePrevLine, "Ctrl+P"), () => GoDifference(next: false), () => Strings.Current.ToolLabelPrevDiff, 2),
-                Tool("down", Tip(s.CompareNextLine, "Ctrl+N"), () => GoDifference(next: true), () => Strings.Current.ToolLabelNextDiff, 2),
+                Tool("up", () => Tip(Strings.Current.ComparePrevLine, "Ctrl+P"), () => GoDifference(next: false), () => Strings.Current.ToolLabelPrevDiff, 2),
+                Tool("down", () => Tip(Strings.Current.CompareNextLine, "Ctrl+N"), () => GoDifference(next: true), () => Strings.Current.ToolLabelNextDiff, 2),
                 Separator(),
-                Tool("expand-all", s.FolderExpandAll, () => ExpandAll(true), () => Strings.Current.ToolLabelExpand, 6),
-                Tool("collapse-all", s.FolderCollapseAll, () => ExpandAll(false), () => Strings.Current.ToolLabelCollapse, 6),
+                Tool("expand-all", () => Strings.Current.FolderExpandAll, () => ExpandAll(true), () => Strings.Current.ToolLabelExpand, 6),
+                Tool("collapse-all", () => Strings.Current.FolderCollapseAll, () => ExpandAll(false), () => Strings.Current.ToolLabelCollapse, 6),
                 Separator(),
-                Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync(), () => Strings.Current.ToolLabelSwap, 5),
-                Tool("refresh", Tip(s.FolderRefresh, "F5"), () => _ = StartCompareAsync(), () => Strings.Current.ToolLabelRefresh, 3),
-                Tool("bookmark", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync(), () => Strings.Current.ToolLabelSession, 8),
+                Tool("swap", () => Tip(Strings.Current.CompareSwap, "Ctrl+U"), () => _ = SwapAsync(), () => Strings.Current.ToolLabelSwap, 5),
+                Tool("refresh", () => Tip(Strings.Current.FolderRefresh, "F5"), () => _ = StartCompareAsync(), () => Strings.Current.ToolLabelRefresh, 3),
+                Tool("bookmark", () => Strings.Current.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync(), () => Strings.Current.ToolLabelSession, 8),
                 commands,
                 Separator(),
-                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(Owner), () => Strings.Current.ToolLabelSettings, 11),
-                Tool("info", s.AboutTooltip, () => AboutDialog.Open(Owner), () => Strings.Current.ToolLabelAbout, 12),
+                Tool("settings", () => Strings.Current.SettingsTooltip, () => SettingsWindow.Open(Owner), () => Strings.Current.ToolLabelSettings, 11),
+                Tool("info", () => Strings.Current.AboutTooltip, () => AboutDialog.Open(Owner), () => Strings.Current.ToolLabelAbout, 12),
             },
         };
         var appBar = new Border
@@ -296,8 +296,8 @@ public sealed class FolderCompareView : UserControl, ICompareTab
         ToolTip.SetTip(_filterBox, s.FolderFilterTooltip);
         _excludeBox.PlaceholderText = s.FolderFilterExcludePlaceholder;
         ToolTip.SetTip(_excludeBox, s.FolderFilterExcludeTooltip);
-        var importButton = Tool("import", s.FolderFilterImport, () => _ = ImportFilterAsync());
-        var exportButton = Tool("export", s.FolderFilterExport, () => _ = ExportFilterAsync());
+        var importButton = Tool("import", () => Strings.Current.FolderFilterImport, () => _ = ImportFilterAsync());
+        var exportButton = Tool("export", () => Strings.Current.FolderFilterExport, () => _ = ExportFilterAsync());
         var filterBar = new Border
         {
             Padding = new Thickness(12, 6), BorderThickness = new Thickness(0, 0, 0, 1),
