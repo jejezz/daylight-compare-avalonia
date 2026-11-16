@@ -237,7 +237,7 @@ public sealed class FolderCompareView : UserControl, ICompareTab
     {
         var s = Strings.Current;
         string Tip(string name, string? key) => key is null ? name : $"{name} ({(OperatingSystem.IsMacOS() ? key.Replace("Ctrl+", "⌘") : key)})";
-        Button Tool(string icon, string tip, Action click, string? label = null, int priority = 1)
+        Button Tool(string icon, string tip, Action click, Func<string>? label = null, int priority = 1)
         {
             var b = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = icon } };
             if (label is not null) AdaptiveToolbar.Labeled(b, label, priority);
@@ -245,11 +245,11 @@ public sealed class FolderCompareView : UserControl, ICompareTab
             b.Click += (_, _) => click();
             return b;
         }
-        _navBack = Tool("nav-back", s.FolderNavBack, () => _ = NavigateAsync(-1), s.ToolLabelBack, 4);
-        _navForward = Tool("nav-forward", s.FolderNavForward, () => _ = NavigateAsync(+1), s.ToolLabelForward, 4);
+        _navBack = Tool("nav-back", s.FolderNavBack, () => _ = NavigateAsync(-1), () => Strings.Current.ToolLabelBack, 4);
+        _navForward = Tool("nav-forward", s.FolderNavForward, () => _ = NavigateAsync(+1), () => Strings.Current.ToolLabelForward, 4);
         UpdateNavButtons();
         var Separator = AdaptiveToolbar.Separator;
-        var commands = AdaptiveToolbar.Labeled(new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } }, s.ToolLabelCommands, 9);
+        var commands = AdaptiveToolbar.Labeled(new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } }, () => Strings.Current.ToolLabelCommands, 9);
         ToolTip.SetTip(commands, s.CompareCommandsTooltip);
         commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
         ToolTip.SetTip(_viewFilter, s.FolderViewFilterTooltip);
@@ -264,22 +264,22 @@ public sealed class FolderCompareView : UserControl, ICompareTab
                 Separator(),
                 _viewFilter,
                 Separator(),
-                Tool("back", Tip(s.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyAsync(toRight: false), s.ToolLabelCopyLeft, 1),
-                Tool("forward", Tip(s.CompareCopyToRight, "Ctrl+R"), () => _ = CopyAsync(toRight: true), s.ToolLabelCopyRight, 1),
+                Tool("back", Tip(s.CompareCopyToLeft, "Ctrl+L"), () => _ = CopyAsync(toRight: false), () => Strings.Current.ToolLabelCopyLeft, 1),
+                Tool("forward", Tip(s.CompareCopyToRight, "Ctrl+R"), () => _ = CopyAsync(toRight: true), () => Strings.Current.ToolLabelCopyRight, 1),
                 Separator(),
-                Tool("up", Tip(s.ComparePrevLine, "Ctrl+P"), () => GoDifference(next: false), s.ToolLabelPrevDiff, 2),
-                Tool("down", Tip(s.CompareNextLine, "Ctrl+N"), () => GoDifference(next: true), s.ToolLabelNextDiff, 2),
+                Tool("up", Tip(s.ComparePrevLine, "Ctrl+P"), () => GoDifference(next: false), () => Strings.Current.ToolLabelPrevDiff, 2),
+                Tool("down", Tip(s.CompareNextLine, "Ctrl+N"), () => GoDifference(next: true), () => Strings.Current.ToolLabelNextDiff, 2),
                 Separator(),
-                Tool("expand-all", s.FolderExpandAll, () => ExpandAll(true), s.ToolLabelExpand, 6),
-                Tool("collapse-all", s.FolderCollapseAll, () => ExpandAll(false), s.ToolLabelCollapse, 6),
+                Tool("expand-all", s.FolderExpandAll, () => ExpandAll(true), () => Strings.Current.ToolLabelExpand, 6),
+                Tool("collapse-all", s.FolderCollapseAll, () => ExpandAll(false), () => Strings.Current.ToolLabelCollapse, 6),
                 Separator(),
-                Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync(), s.ToolLabelSwap, 5),
-                Tool("refresh", Tip(s.FolderRefresh, "F5"), () => _ = StartCompareAsync(), s.ToolLabelRefresh, 3),
-                Tool("bookmark", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync(), s.ToolLabelSession, 8),
+                Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync(), () => Strings.Current.ToolLabelSwap, 5),
+                Tool("refresh", Tip(s.FolderRefresh, "F5"), () => _ = StartCompareAsync(), () => Strings.Current.ToolLabelRefresh, 3),
+                Tool("bookmark", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync(), () => Strings.Current.ToolLabelSession, 8),
                 commands,
                 Separator(),
-                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(Owner), s.ToolLabelSettings, 11),
-                Tool("info", s.AboutTooltip, () => AboutDialog.Open(Owner), s.ToolLabelAbout, 12),
+                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(Owner), () => Strings.Current.ToolLabelSettings, 11),
+                Tool("info", s.AboutTooltip, () => AboutDialog.Open(Owner), () => Strings.Current.ToolLabelAbout, 12),
             },
         };
         var appBar = new Border

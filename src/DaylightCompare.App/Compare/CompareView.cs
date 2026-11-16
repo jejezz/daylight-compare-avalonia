@@ -402,7 +402,7 @@ public sealed partial class CompareView : UserControl, ICompareTab
     Control BuildLayout()
     {
         var s = Strings.Current;
-        Button Tool(string icon, string tip, Action click, string? label = null, int priority = 1)
+        Button Tool(string icon, string tip, Action click, Func<string>? label = null, int priority = 1)
         {
             var b = new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = icon } };
             if (label is not null) AdaptiveToolbar.Labeled(b, label, priority);
@@ -411,27 +411,27 @@ public sealed partial class CompareView : UserControl, ICompareTab
             return b;
         }
         _ignoreUnimportant.Content = new DuoIcon { Icon = "visible-off" };
-        AdaptiveToolbar.Labeled(_ignoreUnimportant, s.ToolLabelIgnore, 6);
+        AdaptiveToolbar.Labeled(_ignoreUnimportant, () => Strings.Current.ToolLabelIgnore, 6);
         ToolTip.SetTip(_ignoreUnimportant, s.CompareIgnoreUnimportant);
         _showBytes.Content = new DuoIcon { Icon = "memory" };
-        AdaptiveToolbar.Labeled(_showBytes, s.ToolLabelBytes, 7);
+        AdaptiveToolbar.Labeled(_showBytes, () => Strings.Current.ToolLabelBytes, 7);
         ToolTip.SetTip(_showBytes, s.CompareShowBytes);
         _save.Content = new DuoIcon { Icon = "save" };
-        AdaptiveToolbar.Labeled(_save, s.CommonSave, 2);
+        AdaptiveToolbar.Labeled(_save, () => Strings.Current.CommonSave, 2);
         ToolTip.SetTip(_save, s.CompareSave);
         _save.Click += async (_, _) => await SaveAllAsync();
         ToolTip.SetTip(_viewFilter, s.CompareViewFilterTooltip);
         ToolTip.SetTip(_formatButton, s.CompareFormatMenuTooltip);
         _formatButton.Click += async (_, e) => { e.Handled = true; await ShowFormatMenuAsync(); };
         UpdateFormatButton();
-        var commands = AdaptiveToolbar.Labeled(new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } }, s.ToolLabelCommands, 9);
+        var commands = AdaptiveToolbar.Labeled(new Button { Classes = { "tool" }, Content = new DuoIcon { Icon = "view-list" } }, () => Strings.Current.ToolLabelCommands, 9);
         ToolTip.SetTip(commands, s.CompareCommandsTooltip);
         commands.Click += (_, _) => CommandsMenu().ShowAt(commands);
         var Separator = AdaptiveToolbar.Separator;
         // 툴바는 BC 텍스트 비교의 묶음 순서를 따른다: 보기 필터 · 중요하지 않은 차이 무시 | 복사 · 저장 | 이전·다음 구간 | 좌우 바꾸기 · 다시 읽기 | 찾기 · 모든 명령.
         // 복사 단추는 사용자가 고른 부분이 있을 때만 켜진다 (UpdateMergeUi) — 파일 전체를 복사하는 단추는 없다.
-        var toolCopyLeft = _toolCopyLeft = Tool("back", Tip(s.CompareCopySelectionToLeft, "Ctrl+L"), () => _ = CopySelectionAsync(toRight: false), s.ToolLabelCopyLeft, 2);
-        var toolCopyRight = _toolCopyRight = Tool("forward", Tip(s.CompareCopySelectionToRight, "Ctrl+R"), () => _ = CopySelectionAsync(toRight: true), s.ToolLabelCopyRight, 2);
+        var toolCopyLeft = _toolCopyLeft = Tool("back", Tip(s.CompareCopySelectionToLeft, "Ctrl+L"), () => _ = CopySelectionAsync(toRight: false), () => Strings.Current.ToolLabelCopyLeft, 2);
+        var toolCopyRight = _toolCopyRight = Tool("forward", Tip(s.CompareCopySelectionToRight, "Ctrl+R"), () => _ = CopySelectionAsync(toRight: true), () => Strings.Current.ToolLabelCopyRight, 2);
         toolCopyLeft.IsEnabled = toolCopyRight.IsEnabled = false;
         var tools = new AdaptiveToolbar
         {
@@ -448,17 +448,17 @@ public sealed partial class CompareView : UserControl, ICompareTab
                 toolCopyRight,
                 _save,
                 Separator(),
-                Tool("up", Tip(s.ComparePrevSection, "Ctrl+P"), () => GoDiff(next: false), s.ToolLabelPrevDiff, 1),
-                Tool("down", Tip(s.CompareNextSection, "Ctrl+N"), () => GoDiff(next: true), s.ToolLabelNextDiff, 1),
+                Tool("up", Tip(s.ComparePrevSection, "Ctrl+P"), () => GoDiff(next: false), () => Strings.Current.ToolLabelPrevDiff, 1),
+                Tool("down", Tip(s.CompareNextSection, "Ctrl+N"), () => GoDiff(next: true), () => Strings.Current.ToolLabelNextDiff, 1),
                 Separator(),
-                Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync(), s.ToolLabelSwap, 5),
-                Tool("refresh", Tip(s.CompareReload, "F5"), () => _ = ReloadWithConfirmAsync(), s.ToolLabelRefresh, 4),
-                Tool("bookmark", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync(), s.ToolLabelSession, 8),
-                Tool("search", Tip(s.CompareFindMenu, "Ctrl+F"), () => OpenFind(), s.ToolLabelFind, 3),
+                Tool("swap", Tip(s.CompareSwap, "Ctrl+U"), () => _ = SwapAsync(), () => Strings.Current.ToolLabelSwap, 5),
+                Tool("refresh", Tip(s.CompareReload, "F5"), () => _ = ReloadWithConfirmAsync(), () => Strings.Current.ToolLabelRefresh, 4),
+                Tool("bookmark", s.SessionSaveMenu, () => _ = (TopLevel.GetTopLevel(this) as CompareHost)?.SaveSessionAsync(), () => Strings.Current.ToolLabelSession, 8),
+                Tool("search", Tip(s.CompareFindMenu, "Ctrl+F"), () => OpenFind(), () => Strings.Current.ToolLabelFind, 3),
                 commands,
                 Separator(),
-                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(Owner), s.ToolLabelSettings, 11),
-                Tool("info", s.AboutTooltip, () => AboutDialog.Open(Owner), s.ToolLabelAbout, 12),
+                Tool("settings", s.SettingsTooltip, () => SettingsWindow.Open(Owner), () => Strings.Current.ToolLabelSettings, 11),
+                Tool("info", s.AboutTooltip, () => AboutDialog.Open(Owner), () => Strings.Current.ToolLabelAbout, 12),
             },
         };
         var appBar = new Border

@@ -21,6 +21,8 @@ public sealed class AdaptiveToolbar : Panel
 {
     public static readonly AttachedProperty<string?> LabelProperty = AvaloniaProperty.RegisterAttached<AdaptiveToolbar, Control, string?>("Label");
     /// <summary>작을수록 중요하다 — 글자도 단추도 가장 나중에 잃는다.</summary>
+    /// <summary>글자를 지금 언어로 다시 읽는 함수 (언어가 바뀌면 다시 부른다).</summary>
+    public static readonly AttachedProperty<Func<string>?> LabelSourceProperty = AvaloniaProperty.RegisterAttached<AdaptiveToolbar, Control, Func<string>?>("LabelSource");
     public static readonly AttachedProperty<int> PriorityProperty = AvaloniaProperty.RegisterAttached<AdaptiveToolbar, Control, int>("Priority", 1);
     public static readonly AttachedProperty<bool> IsSeparatorProperty = AvaloniaProperty.RegisterAttached<AdaptiveToolbar, Control, bool>("IsSeparator");
 
@@ -30,9 +32,10 @@ public sealed class AdaptiveToolbar : Panel
     public static void SetPriority(Control c, int value) => c.SetValue(PriorityProperty, value);
 
     /// <summary>단추에 글자와 우선순위를 준다.</summary>
-    public static T Labeled<T>(T tool, string label, int priority) where T : Control
+    public static T Labeled<T>(T tool, Func<string> label, int priority) where T : Control
     {
-        SetLabel(tool, label);
+        tool.SetValue(LabelSourceProperty, label);
+        SetLabel(tool, label());
         SetPriority(tool, priority);
         return tool;
     }
@@ -97,15 +100,24 @@ public sealed class AdaptiveToolbar : Panel
     {
         base.OnAttachedToVisualTree(e);
         UiScale.Changed += OnScaleChanged;
+        Strings.Changed += OnLanguageChanged;
+        OnLanguageChanged();
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         UiScale.Changed -= OnScaleChanged;
+        Strings.Changed -= OnLanguageChanged;
         base.OnDetachedFromVisualTree(e);
     }
 
     void OnScaleChanged() => InvalidateMeasure();
+
+    void OnLanguageChanged() => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+    {
+        foreach (var child in Children)
+            if (child.GetValue(LabelSourceProperty) is { } source) SetLabel(child, source());
+    });
 
     void OnLabelChanged(Control c)
     {

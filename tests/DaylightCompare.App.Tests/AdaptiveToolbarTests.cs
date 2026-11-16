@@ -92,4 +92,25 @@ public sealed class AdaptiveToolbarTests : IDisposable
         if (width <= 520) Assert.True(more);
         w.Close();
     }
+
+    [AvaloniaFact]
+    public async Task 언어를_바꾸면_툴바_글자도_바뀐다()
+    {
+        var l = Write("l.txt", "a\nX\n");
+        var r = Write("r.txt", "a\nx\n");
+        var w = CompareView.Open(null, l, r);
+        w.Width = 1400;
+        await Settle();
+        string[] Labels() => [.. Bar(w).GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text ?? "")];
+        try
+        {
+            Strings.Apply(Domain.Settings.AppLocale.English);
+            await Settle();
+            Assert.Contains("Next diff", Labels());
+            Strings.Apply(Domain.Settings.AppLocale.Korean);
+            await Settle();
+            Assert.Contains("다음 차이", Labels());
+        }
+        finally { Strings.Apply(Domain.Settings.AppLocale.Korean); w.Close(); }
+    }
 }
