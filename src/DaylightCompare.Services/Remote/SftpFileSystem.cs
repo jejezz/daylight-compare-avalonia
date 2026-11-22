@@ -1,4 +1,6 @@
 // From daylight-commander-avalonia @ 4686eb7
+// 고침(이 앱): 서버 해시(IServerHasher, 4c) — SSH exec로 sha256sum. Commander에도 쓸 만하다(폴더 비교·동기화의 내용 비교).
+using System.Net.Sockets;
 using DaylightCompare.Domain;
 using Renci.SshNet;
 using Renci.SshNet.Common;
@@ -9,10 +11,20 @@ namespace DaylightCompare.Services;
 /// SFTP 서버 하나(연결 하나)를 <see cref="IFileSystem"/>으로 보이게 한 것. SSH.NET의 동기 호출을 작업 스레드에서 부르고, 한 번에 하나씩만
 /// 보낸다 (한 연결을 여러 작업이 나눠 쓰므로). SSH.NET 예외는 여기서 <see cref="FileOperationException"/>으로 바꿔 위로 올린다 —
 /// 서비스 위쪽은 SSH.NET을 모른다.
+/// <para>
+/// 서버 해시(<see cref="IServerHasher"/>): 같은 계정으로 SSH 연결을 하나 더 열어 <c>sha256sum</c>(없으면 <c>shasum -a 256</c>)을 돌린다.
+/// 그 연결의 호스트 키는 SFTP 연결이 본 지문(<paramref name="hostKeyFingerprint"/>)과 같아야 한다 — 지문을 모르면 서버 해시를 하지 않는다.
+/// </para>
 /// </summary>
-public sealed class SftpFileSystem(SftpClient client, string authority) : IFileSystem, IDisposable
+public sealed class SftpFileSystem(SftpClient client, string authority, string? hostKeyFingerprint = null) : IFileSystem, IServerHasher, IDisposable
 {
     readonly SemaphoreSlim _gate = new(1, 1);
+
+    // 서버 해시용 SSH 연결 (처음 쓸 때 연다). 열기·도구 찾기에 실패하면 이 연결 동안은 다시 시도하지 않는다(내려받아 해시).
+    readonly SemaphoreSlim _sshGate = new(1, 1);
+    SshClient? _ssh;
+    bool _sshUnavailable, _probed;
+    string? _hashTool;
 
     public bool IsConnected => client.IsConnected;
 
@@ -130,10 +142,79 @@ public sealed class SftpFileSystem(SftpClient client, string authority) : IFileS
         return 0;
     }, ct, Locations.NameOf(path));
 
+    public async Task<IReadOnlyDictionary<string, byte[]>?> HashSha256Async(IReadOnlyList<string> paths, CancellationToken ct = default)
+    {
+        if (paths.Count == 0) return new Dictionary<string, byte[]>();
+        if (hostKeyFingerprint is null) return null;
+        await _sshGate.WaitAsync(ct);
+        try
+        {
+            if (_sshUnavailable) return null;
+            var ssh = _ssh ??= await Task.Run(OpenSsh, ct);
+            if (!_probed)
+            {
+                _hashTool = ServerHashCommands.ToolCommand(await ExecAsync(ssh, ServerHashCommands.Probe, ct));
+                _probed = true;
+            }
+            if (_hashTool is null)
+            {
+                _sshUnavailable = true;
+                return null;
+            }
+            // 서버 경로 → 앱 경로 (같은 서버 경로로 오는 앱 경로가 여럿일 수 있다)
+            var byServer = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+            foreach (var path in paths)
+            {
+                var server = ServerPath(path);
+                if (!byServer.TryGetValue(server, out var list)) byServer[server] = list = [];
+                list.Add(path);
+            }
+            var result = new Dictionary<string, byte[]>(StringComparer.Ordinal);
+            foreach (var (command, _) in ServerHashCommands.Batches(_hashTool, [.. byServer.Keys]))
+                foreach (var (name, hash) in ServerHashCommands.Parse(await ExecAsync(ssh, command, ct)))
+                    if (byServer.TryGetValue(name, out var list))
+                        foreach (var path in list) result[path] = hash;
+            return result;
+        }
+        catch (Exception e) when (e is SshException or SocketException or ObjectDisposedException or InvalidOperationException or TimeoutException)
+        {
+            _sshUnavailable = true; // exec를 막은 서버(SFTP 전용 계정 등)·끊긴 연결: 내려받아 해시한다
+            return null;
+        }
+        finally
+        {
+            _sshGate.Release();
+        }
+    }
+
+    SshClient OpenSsh()
+    {
+        var ssh = new SshClient(client.ConnectionInfo);
+        ssh.HostKeyReceived += (_, e) => e.CanTrust = e.FingerPrintSHA256 == hostKeyFingerprint;
+        try
+        {
+            ssh.Connect();
+            return ssh;
+        }
+        catch
+        {
+            ssh.Dispose();
+            throw;
+        }
+    }
+
+    static async Task<string> ExecAsync(SshClient ssh, string commandText, CancellationToken ct)
+    {
+        using var command = ssh.CreateCommand(commandText);
+        await command.ExecuteAsync(ct);
+        return command.Result; // 몇 파일을 못 읽어 종료 코드가 0이 아니어도 읽은 것은 쓴다
+    }
+
     public void Dispose()
     {
         try { if (client.IsConnected) client.Disconnect(); } catch (Exception e) when (e is SshException or ObjectDisposedException) { }
         client.Dispose();
         _gate.Dispose();
+        try { _ssh?.Dispose(); } catch (Exception e) when (e is SshException or ObjectDisposedException) { }
     }
 }

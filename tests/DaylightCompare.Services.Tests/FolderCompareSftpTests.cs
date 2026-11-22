@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text.Json.Nodes;
 using DaylightCompare.Domain.Folder;
 using DaylightCompare.Domain.Policy;
 using DaylightCompare.Services.Folder;
@@ -60,5 +62,45 @@ public sealed class FolderCompareSftpTests : IClassFixture<SftpServerFixture>, I
         Assert.Equal(FolderState.LeftOrphan, files.Single(n => n.Name == "onlyLocal.txt").State);
         Assert.All(files.Where(n => n.Name is not ("f7.txt" or "onlyLocal.txt")), n => Assert.Equal(FolderState.Same, n.State));
         Assert.Equal(FolderState.Different, c.Root.State);
+    }
+
+    [FactIfSftpServer]
+    public async Task 서버에서_sha256sum으로_해시를_구한다()
+    {
+        Put(_server.Root, "a.txt", "alpha\n");
+        Put(_server.Root, "it's b.txt", "beta\n");
+        await _sessions.ConnectAsync(new RemoteConnectRequest("sftp", "127.0.0.1", _server.Port, "user", "pw"));
+        var hasher = Assert.IsAssignableFrom<IServerHasher>(_sessions.FileSystemFor(_server.Url()));
+
+        var a = _server.Url("a.txt");
+        var b = _server.Url("it's b.txt");
+        var hashes = await hasher.HashSha256Async([a, b, _server.Url("missing.txt")]);
+
+        Assert.NotNull(hashes);
+        Assert.Equal(2, hashes.Count); // 없는 파일은 빠진다
+        Assert.Equal(SHA256.HashData("alpha\n"u8), hashes[a]);
+        Assert.Equal(SHA256.HashData("beta\n"u8), hashes[b]);
+    }
+
+    [FactIfSftpServer]
+    public async Task 로컬_대_SFTP를_서버_해시로_비교한다()
+    {
+        for (var i = 0; i < 40; i++)
+        {
+            Put(_local, $"d{i % 4}/f{i}.txt", $"line {i}\n");
+            Put(_server.Root, $"d{i % 4}/f{i}.txt", i == 7 ? "changed\n" : $"line {i}\n");
+        }
+        await _sessions.ConnectAsync(new RemoteConnectRequest("sftp", "127.0.0.1", _server.Port, "user", "pw"));
+        var policy = ComparePolicy.FromJson((JsonObject)JsonNode.Parse("""
+            { "schema": 1, "defaults": { "folder": { "criteria": [ { "by": "hash", "algorithm": "crc32" } ] } } }
+            """)!);
+
+        var c = new FolderComparer(LocalFileSystem.Instance, _local, _sessions.FileSystemFor(_server.Url()), _server.Url(), policy, namesIgnoreCase: true);
+        await c.RunAsync();
+
+        var files = c.Root.Descendants().Where(n => !n.IsDirectory).ToList();
+        Assert.Equal(40, files.Count);
+        Assert.Equal(FolderState.Different, files.Single(n => n.Name == "f7.txt").State);
+        Assert.All(files.Where(n => n.Name != "f7.txt"), n => Assert.Equal(FolderState.Same, n.State));
     }
 }
