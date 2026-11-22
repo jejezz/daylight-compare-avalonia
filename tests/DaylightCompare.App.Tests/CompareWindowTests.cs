@@ -69,7 +69,7 @@ public sealed class CompareWindowTests : IDisposable
     [AvaloniaFact]
     public async Task 두_파일을_나란히_비교해_그린다()
     {
-        var w = CompareWindow.Open(null, Write("Calc.cs", LeftCode), Write("Calc2.cs", RightCode));
+        var w = CompareView.Open(null, Write("Calc.cs", LeftCode), Write("Calc2.cs", RightCode));
         w.Width = 1280;
         w.Height = 520;
         await Settle(w);
@@ -85,7 +85,7 @@ public sealed class CompareWindowTests : IDisposable
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         var mixed = Path.Combine(_dir, "mixed.txt");
         File.WriteAllBytes(mixed, [.. Encoding.UTF8.GetBytes("첫 줄\n둘째 줄\n"), .. Encoding.GetEncoding(949).GetBytes("셋째 줄은 CP949\n")]);
-        var w = CompareWindow.Open(null, mixed, Write("clean.txt", "첫 줄\n둘째 줄\n셋째 줄은 CP949\n"));
+        var w = CompareView.Open(null, mixed, Write("clean.txt", "첫 줄\n둘째 줄\n셋째 줄은 CP949\n"));
         w.Width = 1280;
         w.Height = 360;
         await Settle(w);
@@ -96,7 +96,7 @@ public sealed class CompareWindowTests : IDisposable
     [AvaloniaFact]
     public async Task 한쪽만_있으면_빈_쪽_안내를_보인다()
     {
-        var w = CompareWindow.Open(null, Write("only.txt", "a\nb\n"), null);
+        var w = CompareView.Open(null, Write("only.txt", "a\nb\n"), null);
         w.Width = 1000;
         w.Height = 300;
         await Settle(w);

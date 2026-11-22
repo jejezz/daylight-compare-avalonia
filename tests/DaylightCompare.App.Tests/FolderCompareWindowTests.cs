@@ -73,7 +73,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
 
         // 폴더 먼저: 같지 않은 sub는 펴고, 모두 같은 tidy는 접는다.
@@ -88,7 +88,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings(FolderShow.All & ~FolderShow.Same);
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Assert.Equal(["sub", " deep.txt", "changed.txt", "onlyLeft.txt", "onlyRight.txt"], Names(w)); // tidy(모두 같음)·same.txt는 숨는다
         Shot(w, "folder-compare-differences");
@@ -100,7 +100,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         var list = ListOf(w);
         var rows = ((IEnumerable<FolderRow>)list.ItemsSource!).ToList();
@@ -140,7 +140,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         var list = ListOf(w);
         list.SelectedItems!.Add(((IEnumerable<FolderRow>)list.ItemsSource!).Single(r => r.Node.Name == "onlyLeft.txt"));
@@ -162,7 +162,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings(FolderShow.None); // 토글을 모두 끈 채로 저장된 설정 — 예전에는 창을 열 때마다 빈 목록이 나왔다
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Assert.NotEmpty(Names(w));
         w.Close();
@@ -174,7 +174,7 @@ public sealed class FolderCompareWindowTests : IDisposable
         MakeTrees();
         ResetSettings(FolderShow.LeftOrphan); // 왼쪽에만 있는 것만 보기
         File.Delete(Path.Combine(L, "onlyLeft.txt")); // 그런데 왼쪽에만 있는 것이 없다 → 모두 숨겨진다
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Assert.Empty(Names(w));
         var showAll = w.GetVisualDescendants().OfType<Button>().Single(b => b.Name == "ShowAllButton");
@@ -196,7 +196,7 @@ public sealed class FolderCompareWindowTests : IDisposable
         ResetSettings();
         var other = Path.Combine(_dir, "other");
         Put(other, "only-in-other.txt", "z");
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         Assert.DoesNotContain("only-in-other.txt", Names(w));
         var box = w.GetVisualDescendants().OfType<TextBox>().First(t => t.Text == L);
@@ -214,7 +214,7 @@ public sealed class FolderCompareWindowTests : IDisposable
     {
         MakeTrees();
         ResetSettings();
-        var w = FolderCompareWindow.Open(null, L, R);
+        var w = FolderCompareView.Open(null, L, R);
         await Settle();
         var boxes = w.GetVisualDescendants().OfType<TextBox>().Where(t => t.PlaceholderText is { Length: > 0 }).ToList();
         var include = boxes.First(t => t.PlaceholderText!.StartsWith("포함"));
@@ -230,6 +230,86 @@ public sealed class FolderCompareWindowTests : IDisposable
         Assert.DoesNotContain("onlyLeft.txt", names);
         Assert.DoesNotContain("onlyRight.txt", names);
         Assert.DoesNotContain("changed.txt", names);
+        w.Close();
+    }
+
+    static async Task Invoke(Window w, string method)
+    {
+        var m = typeof(FolderCompareView).GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        var args = m.GetParameters().Length == 0 ? null : new object[] { -1 };
+        await (Task)m.Invoke(((CompareHost)w).ActiveFolder, args)!;
+        await Settle();
+    }
+
+    static void Select(Window w, string name)
+    {
+        var list = ListOf(w);
+        var row = ((IEnumerable<FolderRow>)list.ItemsSource!).First(r => r.Node.Name == name);
+        list.UnselectAll();
+        list.SelectedItem = row;
+    }
+
+    [AvaloniaFact]
+    public async Task 지금_비교는_양쪽에_있는_폴더면_양쪽을_그_폴더로_바꾼다()
+    {
+        MakeTrees();
+        ResetSettings();
+        var w = FolderCompareView.Open(null, L, R);
+        await Settle();
+        Select(w, "sub");
+        await Invoke(w, "CompareNowAsync");
+        Assert.Equal(Path.Combine(L, "sub"), w.LeftRoot);
+        Assert.Equal(Path.Combine(R, "sub"), w.RightRoot);
+        Assert.Contains("deep.txt", Names(w));
+        w.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task 지금_비교는_한쪽에만_있는_폴더면_있는_쪽만_바꾼다()
+    {
+        MakeTrees();
+        Put(L, "lonely/a.txt", "1");
+        ResetSettings();
+        var w = FolderCompareView.Open(null, L, R);
+        await Settle();
+        Select(w, "lonely");
+        await Invoke(w, "CompareNowAsync");
+        Assert.Equal(Path.Combine(L, "lonely"), w.LeftRoot);
+        Assert.Equal(R, w.RightRoot);
+        w.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task 이전_위치로_되돌아가고_다음_위치로_다시_간다()
+    {
+        MakeTrees();
+        ResetSettings();
+        var w = FolderCompareView.Open(null, L, R);
+        await Settle();
+        Select(w, "sub");
+        await Invoke(w, "CompareNowAsync");
+        Assert.Equal(Path.Combine(L, "sub"), w.LeftRoot);
+        await Invoke(w, "NavigateAsync");   // -1: 이전 위치
+        Assert.Equal(L, w.LeftRoot);
+        Assert.Equal(R, w.RightRoot);
+        Assert.Contains("same.txt", Names(w));
+        w.Close();
+    }
+
+    [AvaloniaFact]
+    public async Task 한쪽에만_있는_폴더는_접힌_채로_보이고_펼치면_안쪽이_나온다()
+    {
+        MakeTrees();
+        Put(L, "lonely/a.txt", "1");
+        ResetSettings();
+        var w = FolderCompareView.Open(null, L, R);
+        await Settle();
+        Assert.Contains("lonely", Names(w));
+        Assert.DoesNotContain(" a.txt", Names(w)); // 들여쓴 이름 (깊이 1)
+        Select(w, "lonely");
+        w.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        await Settle();
+        Assert.Contains(" a.txt", Names(w));
         w.Close();
     }
 }

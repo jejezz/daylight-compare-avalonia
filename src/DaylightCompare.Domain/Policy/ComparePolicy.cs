@@ -150,10 +150,13 @@ public sealed class ComparePolicy
     /// <paramref name="session"/>은 정책과 같은 모양의 일부 (<c>{"text": {"normalize": {"case": true}}}</c>, 또는 <c>"view"</c>로 보기 강제).
     /// </summary>
     /// <param name="namesIgnoreCase">파일 이름 짝짓기의 기본 대소문자 처리 (Windows·macOS는 true).</param>
-    public EffectivePolicy Resolve(string? name = null, string? relativePath = null, JsonObject? session = null, bool namesIgnoreCase = true)
+    /// <param name="formatId">형식을 이름으로 고정한다 (BC의 파일 형식 드롭다운): 형식 id면 그 형식, 빈 글이면 형식 없음(기본 규칙만), null이면 이름으로 찾는다.</param>
+    public EffectivePolicy Resolve(string? name = null, string? relativePath = null, JsonObject? session = null, bool namesIgnoreCase = true, string? formatId = null)
     {
         var warnings = new List<string>();
-        var format = name is null ? null : FormatFor(name, relativePath);
+        var format = formatId is not null
+            ? Formats.FirstOrDefault(f => f.Id == formatId)
+            : name is null ? null : FormatFor(name, relativePath);
         var builtinDefaults = BuiltinPolicy.Defaults();
 
         JsonObject Layer(string section) => Merge(

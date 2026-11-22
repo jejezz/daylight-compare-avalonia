@@ -50,6 +50,17 @@ public static class EditorLanguages
     public static bool IsMarkdown(string fileName) =>
         Path.GetExtension(fileName).ToLowerInvariant() is ".md" or ".markdown" or ".mdown" or ".mkd";
 
+    /// <summary>파일 형식의 마스크들에서 강조 문법을 고를 확장자 (첫 번째로 문법이 정해지는 마스크: <c>*.c</c>, <c>Makefile</c> …).</summary>
+    public static string? ExtensionForPatterns(IEnumerable<string> patterns)
+    {
+        foreach (var p in patterns)
+        {
+            var name = p.StartsWith("*.", StringComparison.Ordinal) && p.IndexOfAny(['*', '?', '/'], 1) < 0 ? "x" + p[1..] : p.IndexOfAny(['*', '?', '/', '!']) < 0 ? p : null;
+            if (name is not null && ExtensionFor(name) is { } ext) return ext;
+        }
+        return null;
+    }
+
     public static string? ExtensionFor(string fileName)
     {
         if (Names.TryGetValue(fileName, out var byName)) return byName;

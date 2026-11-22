@@ -32,7 +32,7 @@ public sealed class FolderCompareResponsivenessTests : IDisposable
             File.SetLastWriteTimeUtc(l, DateTime.UtcNow.AddMinutes(-30));
         }
 
-        var w = FolderCompareWindow.Open(null, Path.Combine(_dir, "l"), Path.Combine(_dir, "r"));
+        var w = FolderCompareView.Open(null, Path.Combine(_dir, "l"), Path.Combine(_dir, "r"));
         var sw = Stopwatch.StartNew();
         var last = sw.Elapsed;
         var worst = TimeSpan.Zero;

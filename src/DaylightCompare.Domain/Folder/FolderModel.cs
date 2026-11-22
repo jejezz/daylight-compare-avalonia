@@ -37,6 +37,9 @@ public sealed class FolderNode(string name, string relativePath, bool isDirector
 
     public bool IsOrphan => Left is null || Right is null;
 
+    /// <summary>한쪽에만 있는 폴더이고 안을 아직 읽지 않았다 (펼칠 때 읽는다).</summary>
+    public bool IsUnloaded => IsDirectory && IsOrphan && Scanning;
+
     public IEnumerable<FolderNode> Descendants()
     {
         foreach (var c in Children)

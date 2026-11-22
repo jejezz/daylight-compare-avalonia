@@ -94,6 +94,8 @@ public partial class App : Application
                 // 동기화 작업이 생기면(7단계) 진행 중에는 알리지도, 설치하지도 않게 여기서 막는다.
                 isBusy: () => false);
             Updates?.StartAutomaticCheck();
+            // 앱을 끄기 직전(창들이 닫히기 전)에 열려 있던 비교 창들을 적어 둔다 — 홈 창의 [이전 창 복원]이 다시 연다.
+            desktop.ShutdownRequested += (_, _) => RememberOpenWindows();
             desktop.Exit += (_, _) => Settings.Dispose(); // 종료할 때 마지막 변경까지 저장
         }
 
@@ -141,18 +143,18 @@ public partial class App : Application
     {
         // 종류 판별은 디스크를 만지므로 백그라운드에서 (네트워크 드라이브 경로가 와도 UI가 멈추지 않게).
         var asFolders = request.Paths.Count == 2
-            && await Task.Run(() => Compare.FolderCompareWindow.CanOpen(request.Paths[0]) && Compare.FolderCompareWindow.CanOpen(request.Paths[1]));
+            && await Task.Run(() => Compare.FolderCompareView.CanOpen(request.Paths[0]) && Compare.FolderCompareView.CanOpen(request.Paths[1]));
         return asFolders
-            ? Compare.FolderCompareWindow.Open(near, request.Paths[0], request.Paths[1])
-            : Compare.CompareWindow.Open(near, request.Paths[0], request.Paths.ElementAtOrDefault(1), OptionsOf(request));
+            ? Compare.FolderCompareView.Open(near, request.Paths[0], request.Paths[1])
+            : Compare.CompareView.Open(near, request.Paths[0], request.Paths.ElementAtOrDefault(1), OptionsOf(request));
     }
 
     /// <summary>시작할 때(--wait 단독 실행) 쓰는 동기 판. 여기서는 창이 아직 없어 UI가 멈출 일이 없다.</summary>
     static Window OpenCompare(Window? near, CliRequest request)
     {
-        if (request.Paths.Count == 2 && Compare.FolderCompareWindow.CanOpen(request.Paths[0]) && Compare.FolderCompareWindow.CanOpen(request.Paths[1]))
-            return Compare.FolderCompareWindow.Open(near, request.Paths[0], request.Paths[1]);
-        return Compare.CompareWindow.Open(near, request.Paths[0], request.Paths.ElementAtOrDefault(1), OptionsOf(request));
+        if (request.Paths.Count == 2 && Compare.FolderCompareView.CanOpen(request.Paths[0]) && Compare.FolderCompareView.CanOpen(request.Paths[1]))
+            return Compare.FolderCompareView.Open(near, request.Paths[0], request.Paths[1]);
+        return Compare.CompareView.Open(near, request.Paths[0], request.Paths.ElementAtOrDefault(1), OptionsOf(request));
     }
 
     static Compare.CompareOptions OptionsOf(CliRequest r) =>
@@ -174,6 +176,13 @@ public partial class App : Application
         return home;
     }
 
+    /// <summary>열려 있는 비교 창들을 설정에 적는다 (탭이 하나도 없는 창은 뺀다). 열린 비교 창이 없으면 목록을 비운다.</summary>
+    internal static void RememberOpenWindows()
+    {
+        var windows = Compare.CompareHost.OpenHosts.Where(h => h.Tabs.Count > 0).Select(h => h.Capture()).ToList();
+        Settings.Update(s => s with { LastWindows = windows });
+    }
+
     static void BringToFront(Window window)
     {
         if (window.WindowState == WindowState.Minimized) window.WindowState = WindowState.Normal;
@@ -186,7 +195,7 @@ public partial class App : Application
         _applied = s;
         if (previous is null || previous.Theme != s.Theme || previous.Palette != s.Palette
             || previous.TextScale != s.TextScale || previous.UiFontFamily != s.UiFontFamily
-            || previous.EditorFontFamily != s.EditorFontFamily)
+            || previous.EditorFontFamily != s.EditorFontFamily || previous.EditorScheme != s.EditorScheme)
             ThemeService.Apply(s);
         if (previous is null || previous.Locale != s.Locale) Strings.Apply(s.Locale);
     }

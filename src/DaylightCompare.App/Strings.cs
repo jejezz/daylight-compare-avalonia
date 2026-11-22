@@ -47,6 +47,7 @@ static class Strings
         Set("HomeTextCompare", s.HomeTextCompare);
         Set("HomeTextCompareHint", s.HomeTextCompareHint);
         Set("HomeRecentTitle", s.HomeRecentTitle);
+        Set("HomeSessionsTitle", s.HomeSessionsTitle);
         Set("HomeRecentClear", s.HomeRecentClear);
         Set("HomeChooseFolder", s.HomeChooseFolder);
         Set("HomeNotChosen", s.HomeNotChosen);

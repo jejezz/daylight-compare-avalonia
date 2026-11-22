@@ -68,6 +68,18 @@ public sealed record AppSettings
     [JsonPropertyName("editor_font_family")]
     public string? EditorFontFamily { get; init; }
 
+    /// <summary>파일 비교 편집기의 색상 구성표 id (문법 색·편집기 바탕·글자색). null이면 앱 테마를 따른다.</summary>
+    [JsonPropertyName("editor_scheme")]
+    public string? EditorScheme { get; init; }
+
+    /// <summary>이름을 붙여 저장한 세션 (BC Sessions). 홈 창에서 다시 연다.</summary>
+    [JsonPropertyName("sessions")]
+    public IReadOnlyList<SavedSession> Sessions { get; init; } = [];
+
+    /// <summary>앱을 끌 때 열려 있던 비교 창들 — 홈 창의 [이전 창 복원]이 다시 연다.</summary>
+    [JsonPropertyName("last_windows")]
+    public IReadOnlyList<SessionWindow> LastWindows { get; init; } = [];
+
     /// <summary>자주 쓰는 네트워크 서버 (연결 대화상자에서 한 번에 고른다). Daylight Commander와 같은 키.</summary>
     [JsonPropertyName("network_profiles")]
     public IReadOnlyList<NetworkProfile> NetworkProfiles { get; init; } = [];
@@ -87,6 +99,10 @@ public sealed record AppSettings
     /// <summary>BC View > Ignore Unimportant Differences: 켜면 중요하지 않은 차이를 차이로 보이지 않는다.</summary>
     [JsonPropertyName("compare_ignore_unimportant")]
     public bool CompareIgnoreUnimportant { get; init; }
+
+    /// <summary>텍스트 비교 아래쪽의 줄 바이트 패널 (BC의 16진수 줄)을 보인다.</summary>
+    [JsonPropertyName("compare_show_bytes")]
+    public bool CompareShowBytes { get; init; }
 
     /// <summary>Show Context에서 차이 위아래로 남기는 줄 수 (BC Text View Options > Number of context lines) (0~<see cref="MaxContextLines"/>).</summary>
     [JsonPropertyName("compare_context_lines")]
@@ -137,6 +153,11 @@ public sealed record AppSettings
         if ((object?)result.NetworkProfiles is null) result = result with { NetworkProfiles = [] };
         if ((object?)result.KnownHostKeys is null) result = result with { KnownHostKeys = new Dictionary<string, string>() };
         if ((object?)result.CompareHistory is null) result = result with { CompareHistory = [] };
+        if ((object?)result.Sessions is null) result = result with { Sessions = [] };
+        if ((object?)result.LastWindows is null) result = result with { LastWindows = [] };
+        // 깨진 세션(탭 목록이 없음)은 쓸 수 없으니 버린다.
+        if (result.Sessions.Any(s => (object?)s.Window?.Tabs is null)) result = result with { Sessions = result.Sessions.Where(s => (object?)s.Window?.Tabs is not null).ToList() };
+        if (result.LastWindows.Any(w => (object?)w?.Tabs is null)) result = result with { LastWindows = result.LastWindows.Where(w => (object?)w?.Tabs is not null).ToList() };
         // 예전에 쌓인 "같은 파일·폴더를 양쪽에 놓은 비교"는 다시 열 이유가 없으니 시작할 때 정리한다 (파일 시스템 규칙은 PolicyStore.NamesIgnoreCase와 같다).
         var cleaned = CompareHistoryList.WithoutSelfComparisons(result.CompareHistory, ignoreCase: !OperatingSystem.IsLinux());
         if (!ReferenceEquals(cleaned, result.CompareHistory)) result = result with { CompareHistory = cleaned };

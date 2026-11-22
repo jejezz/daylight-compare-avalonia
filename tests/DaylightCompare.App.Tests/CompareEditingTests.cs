@@ -46,7 +46,7 @@ public sealed class CompareEditingTests : IDisposable
     {
         var left = Write("l.txt", "a\nLEFT\nc\n");
         var right = Write("r.txt", "a\nright\nc\n");
-        var w = CompareWindow.Open(null, left, right);
+        var w = CompareView.Open(null, left, right);
         await Settle();
         var (l, r) = Editors(w);
         Assert.Equal(2, r.TextArea.Caret.Line); // 처음 차이로 이동해 있다
@@ -81,7 +81,7 @@ public sealed class CompareEditingTests : IDisposable
     {
         var left = Write("l2.txt", "a\nb\nc\n");
         var right = Write("r2.txt", "a\nc\n");
-        var w = CompareWindow.Open(null, left, right);
+        var w = CompareView.Open(null, left, right);
         await Settle();
         var (_, r) = Editors(w);
         Assert.Equal("a\n\nc", r.Document.Text); // 2번째 행은 채움 줄
@@ -103,7 +103,7 @@ public sealed class CompareEditingTests : IDisposable
     {
         var left = Write("l3.txt", "same\n");
         var right = Write("r3.txt", "old\n");
-        var w = CompareWindow.Open(null, left, right);
+        var w = CompareView.Open(null, left, right);
         await Settle();
         var (_, r) = Editors(w);
         Assert.Equal("old", r.Document.Text);

@@ -51,7 +51,15 @@ Never align differences), Format(형식·인코딩), Replacements가 우리 정�
 
 - **상태 (4b)**: ✅ Copy to Right / Left(`Ctrl+R`/`Ctrl+L`) · Delete · Open · Next/Previous Difference(`Ctrl+N`/`Ctrl+P`) · Select All · Select Newer/Orphans(왼쪽·오른쪽·양쪽) · Invert Selection ·
   Expand/Collapse All · Refresh(`F5`) · Swap Sides · 보기 필터 열두 가지와 여섯 토글 · Always Show Folders · 필터 막대 · 색.
-  ➕ 아직: Copy to Other Side, Move to …, Rename, New Folder, Compare Contents/Quick Compare, Compare To/Align With, Find Filename, Back/Forward/Up One Level, Synchronize, Suppress Filters, Columns, Legend, Select Newer의 "고른 것만" 등.
+  ➕ 아직: Copy to Other Side, Move to …, Rename, New Folder, Compare Contents/Quick Compare, Compare To/Align With, Find Filename, Synchronize, Suppress Filters, Columns, Legend, Select Newer의 "고른 것만", 열 머리글을 눌러 정렬·열 폭 조절, Back/Forward/Up One Level의 단축키 등.
+- **4b 이후 더한 것 (v0.1.1 이후, `staging` → `main` PR #26)** — 모습은 BC와 달라도 되는 것과 우리가 다르게 만든 것을 구분해 적는다.
+  - ✅ **가운데 상태 기호 칸** (BC의 가운데 열): 같음 `=`, 다름 `≠`(빨강), 비교 중 `…`(BC는 모래시계), 읽기 실패 `!`. 한쪽에만 있는 줄은 비운다. 복사 방향 표시는 아직 없다.
+  - ✅ **열 머리글** 이름 · 크기 · 수정한 날짜 (표시만, 정렬·폭 조절 ➕). **트리 안내선** (BC의 나무 점선). 한쪽에만 있는 쪽은 BC처럼 **채움 없는 빈 줄**. 목록은 편집기(고정폭) 글꼴을 따른다.
+  - ✅ **Up One Level**: 패널마다 폴더 열기 옆 단추로 그 쪽 루트만 한 칸 위로 (압축 파일 안이면 안쪽 부모, 압축 파일 루트면 그것이 든 폴더). 단축키는 BC 키를 확인하기 전까지 정하지 않았다.
+  - ✅ **Back / Forward**: 툴바 단추 "이전 위치 / 다음 위치" — 양쪽 루트 쌍의 이동 기록(위로·지금 비교·바꾸기·주소창·끌어다 놓기). `Alt+←/→`❓는 아직 안 걸었다.
+  - ✅ **한쪽에만 있는 폴더는 펼칠 때 읽는다** (BC의 방식과 같은지는 확인 필요❓): 비교 때 훑지 않아 엉뚱한 폴더로 올라가도 느리지 않다. 상태 줄의 "한쪽에만" 개수는 읽지 않은 폴더를 1개로 센다.
+  - 🔧 **필터 막대는 두 칸(include / exclude)** — BC는 한 칸(Filters)에 `-`로 제외까지 적는다. 우리는 두 칸으로 나누되 **같은 BC 문법**을 쓰고(제외 칸은 `-`를 붙여 합친다) `.dcfilter`로 가져오기·내보내기 한다. 한 칸 방식으로 맞출지는 정하지 않았다.
+  - ✅/— **줄의 오른쪽 단추 메뉴**: 지금 비교 · Filter: 제외 · Filter: 포함 · 오른쪽/왼쪽으로 복사. "지금 비교"(파일이면 파일 비교 창, 폴더면 그 폴더를 루트로 다시 비교, 한쪽에만 있으면 있는 쪽만 이동)와 "Filter: 제외/포함"(고른 이름을 필터 칸에 더함)은 BC의 정확한 대응 명령·이름을 확인하지 못했다 — BC 이름을 찾으면 ❓로 두고 맞춘다.
 - 명령: Copy to Right / Left `Ctrl+R` / `Ctrl+L` (도움말 명시), Copy to Other Side, Move to …, Delete, Rename `F2`❓, New Folder `Insert`❓,
   Compare Contents(CRC · Binary · Rules-based), Quick Compare, Compare To `F7`❓, Align With `F6`❓, Expand / Collapse All,
   Select Newer / Orphans(Left·Right·Both), Invert Selection, Refresh `F5`❓ / Full Refresh `Ctrl+F5`❓, Refresh Selection `Shift+F5`❓,
@@ -111,3 +119,114 @@ BC: Windows는 `/스위치`, macOS·Linux는 `-스위치`. 두 번째 실행은 
   Go To(바이트), 보기 Show All / Differences / Same, 현재 바이트 주소, 리틀/빅 엔디언 값, 나란히 / 위아래.
 - 그림: Tolerance Mode, Mismatch Range Mode, Blend Mode, Blend Toggle, Ignore Unimportant Differences, Auto Scale, 회전·뒤집기,
   Reset Difference Offset(화살표로 1픽셀씩 어긋남 조정), Compare Metadata, 전체 화면, 확대·축소·실제 크기·창에 맞춤.
+
+## 탭 (비교 창)
+
+| BC | 우리 | 상태 |
+|---|---|---|
+| 폴더 비교에서 파일 열기 → 같은 창의 새 탭 (같은 짝이면 그 탭으로) | 같음 | ✅ |
+| 탭 닫기 `Ctrl+W` · `Ctrl+F4`, 가운데 클릭, 탭의 X | 같음 | ✅ |
+| 탭 이동 `Ctrl+Tab` / `Ctrl+Shift+Tab` (`Ctrl+PageUp/Down`) | 같음 | ✅ |
+| 고친 탭을 닫으면 저장 여부를 묻는다 | 같음 | ✅ |
+| 탭을 창 밖으로 끌어 분리 | 탭 메뉴 [새 창으로 분리] (끌기는 아직) | ➕ |
+| Home 탭 | 홈은 별도 창 | ➖ |
+
+## 텍스트 비교의 줄 바이트 패널 (BC의 16진수 줄)
+
+| BC | 우리 | 상태 |
+|---|---|---|
+| 아래쪽에 커서가 있는 행의 양쪽 줄을 16진수로 (다른 바이트는 칠함, 무시되는 바이트는 흐림) | 같음. 보기 메뉴·툴바 [줄의 바이트 보기]로 켜고 끈다 (설정에 남음) | ✅ |
+| 켜고 끄는 단축키 | ❓ 키 미확인 — 정해지면 적는다 | ❓ |
+| 끼어든 바이트가 있어도 뒤가 모두 다르게 보이지 않는다 | LCS로 짝짓는다 | ✅ |
+| 줄 끝(CR·LF)·BOM 바이트 | 글자색을 낮춰 CRLF와 LF가 한눈에 보인다 | ➕ |
+| 바이트를 고르고 복사하기 | 아직 (6단계 Hex 비교와 함께) | ➖ |
+
+## 텍스트 비교의 상태 표시줄·개요 막대
+
+| BC | 우리 | 상태 |
+|---|---|---|
+| 아래 상태 표시줄: "N difference section(s)" | 위 요약 + 아래에 현재 구간 위치 "구간 i / N" | ✅ |
+| 양쪽 칸의 줄:칸 | 같음 (채움 줄이면 —) | ✅ |
+| 줄 끝 종류 (UNIX·PC·MAC) | CRLF · LF · CR · 줄 끝 혼합 (읽은 파일 기준) | ✅ |
+| Insert / Overwrite 표시 | 삽입 / 덮어쓰기 | ✅ |
+| Load time | 읽은 시간 | ✅ |
+| 개요 막대 (차이 위치 지도, 눌러서 이동) | 세로 스크롤 막대를 대신한다 + 캐럿 위치 선 | ✅ |
+
+## 패널 머리글: 인코딩·줄 끝 바꾸기
+
+| BC | 우리 | 상태 |
+|---|---|---|
+| 머리글의 인코딩 드롭다운에서 다른 인코딩으로 다시 해석 | 머리글을 누르면 [인코딩 다시 열기] 하위 메뉴 (후보마다 깨진 곳 수·미리보기) | ✅ |
+| 머리글의 줄 끝(UNIX·PC·MAC) 바꾸기 | [저장할 줄 끝] CRLF · LF · CR — 바꾸면 그 쪽이 고친 상태가 되고 저장할 때 그 줄 끝으로 쓴다 | ✅ |
+| 저장 인코딩 바꾸기 (UTF-8 BOM 포함) | [저장할 인코딩] UTF-8 · UTF-8 BOM · UTF-16 LE/BE · CP949 · Shift-JIS · Latin-1 (손실이 생기면 저장 때 경고) | ✅ |
+| 머리글에 수정 시각·크기 | 머리글 둘째 줄 "2023-12-05 20:47:42   130,589 바이트" (디스크의 값 — 저장하면 새 값) | ✅ |
+
+## 파일 형식 드롭다운 (BC 머리글의 "Everything Else")
+
+| BC | 우리 | 상태 |
+|---|---|---|
+| 파일 형식을 골라 그 형식의 규칙(중요도·정렬 안 함·치환)과 문법 강조를 쓴다 | 툴바의 형식 드롭다운: [자동 (찾아낸 형식)] · 정책의 텍스트 형식들 · [일반 텍스트]. 고르면 그 정책 형식의 규칙으로 다시 비교하고 마스크의 문법으로 강조한다 (이 비교 창에만, 설정에 남기지 않는다) | ✅ |
+| 형식마다 한 칸씩 (좌우 따로) | 비교 하나에 형식 하나 (양쪽이 같은 규칙으로 비교되므로) | ➖ |
+| 형식 목록 편집 (Rules and Formatting) | 정책 편집 화면(5단계)에서 | ➖ |
+
+## 세션 (BC Sessions)
+
+| BC | 우리 | 상태 |
+|---|---|---|
+| Session > Save Session (이름을 붙여 저장) | 명령 메뉴 [세션 저장…] (파일·폴더 비교 창 모두). 이름이 같으면 바꿀지 묻는다. 키는 BC의 `Shift+Ctrl+S`가 우리 [모두 저장]과 겹쳐서 정하지 않았다 | ✅ (키 ❓) |
+| 세션에 저장되는 것: 경로, 이름 필터(포함·제외), 보기 필터, 형식·규칙 설정 | 창의 탭 전부(+ 보던 탭), 폴더 비교의 이름 필터·보기 필터·[항상 폴더 보이기], 파일 비교의 보기 필터·문맥 줄 수·중요하지 않은 차이 무시·고정한 파일 형식 | ✅ |
+| 홈의 Saved Sessions (열기·이름 바꾸기·지우기) | 홈 창 [저장한 세션]: 누르면 열고, 우클릭 [이름 바꾸기]·[지우기], 줄 끝의 ×로 지우기 | ✅ |
+| 앱을 다시 켜면 열려 있던 세션 복원 | 앱을 끌 때 열려 있던 비교 창을 적어 두고 홈의 [이전에 열려 있던 창 복원 (N)]이 다시 연다 (자동으로 열지는 않는다 — git difftool 같은 실행에서 방해되지 않게) | ✅ |
+| 세션 파일 (.bcss) 가져오기·내보내기 | 아직 | ➖ |
+| 세션에 비교 정책 덮어쓰기(Session Settings) 저장 | 정책 편집 화면(9단계)과 함께 | ➖ |
+
+## Hex 비교 (5단계, BC Hex Compare)
+
+| BC | 우리 | 상태 |
+|---|---|---|
+| 좌우 두 패널에 오프셋·16진수·문자, 다른 바이트를 칠함 | 같음. 같은 위치의 반대쪽 바이트와 비교해 칠한다. 한쪽에만 있는 구간의 반대쪽은 채움 줄 | ✅ |
+| Next / Previous Difference Bytes | `Ctrl+N` / `Ctrl+P` (F8·Alt+↑↓도), 툴바 ▲▼ | ✅ |
+| Go To (바이트) | `Ctrl+G` — `0x1A2B`는 16진수, 아니면 10진수 (왼쪽 파일 기준) | ✅ |
+| 현재 바이트 주소, 리틀/빅 엔디언 값 | 아래 상태 표시줄: 양쪽 위치·값·LE/BE 16·32비트 | ✅ |
+| 삽입된 바이트를 맞춤 (Insertions 정렬) | 툴바 [고정 위치 / 삽입 감지]. 정책 `binary.align`이 기본 — 롤링 해시로 다시 맞춘다 | ✅ |
+| 무시 구간 (헤더의 타임스탬프 등) | 정책 `binary.ignoreRanges` — 양쪽을 같게 가려 비교하고 화면에서는 흐리게 | ✅ |
+| 텍스트가 아닌 파일은 Hex 비교로 열림 | NUL이 있거나 텍스트로 열기에 너무 크거나 정책이 `binary`로 정한 파일은 같은 자리의 탭이 바이너리 비교로 바뀐다 | ✅ |
+| 보기 Show All / Differences / Same | 아직 | ➖ |
+| Copy to Right / Left / Other Side (고른 바이트), 바이트 고르기 | 아직 — 읽기 전용 (파일 전체 복사는 만들지 않는다) | ➖ |
+| Find / Replace (바이트·문자열) | 아직 | ➖ |
+| 나란히 / 위아래 | 아직 (나란히만) | ➖ |
+| 행 맞춤 | 구간(같은·다른 덩어리)마다 그 구간의 시작에서 16바이트씩 자른다 — BC처럼 16바이트 경계에 맞추지는 않는다 | ➕ |
+
+## 펌웨어 파일 변환 (BC의 File Format > Conversion)
+
+| BC | 우리 | 상태 |
+|---|---|---|
+| Intel HEX·S-Record를 바이너리로 풀어 비교 (BC 변환기 `.hex`·`.s19`) | 정책 형식의 `converter: "builtin:ihex-to-bin"`·`"builtin:srec-to-bin"` (내장 정책의 `*.hex`·`*.s19` 등). 줄마다 체크섬을 보고 틀린 줄은 건너뛰며 경고, 주소 사이의 빈틈은 `binary.fill`(기본 0xFF)로 채운다 | ✅ |
+| 시작 주소가 다른 두 파일 | 둘 다 풀면 합친 주소 범위로 맞춰 주소끼리 비교한다 | ✅ |
+| 오프셋 칸·위치 이동 | 풀었으면 주소로 보이고(`0x08000000…`) `Ctrl+G`도 주소로 | ✅ |
+| 외부 명령 변환기 (`{"command": …}`) | 아직 — 정책에는 적을 수 있지만 바이너리 비교는 내장 변환만 쓴다 | ➖ |
+
+## 그림 비교 (BC의 Picture Compare)
+
+| BC | 우리 | 상태 |
+|---|---|---|
+| 그림 파일(png·jpg·bmp·gif·webp·ico)은 Picture Compare로 열림 | 정책 형식 `images`의 `view: "image"` — 텍스트 비교 탭이 같은 자리에서 그림 비교로 바뀐다 (`*.bin`과 같은 길) | ✅ |
+| Side-by-side (함께 확대·이동) | `나란히` — 두 그림판이 같은 배율·위치를 따른다, 차이 묶음에 테두리 | ✅ |
+| Difference | `차이` — 다른 픽셀을 붉게, 나머지는 흐리게 | ✅ |
+| Overlay (섞는 정도) | `겹치기` — 슬라이더로 오른쪽 그림의 투명도 | ✅ |
+| Blink | `깜빡이기` — 0.6초마다 번갈아 | ✅ |
+| Tolerance (허용 오차) | 도구 모음의 `허용 오차` (0~255, 색 채널 하나당). 기본값은 정책 `image.tolerance` | ✅ |
+| 투명도 무시 | `맞춤` 메뉴의 `투명도 무시` (정책 `image.ignoreAlpha`) | ✅ |
+| 크기가 다른 그림 | `왼쪽 위 맞춤`·`가운데 맞춤`·`크기 맞춤`(오른쪽을 왼쪽 크기에 늘임). 기본값은 정책 `image.align`. 한쪽에만 있는 칸은 "다름" | ✅ |
+| 다른 비율 한도 | 정책 `image.maxDiffPercent` 이하면 "같게 본다"고 알림 | ✅ |
+| 다음·이전 차이 | `Ctrl+N` / `Ctrl+P` · `F8` / `Shift+F8` · `Alt+↓` / `Alt+↑` (다른 픽셀이 모인 곳 단위) | ✅ (키는 텍스트·바이너리와 같게) |
+| 확대·축소·이동 | 휠(포인터 기준)·끌기·`+`/`-`·`Ctrl+0` 맞춤·`Ctrl+1` 100%·두 번 누르면 맞춤↔100%·방향키 | ❓ BC 키 확인 필요 |
+| 포인터 아래 픽셀의 좌표와 색 | 상태 표시줄에 양쪽 `(x, y)  #AARRGGBB` | ✅ |
+| 이미지 가장자리 EXIF 회전 | 아직 — 파일에 적힌 방향은 반영하지 않는다 | ➖ |
+| 영역 선택·복사, 눈금자·눈금 격자 | 아직 | ➖ |
+
+- 그림 비교는 **읽기 전용**이다 (파일 전체를 복사·합치지 않는다는 규칙).
+- 비교는 BGRA 직선 알파로 하고, 양쪽이 완전히 투명한 픽셀은 색이 달라도 같다고 본다.
+- 한계: 도화지(두 그림을 놓은 넓이)가 1억 5천만 픽셀을 넘으면 비교하지 않는다. 차이 마스크 그림은 차이 보기를 처음 켤 때 만든다.
+- 원격·압축 안의 그림 파일도 열린다(바이트를 모두 읽어서 푼다, 최대 256MB).
+

@@ -176,7 +176,7 @@ sealed class RowNumberMargin(DiffViewState state, bool left) : AbstractMargin
         dc.FillRectangle(Brushes.Transparent, new Rect(Bounds.Size));
         var textView = TextView;
         if (textView is null || !textView.VisualLinesValid) return;
-        var numberBrush = DiffViewState.Brush("AppTextMid") ?? Brushes.Gray;
+        var numberBrush = DiffViewState.Brush("AppEdMid") ?? DiffViewState.Brush("AppTextMid") ?? Brushes.Gray;
         var markerBrush = DiffViewState.Brush("AppDiffMarker") ?? Brushes.Gray;
         var markerX = Bounds.Width - 12;
         foreach (var vl in textView.VisualLines)
@@ -227,6 +227,14 @@ sealed class OverviewBar : Control
 
     double _grab;
     bool _dragging;
+
+    int? _caretRow;
+    /// <summary>캐럿이 있는 행 — 지도에 가는 선으로 표시한다 (지금 어디 있는지).</summary>
+    public int? CaretRow
+    {
+        get => _caretRow;
+        set { if (_caretRow == value) return; _caretRow = value; InvalidateVisual(); }
+    }
 
     public OverviewBar()
     {
@@ -280,6 +288,9 @@ sealed class OverviewBar : Control
             var y = range.StartRow / total * h;
             dc.FillRectangle(brush, new Rect(x, y, width, Math.Max(5, range.RowCount / total * h)));
         }
+
+        if (CaretRow is { } caret && caret >= 0 && caret < total && Solid("AppTextHi") is { } caretBrush)
+            dc.FillRectangle(caretBrush, new Rect(0, Math.Clamp(caret / total * h - 1, 0, h - 2), w, 2));
 
         // 손잡이 테두리는 맨 위에 — 보이는 범위가 어디인지 분명하게.
         dc.DrawRectangle(null, new Pen(mid, 1.5), thumb.Deflate(0.75), 3, 3);

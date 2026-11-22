@@ -38,6 +38,75 @@ public interface IAppStrings
     // 비교 창 · 홈 창 고르기 · 끌어다 놓기
     string CompareWindowTitle(string left, string right);
     string CompareSwap { get; }
+    string CompareFormatTooltip { get; }
+    string CompareFormatLineBreak { get; }
+    string CompareFormatSaveEncoding { get; }
+    string CompareFormatMenuTooltip { get; }
+    string CompareFormatPlain { get; }
+    string CompareFormatAuto(string name);
+    string CompareHeaderInfo(DateTime modifiedLocal, long length);
+    string CompareShowBytes { get; }
+    string CompareSectionPosition(int index, int count);
+    string CompareSectionCount(int count);
+    string CompareLineBreakMixed { get; }
+    string CompareInsertMode { get; }
+    string CompareOverwriteMode { get; }
+    string CompareLoadTime(double seconds);
+    string CompareBytesNoLine { get; }
+    string SessionSaveMenu { get; }
+    string SessionSaveTitle { get; }
+    string SessionNamePrompt { get; }
+    string SessionOverwrite { get; }
+    string SessionOverwriteBody(string name);
+    string SessionSaved(string name);
+    string SessionRenameTitle { get; }
+    string SessionRename { get; }
+    string SessionDelete { get; }
+    string SessionNameTaken { get; }
+    string SessionTabs(int count);
+    string SessionMissing(string path);
+    string HomeSessionsTitle { get; }
+    string HomeRestoreWindows(int count);
+    string BinaryAlignFixed { get; }
+    string BinaryAlignInsertions { get; }
+    string BinaryAlignTooltip { get; }
+    string BinaryGoTo { get; }
+    string BinaryGoToPrompt { get; }
+    string BinaryComparing { get; }
+    string BinaryEmptyFile { get; }
+    string BinaryDifferences(int count, long bytes);
+    string BinaryLengthDiffers(long left, long right);
+    string BinaryOpen { get; }
+    string BinaryConverted(string kind, long start, long end, int records, int warnings);
+    string BinaryConvertFailed(string error);
+    string ImageModeSideBySide { get; }
+    string ImageModeDifference { get; }
+    string ImageModeOverlay { get; }
+    string ImageModeBlink { get; }
+    string ImageModeTooltip { get; }
+    string ImageAlignTopLeft { get; }
+    string ImageAlignCenter { get; }
+    string ImageAlignFit { get; }
+    string ImageAlignTooltip { get; }
+    string ImageToleranceLabel { get; }
+    string ImageToleranceTooltip { get; }
+    string ImageIgnoreAlpha { get; }
+    string ImageOverlayTooltip { get; }
+    string ImageZoomFit { get; }
+    string ImageZoomActual { get; }
+    string ImageZoomFitTooltip { get; }
+    string ImageZoomActualTooltip { get; }
+    string ImageComparing { get; }
+    string ImageTooLarge { get; }
+    string ImageDecodeFailed(string error);
+    string ImageDifferences(long pixels, double percent);
+    string ImageSizeInfo(int width, int height);
+    string ImageSizesDiffer(int lw, int lh, int rw, int rh);
+    string ImageWithinLimit(double percent, double limit);
+    string ImagePixel(string side, int x, int y, string color);
+    string TabClose { get; }
+    string TabCloseOthers { get; }
+    string TabDetach { get; }
     string CompareOpen { get; }
     string CompareOpenLeftTitle { get; }
     string CompareOpenRightTitle { get; }
@@ -91,6 +160,14 @@ public interface IAppStrings
     string FolderViewFilterTooltip { get; }
     string FolderMenuActions { get; }
     string FolderOpen { get; }
+    string FolderUpLevel { get; }
+    string FolderNavBack { get; }
+    string FolderNavForward { get; }
+    string FolderCannotGoUp { get; }
+    string FolderCompareNow { get; }
+    string FolderFilterExcludeItem { get; }
+    string FolderFilterIncludeItem { get; }
+    string FolderCompareNeedBoth { get; }
     string FolderDelete { get; }
     string FolderDeleteLeft { get; }
     string FolderDeleteRight { get; }
@@ -136,6 +213,23 @@ public interface IAppStrings
     string CompareIgnoreUnimportant { get; }
     string CompareViewFilterTooltip { get; }
     string CompareCommandsTooltip { get; }
+    string ToolLabelIgnore { get; }
+    string ToolLabelBytes { get; }
+    string ToolLabelCopyLeft { get; }
+    string ToolLabelCopyRight { get; }
+    string ToolLabelPrevDiff { get; }
+    string ToolLabelNextDiff { get; }
+    string ToolLabelSwap { get; }
+    string ToolLabelRefresh { get; }
+    string ToolLabelSession { get; }
+    string ToolLabelFind { get; }
+    string ToolLabelCommands { get; }
+    string ToolLabelSettings { get; }
+    string ToolLabelAbout { get; }
+    string ToolLabelExpand { get; }
+    string ToolLabelCollapse { get; }
+    string ToolLabelBack { get; }
+    string ToolLabelForward { get; }
     string CompareReload { get; }
     string CompareRecompareNow { get; }
     string CompareShowAll { get; }
@@ -231,6 +325,9 @@ public interface IAppStrings
     /// <summary>설정 "편집기 글꼴" (고정폭 글꼴만).</summary>
     string SettingsEditorFont { get; }
     string SettingsEditorFontHint { get; }
+    string SettingsEditorScheme { get; }
+    string SettingsEditorSchemeHint { get; }
+    string EditorSchemeFollowApp { get; }
     string SettingsFontSize { get; }
     string SettingsFontSizeHint { get; }
     string SettingsLanguage { get; }

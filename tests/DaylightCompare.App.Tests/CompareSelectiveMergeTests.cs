@@ -63,7 +63,7 @@ public sealed class CompareSelectiveMergeTests : IDisposable
     [AvaloniaFact]
     public async Task 줄_번호를_눌러_고르면_양쪽이_틀로_감싸이고_그_줄만_복사된다()
     {
-        var w = CompareWindow.Open(null, Write("l.txt", "a\nL1\nL2\nL3\nz\n"), Write("r.txt", "a\nR1\nR2\nR3\nz\n"));
+        var w = CompareView.Open(null, Write("l.txt", "a\nL1\nL2\nL3\nz\n"), Write("r.txt", "a\nR1\nR2\nR3\nz\n"));
         await Settle();
         var (l, r) = Editors(w);
         Assert.False(Arrow(w, "→").IsVisible); // 고르기 전에는 → 도 ← 도 없다
@@ -88,7 +88,7 @@ public sealed class CompareSelectiveMergeTests : IDisposable
     [AvaloniaFact]
     public async Task 글을_끌어_고른_여러_줄만_복사하고_되돌리면_원래대로다()
     {
-        var w = CompareWindow.Open(null, Write("l2.txt", "h\nL1\nL2\nL3\nt\n"), Write("r2.txt", "h\nR1\nR2\nR3\nt\n"));
+        var w = CompareView.Open(null, Write("l2.txt", "h\nL1\nL2\nL3\nt\n"), Write("r2.txt", "h\nR1\nR2\nR3\nt\n"));
         await Settle();
         var (l, r) = Editors(w);
 
@@ -112,7 +112,7 @@ public sealed class CompareSelectiveMergeTests : IDisposable
     [AvaloniaFact]
     public async Task 파일_내용이_전부_달라도_전체를_고르면_복사하지_않는다()
     {
-        var w = CompareWindow.Open(null, Write("l3.txt", "1\n2\n3\n"), Write("r3.txt", "a\nb\nc\n"));
+        var w = CompareView.Open(null, Write("l3.txt", "1\n2\n3\n"), Write("r3.txt", "a\nb\nc\n"));
         await Settle();
         var (l, r) = Editors(w);
 
@@ -139,7 +139,7 @@ public sealed class CompareSelectiveMergeTests : IDisposable
     [AvaloniaFact]
     public async Task 고르지_않고_복사_키를_누르면_아무것도_바뀌지_않는다()
     {
-        var w = CompareWindow.Open(null, Write("l4.txt", "a\nL\nz\n"), Write("r4.txt", "a\nR\nz\n"));
+        var w = CompareView.Open(null, Write("l4.txt", "a\nL\nz\n"), Write("r4.txt", "a\nR\nz\n"));
         await Settle();
         var (_, r) = Editors(w);
         Press(w, PhysicalKey.R, RawInputModifiers.Control);
@@ -154,7 +154,7 @@ public sealed class CompareSelectiveMergeTests : IDisposable
     [AvaloniaFact]
     public async Task Esc는_고른_범위를_풀고_틀과_단추를_지운다()
     {
-        var w = CompareWindow.Open(null, Write("l5.txt", "a\nL1\nL2\nz\n"), Write("r5.txt", "a\nR1\nR2\nz\n"));
+        var w = CompareView.Open(null, Write("l5.txt", "a\nL1\nL2\nz\n"), Write("r5.txt", "a\nR1\nR2\nz\n"));
         await Settle();
         var (l, _) = Editors(w);
         var one = l.Document.GetLineByNumber(2);
@@ -215,7 +215,7 @@ public sealed class CompareMergeAbsenceTests : IDisposable
     public async Task 채움_줄의_줄_번호_자리를_눌러_고르고_맞은편의_빈_줄을_없앤다()
     {
         // 왼쪽에는 없는 줄 / 오른쪽에는 빈 줄 (행 2)
-        var w = CompareWindow.Open(null, Write("l.txt", "a\nz\n"), Write("r.txt", "a\n\nz\n"));
+        var w = CompareView.Open(null, Write("l.txt", "a\nz\n"), Write("r.txt", "a\n\nz\n"));
         await Settle();
         var (l, r) = Editors(w);
         Assert.Equal("a\n\nz", l.Document.Text); // 화면에서는 왼쪽 행 2가 채움 줄
@@ -240,7 +240,7 @@ public sealed class CompareMergeAbsenceTests : IDisposable
     [AvaloniaFact]
     public async Task 채움_줄_자체를_눌러도_그_행이_골라진다()
     {
-        var w = CompareWindow.Open(null, Write("l2.txt", "a\nz\n"), Write("r2.txt", "a\n\nz\n"));
+        var w = CompareView.Open(null, Write("l2.txt", "a\nz\n"), Write("r2.txt", "a\n\nz\n"));
         await Settle();
         var (l, r) = Editors(w);
 
@@ -259,7 +259,7 @@ public sealed class CompareMergeAbsenceTests : IDisposable
     [AvaloniaFact]
     public async Task 반대_방향도_된다_오른쪽의_없는_줄로_왼쪽의_빈_줄을_없앤다()
     {
-        var w = CompareWindow.Open(null, Write("l3.txt", "a\n\nz\n"), Write("r3.txt", "a\nz\n"));
+        var w = CompareView.Open(null, Write("l3.txt", "a\n\nz\n"), Write("r3.txt", "a\nz\n"));
         await Settle();
         var (l, r) = Editors(w);
         var p = Inside(w, r, 200, LineY(r, 2));
