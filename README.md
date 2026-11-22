@@ -35,7 +35,7 @@ C#과 [Avalonia](https://avaloniaui.net)로 만들고 **.NET 10 NativeAOT**로 �
 
 | OS | 받을 파일 |
 | --- | --- |
-| Windows 10/11 (x64) | `*-windows-x64-setup.exe` (설치) 또는 `*-windows-x64.zip` (설치 없이 실행) |
+| Windows 10/11 (x64) | `*-windows-x64-setup.exe` (설치) |
 | macOS 11+ (Apple Silicon) | `*-macos-arm64.dmg` (1.0.0부터) |
 | Linux (x64) | `*-linux-x64.tar.gz` |
 
